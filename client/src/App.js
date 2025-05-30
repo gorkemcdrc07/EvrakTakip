@@ -5,7 +5,7 @@ import Login from './Login';
 import Anasayfa from './Anasayfa';
 import Lokasyonlar from './Lokasyonlar';
 import Projeler from './Projeler';
-import EvrakEkle from './EvrakEkle'; // ✅ Bu satırı ekle
+import TopluEvraklar from './TopluEvraklar'; // ✅ YENİ EKLENDİ
 
 function App() {
     return (
@@ -16,7 +16,7 @@ function App() {
                 <Route path="/anasayfa" element={<Anasayfa />} />
                 <Route path="/lokasyonlar" element={<Lokasyonlar />} />
                 <Route path="/projeler" element={<Projeler />} />
-                <Route path="/evrak-ekle" element={<EvrakEkle />} /> {/* ✅ Bu satır yeni */}
+                <Route path="/toplu-evraklar" element={<TopluEvraklar />} /> {/* ✅ YENİ */}
             </Routes>
         </Router>
     );

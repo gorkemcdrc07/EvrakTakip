@@ -8,11 +8,14 @@
     "server": "cd server && node index.js",
     "client": "cd client && npm start"
   },
-
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "concurrently": "^8.2.0"
+  },
+  "dependencies": {
+    "date-fns": "^2.29.3",
+    "recharts": "^2.15.3"
   }
 }

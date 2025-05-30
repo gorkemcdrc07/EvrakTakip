@@ -24,10 +24,11 @@ function Anasayfa() {
             <div className={`sidebar ${menuOpen ? 'open' : ''}`}>
                 <button className="close-btn" onClick={toggleMenu}>✖</button>
 
-                {/* Yeni sekmede açılan butonlar */}
+                {/* Menü Butonları */}
                 <button onClick={() => window.open('/lokasyonlar', '_blank')}>📍 Lokasyonlar</button>
                 <button onClick={() => window.open('/projeler', '_blank')}>📁 Projeler</button>
                 <button onClick={() => window.open('/evrak-ekle', '_blank')}>📄 Evrak Ekle</button>
+                <button onClick={() => window.open('/toplu-evraklar', '_blank')}>📄 Tüm Evraklar</button> {/* Yeni Buton */}
             </div>
 
             {/* Üst Menü */}
