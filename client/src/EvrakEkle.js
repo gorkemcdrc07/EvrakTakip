@@ -7,8 +7,7 @@ function EvrakEkle() {
     const [form, setForm] = useState({
         tarih: '',
         lokasyonid: '',
-        projeid: '',
-        sefersayisi: '',
+        projeler: [{ projeid: '', sefersayisi: '' }],
         seferler: [{ seferno: '', aciklama: '' }]
     });
     const [mesaj, setMesaj] = useState('');
@@ -29,39 +28,46 @@ function EvrakEkle() {
         setForm({ ...form, [e.target.name]: e.target.value });
     };
 
+    const handleProjeChange = (index, field, value) => {
+        const updated = [...form.projeler];
+        updated[index][field] = value;
+        setForm({ ...form, projeler: updated });
+    };
+
+    const handleProjeEkle = () => {
+        setForm({ ...form, projeler: [...form.projeler, { projeid: '', sefersayisi: '' }] });
+    };
+
     const handleSeferChange = (index, field, value) => {
-        const yeniSeferler = [...form.seferler];
-        yeniSeferler[index][field] = value;
-        setForm({ ...form, seferler: yeniSeferler });
+        const updated = [...form.seferler];
+        updated[index][field] = value;
+        setForm({ ...form, seferler: updated });
     };
 
     const handleSeferEkle = () => {
-        setForm({
-            ...form,
-            seferler: [...form.seferler, { seferno: '', aciklama: '' }]
-        });
+        setForm({ ...form, seferler: [...form.seferler, { seferno: '', aciklama: '' }] });
     };
+
+    const toplamSeferSayisi = form.projeler.reduce(
+        (sum, p) => sum + Number(p.sefersayisi || 0), 0
+    );
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // 1. Ana evrak kaydı ekleniyor
         const { data: evrakData, error: evrakError } = await supabase
             .from('evraklar')
             .insert([{
                 tarih: form.tarih,
                 lokasyonid: parseInt(form.lokasyonid, 10),
-                projeid: parseInt(form.projeid, 10),
-                sefersayisi: parseInt(form.sefersayisi, 10)
+                sefersayisi: toplamSeferSayisi
             }]);
 
         if (evrakError) {
-            console.error('❌ Evrak eklenemedi:', evrakError);
             setMesaj('❌ Evrak eklenemedi.');
             return;
         }
 
-        // ID'yi almak için ikinci sorguya gerek varsa (örnek: unique tarih+lokasyon+proje yoksa)
         const { data: yeniEvrak } = await supabase
             .from('evraklar')
             .select('id')
@@ -70,27 +76,34 @@ function EvrakEkle() {
 
         const evrakId = yeniEvrak?.[0]?.id;
 
-        // 2. Sefer kayıtları
-        const seferPayload = form.seferler.map(sefer => ({
+        const projeSeferKayitlari = form.projeler.map(p => ({
             evrakid: evrakId,
-            seferno: sefer.seferno,
-            aciklama: sefer.aciklama
+            projeid: parseInt(p.projeid),
+            sefersayisi: parseInt(p.sefersayisi)
         }));
 
-        const { error: seferError } = await supabase
-            .from('evrakseferler')
-            .insert(seferPayload);
+        const seferKayitlari = form.seferler.map(s => ({
+            evrakid: evrakId,
+            seferno: s.seferno,
+            aciklama: s.aciklama
+        }));
 
-        if (seferError) {
-            console.error('❌ Sefer kayıtları eklenemedi:', seferError);
-            setMesaj('❌ Sefer kayıtları eklenemedi.');
+        const { error: seferError1 } = await supabase
+            .from('evrakseferler')
+            .insert(seferKayitlari);
+
+        const { error: seferError2 } = await supabase
+            .from('evrakproje')
+            .insert(projeSeferKayitlari);
+
+        if (seferError1 || seferError2) {
+            setMesaj('❌ Sefer veya proje kayıtları eklenemedi.');
         } else {
-            setMesaj('✅ Evrak ve sefer kayıtları başarıyla eklendi.');
+            setMesaj('✅ Başarıyla eklendi.');
             setForm({
                 tarih: '',
                 lokasyonid: '',
-                projeid: '',
-                sefersayisi: '',
+                projeler: [{ projeid: '', sefersayisi: '' }],
                 seferler: [{ seferno: '', aciklama: '' }]
             });
         }
@@ -100,125 +113,121 @@ function EvrakEkle() {
 
     return (
         <div style={containerStyle}>
-            <h2 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>📄 Evrak Ekle</h2>
+            <h2 style={{ textAlign: 'center' }}>📄 Evrak Ekle</h2>
 
             {mesaj && (
                 <div style={{
-                    backgroundColor: mesaj.startsWith('✅') ? '#e0fce0' : '#ffe0e0',
+                    backgroundColor: mesaj.includes('✅') ? '#dcfce7' : '#fee2e2',
                     padding: '10px',
                     borderRadius: '8px',
-                    color: mesaj.startsWith('✅') ? '#106b21' : '#a30000',
+                    color: mesaj.includes('✅') ? '#065f46' : '#991b1b',
                     marginBottom: '1rem',
-                    textAlign: 'center',
-                    fontWeight: 'bold'
-                }}>{mesaj}</div>
+                    textAlign: 'center'
+                }}>
+                    {mesaj}
+                </div>
             )}
 
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-                <div>
-                    <label>TARİH</label>
-                    <input type="date" name="tarih" value={form.tarih} onChange={handleChange} required style={inputStyle} />
-                </div>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <label>TARİH</label>
+                <input type="date" name="tarih" value={form.tarih} onChange={handleChange} required style={inputStyle} />
 
-                <div>
-                    <label>LOKASYON</label>
-                    <select name="lokasyonid" value={form.lokasyonid} onChange={handleChange} required style={inputStyle}>
-                        <option value="">Seçiniz</option>
-                        {lokasyonlar.map(loc => (
-                            <option key={loc.id} value={loc.id}>{loc.lokasyon}</option>
-                        ))}
-                    </select>
-                </div>
+                <label>LOKASYON</label>
+                <select name="lokasyonid" value={form.lokasyonid} onChange={handleChange} required style={inputStyle}>
+                    <option value="">Seçiniz</option>
+                    {lokasyonlar.map(l => <option key={l.id} value={l.id}>{l.lokasyon}</option>)}
+                </select>
 
-                <div>
-                    <label>PROJE</label>
-                    <select name="projeid" value={form.projeid} onChange={handleChange} required style={inputStyle}>
-                        <option value="">Seçiniz</option>
-                        {projeler.map(proj => (
-                            <option key={proj.id} value={proj.id}>{proj.proje}</option>
-                        ))}
-                    </select>
-                </div>
-
-                <div>
-                    <label>TOPLAM SEFER SAYISI</label>
-                    <input
-                        type="number"
-                        min="1"
-                        name="sefersayisi"
-                        value={form.sefersayisi}
-                        onChange={handleChange}
-                        required
-                        style={inputStyle}
-                    />
-                    <p style={{ fontSize: '0.9rem', color: '#555', fontStyle: 'italic', marginTop: '0.3rem' }}>
-                        Bu lokasyon + proje için toplam kaç sefer yapıldı?
-                    </p>
-                </div>
-
-                {form.seferler.map((sefer, index) => (
-                    <div key={index} style={{ border: '1px solid #ddd', padding: '1rem', borderRadius: '8px' }}>
-                        <label>SEFER NO #{index + 1}</label>
+                <label>PROJELER & SEFER SAYILARI</label>
+                {form.projeler.map((p, i) => (
+                    <div key={i} style={projeStyle}>
+                        <select value={p.projeid} onChange={e => handleProjeChange(i, 'projeid', e.target.value)} style={inputStyle}>
+                            <option value="">Proje Seçiniz</option>
+                            {projeler.map(pr => <option key={pr.id} value={pr.id}>{pr.proje}</option>)}
+                        </select>
                         <input
-                            type="text"
-                            value={sefer.seferno}
-                            onChange={(e) => handleSeferChange(index, 'seferno', e.target.value)}
-                            required
+                            type="number"
+                            placeholder="Sefer Sayısı"
+                            value={p.sefersayisi}
+                            onChange={e => handleProjeChange(i, 'sefersayisi', e.target.value)}
                             style={inputStyle}
                         />
+                    </div>
+                ))}
+                <button type="button" onClick={handleProjeEkle} style={ekleButonu}>➕ Proje Ekle</button>
 
-                        <label>AÇIKLAMA</label>
-                        <select
-                            value={sefer.aciklama}
-                            onChange={(e) => handleSeferChange(index, 'aciklama', e.target.value)}
-                            required
-                            style={inputStyle}
-                        >
-                            <option value="">Seçiniz</option>
+                <label>TOPLAM SEFER SAYISI</label>
+                <input type="number" value={toplamSeferSayisi} readOnly style={{ ...inputStyle, background: '#f3f4f6' }} />
+
+                <label>SEFER DETAYLARI</label>
+                {form.seferler.map((s, i) => (
+                    <div key={i} style={seferStyle}>
+                        <input placeholder="Sefer No" value={s.seferno} onChange={e => handleSeferChange(i, 'seferno', e.target.value)} style={inputStyle} />
+                        <select value={s.aciklama} onChange={e => handleSeferChange(i, 'aciklama', e.target.value)} style={inputStyle}>
+                            <option value="">Açıklama Seçiniz</option>
                             <option value="TARAFIMIZCA DÜZELTİLMİŞTİR">TARAFIMIZCA DÜZELTİLMİŞTİR</option>
                             <option value="TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR">TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR</option>
                         </select>
                     </div>
                 ))}
+                <button type="button" onClick={handleSeferEkle} style={ekleButonu}>➕ Sefer Ekle</button>
 
-                <button type="button" onClick={handleSeferEkle} style={{ ...submitButtonStyle, backgroundColor: '#10b981' }}>
-                    ➕ Sefer Ekle
-                </button>
-
-                <button type="submit" style={submitButtonStyle}>📤 Kaydet</button>
+                <button type="submit" style={submitButton}>📤 Kaydet</button>
             </form>
         </div>
     );
 }
 
 const containerStyle = {
-    maxWidth: '650px',
-    margin: '3rem auto',
-    background: '#f9fafb',
+    maxWidth: '700px',
+    margin: '2rem auto',
+    background: '#fff',
     padding: '2rem',
-    borderRadius: '12px',
-    boxShadow: '0 4px 10px rgba(0, 0, 0, 0.1)',
-    fontFamily: 'Arial, sans-serif'
+    borderRadius: '10px',
+    boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+    fontFamily: 'Arial'
 };
 
 const inputStyle = {
-    width: '100%',
     padding: '0.5rem',
-    border: '1px solid #ccc',
     borderRadius: '6px',
-    marginTop: '0.3rem',
-    fontSize: '1rem'
+    border: '1px solid #ccc',
+    width: '100%',
+    marginTop: '0.3rem'
 };
 
-const submitButtonStyle = {
-    backgroundColor: '#3b82f6',
+const projeStyle = {
+    display: 'flex',
+    gap: '1rem',
+    marginBottom: '0.5rem'
+};
+
+const seferStyle = {
+    border: '1px solid #e5e7eb',
+    padding: '1rem',
+    borderRadius: '8px',
+    marginBottom: '1rem'
+};
+
+const ekleButonu = {
+    backgroundColor: '#6366f1',
+    color: 'white',
+    padding: '0.6rem 1rem',
+    borderRadius: '6px',
+    border: 'none',
+    cursor: 'pointer',
+    fontWeight: 'bold'
+};
+
+const submitButton = {
+    backgroundColor: '#10b981',
     color: 'white',
     padding: '0.8rem',
     border: 'none',
     borderRadius: '8px',
     fontWeight: 'bold',
     cursor: 'pointer',
-    transition: 'background-color 0.2s'
+    marginTop: '1rem'
 };
 
 export default EvrakEkle;
