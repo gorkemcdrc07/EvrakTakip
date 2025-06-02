@@ -52,6 +52,59 @@ function EvrakEkle() {
         (sum, p) => sum + Number(p.sefersayisi || 0), 0
     );
 
+    const handlePaste = (e) => {
+        const text = e.clipboardData.getData('Text');
+        const lines = text.trim().split('\n');
+        if (lines.length === 0) return;
+
+        const parsedProjeler = [];
+        const parsedSeferler = [];
+
+        let tarih = '';
+        let lokasyon = '';
+
+        for (let i = 0; i < lines.length; i++) {
+            const cells = lines[i].split('\t');
+            if (cells.length < 4) continue;
+
+            const [t, l, projeAd, seferSayisiRaw, , seferno, aciklama] = cells.map(c => c.trim());
+            const seferSayisi = parseInt(seferSayisiRaw) || 0;
+
+            if (i === 0) {
+                tarih = formatDate(t);
+                lokasyon = l;
+            }
+
+            const proje = projeler.find(p => p.proje === projeAd);
+            if (proje) {
+                parsedProjeler.push({ projeid: proje.id, sefersayisi: seferSayisi });
+            }
+
+            if (seferno && aciklama) {
+                parsedSeferler.push({ seferno, aciklama });
+            }
+        }
+
+        const lok = lokasyonlar.find(l => l.lokasyon === lokasyon);
+        if (!tarih || !lok) return;
+
+        setForm({
+            tarih,
+            lokasyonid: lok.id,
+            projeler: parsedProjeler,
+            seferler: parsedSeferler.length ? parsedSeferler : [{ seferno: '', aciklama: '' }]
+        });
+    };
+
+    const formatDate = (value) => {
+        if (!value) return null;
+        if (typeof value === 'string' && value.includes('.')) {
+            const [gun, ay, yil] = value.split('.');
+            return `${yil}-${ay.padStart(2, '0')}-${gun.padStart(2, '0')}`;
+        }
+        return String(value);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -88,13 +141,8 @@ function EvrakEkle() {
             aciklama: s.aciklama
         }));
 
-        const { error: seferError1 } = await supabase
-            .from('evrakseferler')
-            .insert(seferKayitlari);
-
-        const { error: seferError2 } = await supabase
-            .from('evrakproje')
-            .insert(projeSeferKayitlari);
+        const { error: seferError1 } = await supabase.from('evrakseferler').insert(seferKayitlari);
+        const { error: seferError2 } = await supabase.from('evrakproje').insert(projeSeferKayitlari);
 
         if (seferError1 || seferError2) {
             setMesaj('❌ Sefer veya proje kayıtları eklenemedi.');
@@ -114,6 +162,8 @@ function EvrakEkle() {
     return (
         <div style={containerStyle}>
             <h2 style={{ textAlign: 'center' }}>📄 Evrak Ekle</h2>
+            <h4 style={{ marginTop: '1rem', color: '#1e3a8a' }}>🧠 Excel'den Veri Yapıştır</h4>
+
 
             {mesaj && (
                 <div style={{
@@ -127,6 +177,21 @@ function EvrakEkle() {
                     {mesaj}
                 </div>
             )}
+
+            <textarea
+                placeholder="Excel'den verileri buraya yapıştır"
+                onPaste={handlePaste}
+                style={{
+                    border: '1px dashed #ccc',
+                    padding: '10px',
+                    borderRadius: '8px',
+                    width: '100%',
+                    minHeight: '100px',
+                    marginBottom: '1rem',
+                    fontFamily: 'monospace',
+                    background: '#f9fafb'
+                }}
+            />
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <label>TARİH</label>
