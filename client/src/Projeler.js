@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
+import Layout from './components/Layout'; // yolunu projenin yapısına göre ayarla
 
 function Projeler() {
     const [projeler, setProjeler] = useState([]);
@@ -24,9 +25,7 @@ function Projeler() {
     const projeEkle = async () => {
         if (!yeniProje.trim()) return alert('Proje adı boş olamaz.');
 
-        const { error } = await supabase.from('projeler').insert([
-            { proje: yeniProje }
-        ]);
+        const { error } = await supabase.from('projeler').insert([{ proje: yeniProje }]);
 
         if (error) {
             console.error('Proje eklenemedi:', error.message);
@@ -57,93 +56,65 @@ function Projeler() {
     };
 
     return (
-        <div style={{ padding: '2rem', fontFamily: 'Arial, sans-serif' }}>
-            <h2>📁 Projeler</h2>
+        <Layout>
+            <div className="p-6 font-sans min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+                <h2 className="text-2xl font-semibold mb-4">📁 Projeler</h2>
 
-            {mesaj && (
-                <div style={{
-                    marginBottom: '1rem',
-                    padding: '10px',
-                    backgroundColor: '#f0fdf4',
-                    border: '1px solid #22c55e',
-                    borderRadius: '4px',
-                    color: '#166534'
-                }}>
-                    {mesaj}
+                {mesaj && (
+                    <div className="mb-4 p-3 border border-green-500 bg-green-100 dark:bg-green-800 dark:border-green-400 text-green-800 dark:text-green-100 rounded">
+                        {mesaj}
+                    </div>
+                )}
+
+                <div className="mb-4 flex gap-2">
+                    <input
+                        type="text"
+                        value={yeniProje}
+                        onChange={(e) => setYeniProje(e.target.value)}
+                        placeholder="Yeni proje adı girin..."
+                        className="flex-1 px-3 py-2 border rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-black dark:text-white"
+                    />
+                    <button
+                        onClick={projeEkle}
+                        className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+                    >
+                        ➕ Ekle
+                    </button>
                 </div>
-            )}
 
-            <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem' }}>
-                <input
-                    type="text"
-                    value={yeniProje}
-                    onChange={(e) => setYeniProje(e.target.value)}
-                    placeholder="Yeni proje adı girin..."
-                    style={{
-                        padding: '0.5rem',
-                        flex: 1,
-                        borderRadius: '4px',
-                        border: '1px solid #ccc'
-                    }}
-                />
-                <button
-                    onClick={projeEkle}
-                    style={{
-                        backgroundColor: '#10b981',
-                        color: 'white',
-                        padding: '0.5rem 1rem',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
-                    }}
-                >
-                    ➕ Ekle
-                </button>
+                {projeler.length === 0 ? (
+                    <p className="text-gray-600 dark:text-gray-300">Yükleniyor veya veri bulunamadı...</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full border border-gray-300 dark:border-gray-700">
+                            <thead>
+                                <tr className="bg-gray-200 dark:bg-gray-800">
+                                    <th className="text-left px-4 py-2">ID</th>
+                                    <th className="text-left px-4 py-2">Proje</th>
+                                    <th className="text-left px-4 py-2">İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {projeler.map((proje) => (
+                                    <tr key={proje.id} className="border-t border-gray-200 dark:border-gray-700">
+                                        <td className="px-4 py-2">{proje.id}</td>
+                                        <td className="px-4 py-2">{proje.proje}</td>
+                                        <td className="px-4 py-2">
+                                            <button
+                                                onClick={() => projeSil(proje.id)}
+                                                className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
+                                            >
+                                                🗑 Sil
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
-
-            {projeler.length === 0 ? (
-                <p>Yükleniyor veya veri bulunamadı...</p>
-            ) : (
-                <table
-                    style={{
-                        borderCollapse: 'collapse',
-                        width: '100%',
-                        border: '1px solid #ddd'
-                    }}
-                >
-                    <thead>
-                        <tr style={{ backgroundColor: '#f3f4f6' }}>
-                            <th style={{ padding: '10px', textAlign: 'left' }}>ID</th>
-                            <th style={{ padding: '10px', textAlign: 'left' }}>Proje</th>
-                            <th style={{ padding: '10px', textAlign: 'left' }}>İşlem</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {projeler.map((proje) => (
-                            <tr key={proje.id} style={{ borderBottom: '1px solid #eee' }}>
-                                <td style={{ padding: '10px' }}>{proje.id}</td>
-                                <td style={{ padding: '10px' }}>{proje.proje}</td>
-                                <td style={{ padding: '10px' }}>
-                                    <button
-                                        onClick={() => projeSil(proje.id)}
-                                        style={{
-                                            backgroundColor: '#ef4444',
-                                            color: 'white',
-                                            padding: '0.3rem 0.8rem',
-                                            border: 'none',
-                                            borderRadius: '4px',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        🗑 Sil
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            )}
-        </div>
+        </Layout>
     );
 }
 
