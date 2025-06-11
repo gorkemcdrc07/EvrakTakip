@@ -116,38 +116,60 @@ function TopluEvraklar() {
         const evrakId = selectedEvrak.id;
         const tarih = selectedEvrak.tarih;
         const lokasyonid = selectedEvrak.lokasyonid;
-        const toplamSefer = selectedEvrak.evrakproje.reduce((sum, p) => sum + Number(p.sefersayisi || 0), 0);
 
-        // 1. Evrak güncelle
-        await supabase.from('evraklar')
-            .update({ tarih, lokasyonid, sefersayisi: toplamSefer })
-            .eq('id', evrakId);
+        const evrakproje = Array.isArray(selectedEvrak.evrakproje)
+            ? selectedEvrak.evrakproje.filter(p => p.projeid && !isNaN(p.projeid))
+            : [];
 
-        // 2. Projeleri sil-yeniden ekle
-        await supabase.from('evrakproje').delete().eq('evrakid', evrakId);
-        await supabase.from('evrakproje').insert(
-            selectedEvrak.evrakproje.map(p => ({
-                evrakid: evrakId,
-                projeid: p.projeid,
-                sefersayisi: p.sefersayisi
-            }))
-        );
+        const toplamSefer = evrakproje.reduce((sum, p) => sum + Number(p.sefersayisi || 0), 0);
 
-        // 3. Seferleri sil-yeniden ekle
-        await supabase.from('evrakseferler').delete().eq('evrakid', evrakId);
-        await supabase.from('evrakseferler').insert(
-            selectedEvrak.evrakseferler.map(s => ({
-                evrakid: evrakId,
-                seferno: s.seferno,
-                aciklama: s.aciklama
-            }))
-        );
+        const evrakseferler = Array.isArray(selectedEvrak.evrakseferler)
+            ? selectedEvrak.evrakseferler.filter(s => s.seferno && s.aciklama)
+            : [];
 
-        // 4. Yeniden veri çek, modalı kapat
-        await fetchVeriler();
-        setShowEditModal(false);
-        setSelectedEvrak(null);
+        try {
+            // 1. Evrak güncelle
+            await supabase.from('evraklar')
+                .update({ tarih, lokasyonid, sefersayisi: toplamSefer })
+                .eq('id', evrakId);
+
+            // 2. Projeleri sil-yeniden ekle
+            await supabase.from('evrakproje').delete().eq('evrakid', evrakId);
+
+            if (evrakproje.length > 0) {
+                await supabase.from('evrakproje').insert(
+                    evrakproje.map(p => ({
+                        evrakid: evrakId,
+                        projeid: Number(p.projeid),
+                        sefersayisi: Number(p.sefersayisi || 0)
+                    }))
+                );
+            }
+
+            // 3. Seferleri sil-yeniden ekle
+            await supabase.from('evrakseferler').delete().eq('evrakid', evrakId);
+
+            if (evrakseferler.length > 0) {
+                await supabase.from('evrakseferler').insert(
+                    evrakseferler.map(s => ({
+                        evrakid: evrakId,
+                        seferno: s.seferno,
+                        aciklama: s.aciklama
+                    }))
+                );
+            }
+
+            // 4. Yeniden veri çek, modalı kapat
+            await fetchVeriler();
+            setShowEditModal(false);
+            setSelectedEvrak(null);
+
+        } catch (error) {
+            console.error("Evrak güncelleme hatası:", error);
+            alert("Güncelleme sırasında bir hata oluştu.");
+        }
     };
+
 
 
 
@@ -493,7 +515,7 @@ function TopluEvraklar() {
 
                             <button
                                 onClick={() => {
-                                    const newList = [...selectedEvrak.evrakproje, { projeid: '', sefersayisi: 0 }];
+                                    const newList = [...selectedEvrak.evrakproje, { projeid: Object.keys(projeler)[0] || '', sefersayisi: 0 }];
                                     const toplamSefer = newList.reduce(
                                         (sum, p) => sum + (parseInt(p.sefersayisi) || 0), 0
                                     );
