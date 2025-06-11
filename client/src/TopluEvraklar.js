@@ -6,7 +6,7 @@ import {
 import { FiFile } from 'react-icons/fi';
 import Layout from './components/Layout';
 import { saveAs } from 'file-saver';
-import * as XLSX from 'xlsx-style'; // ✅ doğru olan bu
+import * as XLSX from 'xlsx';
 
 
 
