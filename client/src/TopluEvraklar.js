@@ -3,9 +3,13 @@ import { supabase } from './supabaseClient';
 import {
     PieChart, Pie, Cell, Tooltip
 } from 'recharts';
-import * as XLSX from 'xlsx';
 import { FiFile } from 'react-icons/fi';
 import Layout from './components/Layout';
+import { saveAs } from 'file-saver';
+import * as XLSX from 'xlsx-style'; // ✅ doğru olan bu
+
+
+
 
 
 
@@ -347,6 +351,104 @@ function TopluEvraklar() {
 
         XLSX.writeFile(wb, 'Toplu_Evraklar_Rapor.xlsx');
     };
+const exportEvrakToExcel = (evrak) => {
+    const tarih = new Date(evrak.tarih).toLocaleDateString('tr-TR');
+    const lokasyon = lokasyonlar[evrak.lokasyonid] || 'Bilinmeyen Lokasyon';
+    const toplamSefer = evrak.sefersayisi || 0;
+
+    const sheetData = [];
+
+    // Genel Bilgi
+    sheetData.push(["TARİH", "LOKASYON", "TOPLAM SEFER"]);
+    sheetData.push([tarih, lokasyon, toplamSefer]);
+    sheetData.push([]);
+
+    // Projeler
+    sheetData.push(["PROJE", "SEFER SAYISI"]);
+    (evrak.evrakproje || []).forEach(p => {
+        const projeAd = projeler[p.projeid] || 'Bilinmeyen Proje';
+        sheetData.push([projeAd, p.sefersayisi]);
+    });
+    sheetData.push([]);
+
+    // Açıklama Özeti
+    const aciklamaSayaci = {};
+    (evrak.evrakseferler || []).forEach(s => {
+        const aciklama = s.aciklama || 'Bilinmeyen';
+        aciklamaSayaci[aciklama] = (aciklamaSayaci[aciklama] || 0) + 1;
+    });
+
+    sheetData.push(["AÇIKLAMA ÖZETİ"]);
+    Object.entries(aciklamaSayaci).forEach(([aciklama, count]) => {
+        sheetData.push([`${aciklama}: ${count}`]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+
+    // Kolon genişlikleri
+    ws['!cols'] = [
+        { wch: 40 },
+        { wch: 25 },
+        { wch: 20 }
+    ];
+
+    // Stil tanımları
+    const borderAll = {
+        top: { style: 'thin', color: { rgb: "000000" } },
+        bottom: { style: 'thin', color: { rgb: "000000" } },
+        left: { style: 'thin', color: { rgb: "000000" } },
+        right: { style: 'thin', color: { rgb: "000000" } },
+    };
+
+    const styles = {
+        header: {
+            font: { bold: true, color: { rgb: "000000" } },
+            fill: { fgColor: { rgb: "D9D9D9" } }, // Açık gri
+            border: borderAll,
+        },
+        subHeader: {
+            font: { bold: true },
+            fill: { fgColor: { rgb: "BDD7EE" } }, // Açık mavi
+            border: borderAll,
+        },
+        summaryHeader: {
+            font: { bold: true },
+            fill: { fgColor: { rgb: "C6EFCE" } }, // Açık yeşil
+            border: borderAll,
+        },
+        cell: {
+            border: borderAll,
+        }
+    };
+
+    // Hücreleri biçimlendir
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+            const cell = ws[cellAddress];
+            if (!cell) continue;
+
+            // Satır başlığına göre stilleri belirle
+            if (R === 0) {
+                cell.s = styles.header;
+            } else if (R === 3) {
+                cell.s = styles.subHeader;
+            } else if (sheetData[R] && sheetData[R][0] === "AÇIKLAMA ÖZETİ") {
+                cell.s = styles.summaryHeader;
+            } else {
+                cell.s = styles.cell;
+            }
+        }
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Evrak Raporu');
+
+    XLSX.writeFile(wb, `evrak_raporu_${evrak.id}.xlsx`);
+};
+
+
 
    
 
@@ -781,6 +883,8 @@ function TopluEvraklar() {
                                         <th style={cellStyle}>Toplam Sefer</th>
                                         <th style={cellStyle}>Sefer No</th>
                                         <th style={cellStyle}>Açıklama</th>
+
+
                                 </tr>
                             </thead>
                                     <tbody>
@@ -792,60 +896,75 @@ function TopluEvraklar() {
                                             return (
                                                 <React.Fragment key={evrak.id}>
                                                     <tr
-                                                        onClick={() => setExpandedRow(isExpanded ? null : evrak.id)}
-                                                        className="cursor-pointer bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100"
-                                                    >
-                                                        <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
-                                                            {new Date(evrak.tarih).toLocaleDateString('tr-TR')}
-                                                        </td>
-                                                        <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
-                                                            {lokasyonlar[evrak.lokasyonid]}
-                                                        </td>
-                                                        <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
-                                                            <button
+                                                            onClick={() => setExpandedRow(isExpanded ? null : evrak.id)}
+                                                            className="cursor-pointer bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100"
+                                                        >
+                                                            <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
+                                                                {new Date(evrak.tarih).toLocaleDateString('tr-TR')}
+                                                            </td>
+                                                            <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
+                                                                {lokasyonlar[evrak.lokasyonid]}
+                                                            </td>
+                                                            <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setAcikProjeId(isProjelerVisible ? null : evrak.id);
+                                                                    }}
+                                                                    className="rounded-md px-2 py-1 text-xs cursor-pointer mb-2
+                                                                        bg-gray-100 border border-gray-300 text-gray-900
+                                                                        dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                                >
+                                                                    {isProjelerVisible ? 'Projeleri Gizle' : 'Projeleri Göster'}
+                                                                </button>
+
+                                                                {isProjelerVisible && (
+                                                                    <ul className="list-none p-2 m-0">
+                                                                        {evrak.evrakproje?.map((p, idx) => (
+                                                                            <li key={idx}>
+                                                                                {projeler[p.projeid]} ({p.sefersayisi})
+                                                                            </li>
+                                                                        ))}
+                                                                    </ul>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
+                                                                {evrak.sefersayisi}
+                                                            </td>
+                                                            <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center font-medium text-blue-700 dark:text-blue-400">
+                                                                {isExpanded ? '🔼 Gizle' : '🔽 Göster'}
+                                                            </td>
+                                                            <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
+                                                                {/* BOŞ: Açıklama alanı zaten detay satırlarında */}
+                                                            </td>
+                                                            <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setSelectedEvrak(evrak);
+                                                                        setShowEditModal(true);
+                                                                    }}
+                                                                    className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                                                                >
+                                                                    Düzenle
+                                                                </button>
+                                                            </td>
+                                                            <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
+                                                              <button
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
-                                                                    setAcikProjeId(isProjelerVisible ? null : evrak.id);
+                                                                    exportEvrakToExcel(evrak);
                                                                 }}
-                                                                className="rounded-md px-2 py-1 text-xs cursor-pointer mb-2
-                bg-gray-100 border border-gray-300 text-gray-900
-                dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                                className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
                                                             >
-                                                                {isProjelerVisible ? 'Projeleri Gizle' : 'Projeleri Göster'}
+                                                                Satır Raporu Al
                                                             </button>
 
-                                                            {isProjelerVisible && (
-                                                                <ul className="list-none p-2 m-0">
-                                                                    {evrak.evrakproje?.map((p, idx) => (
-                                                                        <li key={idx}>
-                                                                            {projeler[p.projeid]} ({p.sefersayisi})
-                                                                        </li>
-                                                                    ))}
-                                                                </ul>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
-                                                            {evrak.sefersayisi}
-                                                        </td>
-                                                        <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center font-medium text-blue-700 dark:text-blue-400">
-                                                            {isExpanded ? '🔼 Gizle' : '🔽 Göster'}
-                                                        </td>
-                                                        <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
-                                                            {/* BOŞ: Açıklama alanı zaten detay satırlarında */}
-                                                        </td>
-                                                        <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setSelectedEvrak(evrak);
-                                                                    setShowEditModal(true);
-                                                                }}
-                                                                className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
-                                                            >
-                                                                Düzenle
-                                                            </button>
-                                                        </td>
-                                                    </tr>
+
+
+                                                            </td>
+                                                        </tr>
+
 
                                                     {isExpanded &&
                                                         (seferler.length > 0 ? (
