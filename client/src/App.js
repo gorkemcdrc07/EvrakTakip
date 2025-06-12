@@ -8,6 +8,8 @@ import Lokasyonlar from './Lokasyonlar';
 import Projeler from './Projeler';
 import TopluEvraklar from './TopluEvraklar';
 import EvrakEkle from './EvrakEkle';
+import KargoBilgisiEkle from './KargoBilgisiEkle';
+import TumKargoBilgileri from './TumKargoBilgileri'; // <-- Yeni import
 
 function App() {
     const [darkMode, toggleDarkMode] = useDarkMode();
@@ -23,6 +25,8 @@ function App() {
                     <Route path="/projeler" element={<Projeler />} />
                     <Route path="/toplu-evraklar" element={<TopluEvraklar />} />
                     <Route path="/evrak-ekle" element={<EvrakEkle />} />
+                    <Route path="/kargo-bilgisi-ekle" element={<KargoBilgisiEkle />} />
+                    <Route path="/tum-kargo-bilgileri" element={<TumKargoBilgileri />} /> {/* Yeni rota */}
                 </Routes>
             </Router>
         </div>

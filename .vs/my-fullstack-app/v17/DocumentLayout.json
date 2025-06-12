@@ -3,6 +3,30 @@
   "WorkspaceRootPath": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\Anasayfa.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\Anasayfa.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\Login.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\Login.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\TumKargoBilgileri.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\TumKargoBilgileri.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\KargoBilgisiEkle.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\KargoBilgisiEkle.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\supabaseClient.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\supabaseClient.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\App.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\App.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\TopluEvraklar.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\TopluEvraklar.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
@@ -17,14 +41,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\EvrakEkle.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\EvrakEkle.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\Login.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\Login.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\Anasayfa.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\Anasayfa.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     }
   ],
   "DocumentGroupContainers": [
@@ -34,7 +50,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 4,
+          "SelectedChildIndex": 11,
           "Children": [
             {
               "$type": "Bookmark",
@@ -46,7 +62,57 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 4,
+              "Title": "supabaseClient.js",
+              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\supabaseClient.js",
+              "RelativeDocumentMoniker": "client\\src\\supabaseClient.js",
+              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\supabaseClient.js",
+              "RelativeToolTip": "client\\src\\supabaseClient.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-06-12T07:22:43.509Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "TumKargoBilgileri.js",
+              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\TumKargoBilgileri.js",
+              "RelativeDocumentMoniker": "client\\src\\TumKargoBilgileri.js",
+              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\TumKargoBilgileri.js",
+              "RelativeToolTip": "client\\src\\TumKargoBilgileri.js",
+              "ViewState": "AgIAAKYAAAAAAAAAAAAuwNkAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-06-12T06:59:24.09Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "KargoBilgisiEkle.js",
+              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\KargoBilgisiEkle.js",
+              "RelativeDocumentMoniker": "client\\src\\KargoBilgisiEkle.js",
+              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\KargoBilgisiEkle.js",
+              "RelativeToolTip": "client\\src\\KargoBilgisiEkle.js",
+              "ViewState": "AgIAAFgAAAAAAAAAAADwv4oAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-06-12T06:55:57.629Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "App.js",
+              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\App.js",
+              "RelativeDocumentMoniker": "client\\src\\App.js",
+              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\App.js",
+              "RelativeToolTip": "client\\src\\App.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAACQAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-06-12T06:55:01.356Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
               "Title": "package.json",
               "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\package.json",
               "RelativeDocumentMoniker": "client\\package.json",
@@ -54,12 +120,11 @@
               "RelativeToolTip": "client\\package.json",
               "ViewState": "AgIAABIAAAAAAAAAAAAAACUAAAATAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2025-06-11T14:32:26.531Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-06-11T14:32:26.531Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 8,
               "Title": "package.json",
               "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\package.json",
               "RelativeDocumentMoniker": "package.json",
@@ -67,12 +132,11 @@
               "RelativeToolTip": "package.json",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAABcAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2025-06-11T14:24:48.361Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-06-11T14:24:48.361Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 6,
               "Title": "TopluEvraklar.js",
               "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\TopluEvraklar.js",
               "RelativeDocumentMoniker": "client\\src\\TopluEvraklar.js",
@@ -80,12 +144,11 @@
               "RelativeToolTip": "client\\src\\TopluEvraklar.js",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAAdAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-06-10T10:17:30.686Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-06-10T10:17:30.686Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 9,
               "Title": "EvrakEkle.js",
               "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\EvrakEkle.js",
               "RelativeDocumentMoniker": "client\\src\\EvrakEkle.js",
@@ -97,27 +160,29 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 1,
               "Title": "Login.js",
               "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\Login.js",
               "RelativeDocumentMoniker": "client\\src\\Login.js",
               "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\Login.js",
               "RelativeToolTip": "client\\src\\Login.js",
-              "ViewState": "AgIAAA4AAAAAAAAAAAAmwE4AAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAB4AAAAAAAAAAAAuwFEAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-06-04T09:37:59.667Z"
+              "WhenOpened": "2025-06-04T09:37:59.667Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 0,
               "Title": "Anasayfa.js",
               "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\Anasayfa.js",
               "RelativeDocumentMoniker": "client\\src\\Anasayfa.js",
               "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\Anasayfa.js",
               "RelativeToolTip": "client\\src\\Anasayfa.js",
-              "ViewState": "AgIAAEkAAAAAAAAAAAAmwIkAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAD0AAAAAAAAAAAAuwHAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-06-04T09:36:19.312Z"
+              "WhenOpened": "2025-06-04T09:36:19.312Z",
+              "EditorCaption": ""
             }
           ]
         }

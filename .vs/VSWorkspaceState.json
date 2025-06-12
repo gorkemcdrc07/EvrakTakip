@@ -2,9 +2,9 @@
   "ExpandedNodes": [
     "",
     "\\client",
-    "\\client\\src",
-    "\\client\\src\\components"
+    "\\client\\public",
+    "\\client\\src"
   ],
-  "SelectedNode": "\\client\\package.json",
+  "SelectedNode": "\\client\\src\\Anasayfa.js",
   "PreviewInSolutionExplorer": false
 }
