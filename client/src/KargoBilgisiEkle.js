@@ -14,7 +14,10 @@ function KargoBilgisiEkle() {
         evrakAdedi: 0
     });
 
+    const [ekstraEvrakSoruAcik, setEkstraEvrakSoruAcik] = useState(false);
     const [ekstraEvrakEklendi, setEkstraEvrakEklendi] = useState(false);
+    const [ekstraEvrakSayisi, setEkstraEvrakSayisi] = useState('');
+
     const [kargoList, setKargoList] = useState([]);
     const [gonderenList, setGonderenList] = useState([]);
     const [irsaliyeList, setIrsaliyeList] = useState([]);
@@ -24,7 +27,9 @@ function KargoBilgisiEkle() {
         setFormData(prev => ({ ...prev, tarih: today }));
 
         const fetchDistinctValues = async () => {
-            const { data, error } = await supabase.from('kargo_bilgileri').select('kargo_firmasi, gonderen_firma, irsaliye_adi');
+            const { data, error } = await supabase
+                .from('kargo_bilgileri')
+                .select('kargo_firmasi, gonderen_firma, irsaliye_adi');
 
             if (!error && data) {
                 setKargoList([...new Set(data.map(i => i.kargo_firmasi).filter(Boolean))]);
@@ -49,60 +54,47 @@ function KargoBilgisiEkle() {
         setFormData(updatedForm);
     };
 
-    const handleEkstraEvrak = () => {
-        const sayi = prompt('Kaç adet ekstra evrak eklemek istiyorsunuz?');
-        const eklenecek = parseInt(sayi, 10);
-
-        if (!isNaN(eklenecek) && eklenecek > 0) {
-            setFormData(prev => ({
-                ...prev,
-                evrakAdedi: parseInt(prev.evrakAdedi) + eklenecek
-            }));
-            setEkstraEvrakEklendi(true);
-        } else {
-            alert('Geçerli bir sayı girilmedi.');
-        }
-    };
-
-    const handleSubmit = async (e) => {
+    const handleSubmit = (e) => {
         e.preventDefault();
 
-        if (!ekstraEvrakEklendi) {
-            const cevap = window.confirm('Ekstra evrak eklemek ister misiniz?');
-            if (cevap) {
-                handleEkstraEvrak();
-                return;
-            }
+        // Ekstra evrak sorulmadıysa önce soruyu göster
+        if (!ekstraEvrakEklendi && !ekstraEvrakSoruAcik) {
+            setEkstraEvrakSoruAcik(true);
+            return;
         }
 
-        const { error } = await supabase.from('kargo_bilgileri').insert([{
+        const toplamEvrak = parseInt(formData.evrakAdedi) + (parseInt(ekstraEvrakSayisi) || 0);
+
+        supabase.from('kargo_bilgileri').insert([{
             tarih: formData.tarih,
             kargo_firmasi: formData.kargoFirmasi,
             gonderi_numarasi: formData.gonderiNumarasi,
             gonderen_firma: formData.gonderenFirma,
             irsaliye_adi: formData.irsaliyeAdi,
-            irsaliye_no: formData.irsaliyeNo,
+            irsaliye_no: formData.irsaliyeNo || null,
             odak_evrak_no: formData.odakEvrakNo || null,
-            evrak_adedi: parseInt(formData.evrakAdedi)
-        }]);
-
-        if (error) {
-            alert('❌ Kayıt başarısız oldu.');
-            console.error(error);
-        } else {
-            alert('✅ Kargo bilgisi başarıyla kaydedildi!');
-            setFormData(prev => ({
-                ...prev,
-                kargoFirmasi: '',
-                gonderiNumarasi: '',
-                gonderenFirma: '',
-                irsaliyeAdi: '',
-                irsaliyeNo: '',
-                odakEvrakNo: '',
-                evrakAdedi: 0
-            }));
-            setEkstraEvrakEklendi(false);
-        }
+            evrak_adedi: toplamEvrak
+        }]).then(({ error }) => {
+            if (error) {
+                alert('❌ Kayıt başarısız oldu.');
+                console.error(error);
+            } else {
+                alert('✅ Kargo bilgisi başarıyla kaydedildi!');
+                setFormData(prev => ({
+                    ...prev,
+                    kargoFirmasi: '',
+                    gonderiNumarasi: '',
+                    gonderenFirma: '',
+                    irsaliyeAdi: '',
+                    irsaliyeNo: '',
+                    odakEvrakNo: '',
+                    evrakAdedi: 0
+                }));
+                setEkstraEvrakSoruAcik(false);
+                setEkstraEvrakEklendi(false);
+                setEkstraEvrakSayisi('');
+            }
+        });
     };
 
     const autocompleteInput = (name, label, list) => (
@@ -117,11 +109,7 @@ function KargoBilgisiEkle() {
                 required
                 className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white"
             />
-            <datalist id={`${name}-list`}>
-                {list.map((item, idx) => (
-                    <option key={idx} value={item} />
-                ))}
-            </datalist>
+            <datalist id={`${name}-list`}>{list.map((item, idx) => <option key={idx} value={item} />)}</datalist>
         </div>
     );
 
@@ -147,6 +135,7 @@ function KargoBilgisiEkle() {
                         </div>
 
                         {autocompleteInput('kargoFirmasi', 'Kargo Firması', kargoList)}
+
                         <div>
                             <label className="block mb-1 font-medium">Gönderi Numarası</label>
                             <input
@@ -169,7 +158,6 @@ function KargoBilgisiEkle() {
                                 value={formData.irsaliyeNo}
                                 onChange={handleChange}
                                 className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white"
-                                required
                             />
                         </div>
 
@@ -196,20 +184,57 @@ function KargoBilgisiEkle() {
                             />
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={handleEkstraEvrak}
-                            className="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 rounded-lg shadow"
-                        >
-                            ➕ Ekstra Evrak Sayısı Ekle
-                        </button>
+                        {/* Ekstra Evrak Sorusu */}
+                        {ekstraEvrakSoruAcik && !ekstraEvrakEklendi && (
+                            <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 p-4 rounded-lg mt-4">
+                                <p className="mb-2 font-semibold">Ekstra evrak eklemek istiyor musunuz?</p>
+                                <div className="flex gap-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => setEkstraEvrakEklendi(true)}
+                                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                                    >
+                                        Evet
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+                                    >
+                                        Hayır
+                                    </button>
+                                </div>
+                            </div>
+                        )}
 
-                        <button
-                            type="submit"
-                            className="bg-pink-600 hover:bg-pink-700 text-white font-semibold py-2 rounded-lg shadow"
-                        >
-                            Kaydet
-                        </button>
+                        {/* Ekstra Evrak Girişi */}
+                        {ekstraEvrakEklendi && (
+                            <div className="mt-4">
+                                <label className="block mb-1 font-medium">Ekstra Evrak Sayısı</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={ekstraEvrakSayisi}
+                                    onChange={(e) => setEkstraEvrakSayisi(e.target.value)}
+                                    required
+                                    className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white"
+                                />
+                                <button
+                                    type="submit"
+                                    className="mt-2 bg-pink-600 hover:bg-pink-700 text-white font-semibold py-2 px-4 rounded-lg shadow"
+                                >
+                                    Kaydet
+                                </button>
+                            </div>
+                        )}
+
+                        {!ekstraEvrakSoruAcik && !ekstraEvrakEklendi && (
+                            <button
+                                type="submit"
+                                className="bg-pink-600 hover:bg-pink-700 text-white font-semibold py-2 rounded-lg shadow"
+                            >
+                                Kaydet
+                            </button>
+                        )}
                     </form>
                 </div>
             </div>
