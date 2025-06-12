@@ -14,48 +14,83 @@ function KargoBilgisiEkle() {
         evrakAdedi: 0
     });
 
+    const [ekstraEvrakEklendi, setEkstraEvrakEklendi] = useState(false);
+    const [kargoList, setKargoList] = useState([]);
+    const [gonderenList, setGonderenList] = useState([]);
+    const [irsaliyeList, setIrsaliyeList] = useState([]);
+
     useEffect(() => {
         const today = new Date().toISOString().split('T')[0];
         setFormData(prev => ({ ...prev, tarih: today }));
+
+        const fetchDistinctValues = async () => {
+            const { data, error } = await supabase.from('kargo_bilgileri').select('kargo_firmasi, gonderen_firma, irsaliye_adi');
+
+            if (!error && data) {
+                setKargoList([...new Set(data.map(i => i.kargo_firmasi).filter(Boolean))]);
+                setGonderenList([...new Set(data.map(i => i.gonderen_firma).filter(Boolean))]);
+                setIrsaliyeList([...new Set(data.map(i => i.irsaliye_adi).filter(Boolean))]);
+            }
+        };
+
+        fetchDistinctValues();
     }, []);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         const updatedForm = { ...formData, [name]: value };
 
-        const irsaliyeAdet = updatedForm.irsaliyeNo
-            ? updatedForm.irsaliyeNo.split('-').filter(s => s.trim() !== '').length
-            : 0;
-
-        const odakAdet = updatedForm.odakEvrakNo
-            ? updatedForm.odakEvrakNo.split('-').filter(s => s.trim() !== '').length
-            : 0;
-
-        updatedForm.evrakAdedi = irsaliyeAdet + odakAdet;
+        if (name !== 'evrakAdedi') {
+            const irsaliyeAdet = updatedForm.irsaliyeNo?.split('-').filter(s => s.trim() !== '').length || 0;
+            const odakAdet = updatedForm.odakEvrakNo?.split('-').filter(s => s.trim() !== '').length || 0;
+            updatedForm.evrakAdedi = irsaliyeAdet + odakAdet;
+        }
 
         setFormData(updatedForm);
+    };
+
+    const handleEkstraEvrak = () => {
+        const sayi = prompt('Kaç adet ekstra evrak eklemek istiyorsunuz?');
+        const eklenecek = parseInt(sayi, 10);
+
+        if (!isNaN(eklenecek) && eklenecek > 0) {
+            setFormData(prev => ({
+                ...prev,
+                evrakAdedi: parseInt(prev.evrakAdedi) + eklenecek
+            }));
+            setEkstraEvrakEklendi(true);
+        } else {
+            alert('Geçerli bir sayı girilmedi.');
+        }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        const { data, error } = await supabase.from('kargo_bilgileri').insert([{
+        if (!ekstraEvrakEklendi) {
+            const cevap = window.confirm('Ekstra evrak eklemek ister misiniz?');
+            if (cevap) {
+                handleEkstraEvrak();
+                return;
+            }
+        }
+
+        const { error } = await supabase.from('kargo_bilgileri').insert([{
             tarih: formData.tarih,
             kargo_firmasi: formData.kargoFirmasi,
             gonderi_numarasi: formData.gonderiNumarasi,
             gonderen_firma: formData.gonderenFirma,
             irsaliye_adi: formData.irsaliyeAdi,
             irsaliye_no: formData.irsaliyeNo,
-            odak_evrak_no: formData.odakEvrakNo,
-            evrak_adedi: formData.evrakAdedi
+            odak_evrak_no: formData.odakEvrakNo || null,
+            evrak_adedi: parseInt(formData.evrakAdedi)
         }]);
 
         if (error) {
-            console.error('Kayıt Hatası:', error.message);
             alert('❌ Kayıt başarısız oldu.');
+            console.error(error);
         } else {
             alert('✅ Kargo bilgisi başarıyla kaydedildi!');
-
             setFormData(prev => ({
                 ...prev,
                 kargoFirmasi: '',
@@ -66,19 +101,29 @@ function KargoBilgisiEkle() {
                 odakEvrakNo: '',
                 evrakAdedi: 0
             }));
+            setEkstraEvrakEklendi(false);
         }
     };
 
-    const fields = [
-        { label: 'Tarih', name: 'tarih', type: 'date', required: true },
-        { label: 'Kargo Firması', name: 'kargoFirmasi', placeholder: 'Örn: Aras, MNG', required: true },
-        { label: 'Gönderi Numarası', name: 'gonderiNumarasi', required: true },
-        { label: 'Gönderen Firma', name: 'gonderenFirma', required: true },
-        { label: 'İrsaliye Adı', name: 'irsaliyeAdi', required: true },
-        { label: 'İrsaliye No', name: 'irsaliyeNo', required: true, textarea: true },
-        { label: 'Odak Evrak No', name: 'odakEvrakNo', required: true, textarea: true },
-        { label: 'Evrak Adedi', name: 'evrakAdedi', type: 'number', readOnly: true }
-    ];
+    const autocompleteInput = (name, label, list) => (
+        <div>
+            <label className="block mb-1 font-medium">{label}</label>
+            <input
+                type="text"
+                name={name}
+                list={`${name}-list`}
+                value={formData[name]}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white"
+            />
+            <datalist id={`${name}-list`}>
+                {list.map((item, idx) => (
+                    <option key={idx} value={item} />
+                ))}
+            </datalist>
+        </div>
+    );
 
     return (
         <Layout>
@@ -88,43 +133,80 @@ function KargoBilgisiEkle() {
                         📦 Kargo Bilgisi Ekle
                     </h1>
 
-                    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-                        {fields.map((field) => (
-                            <div key={field.name}>
-                                <label className="block text-base sm:text-lg font-semibold mb-2 text-gray-800 dark:text-gray-100">
-                                    {field.label}
-                                </label>
+                    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                        <div>
+                            <label className="block mb-1 font-medium">Tarih</label>
+                            <input
+                                type="date"
+                                name="tarih"
+                                value={formData.tarih}
+                                onChange={handleChange}
+                                required
+                                className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white"
+                            />
+                        </div>
 
-                                {field.textarea ? (
-                                    <textarea
-                                        name={field.name}
-                                        value={formData[field.name]}
-                                        onChange={handleChange}
-                                        placeholder="2555-2454-26578-2546-21-857-635"
-                                        rows={5}
-                                        required={field.required}
-                                        className="w-full px-4 py-2 rounded-lg border resize-y focus:outline-none focus:ring-2 focus:ring-pink-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white overflow-y-auto max-h-60"
-                                    />
-                                ) : (
-                                    <input
-                                        type={field.type || 'text'}
-                                        name={field.name}
-                                        value={formData[field.name]}
-                                        onChange={handleChange}
-                                        placeholder={field.placeholder || ''}
-                                        required={field.required}
-                                        min={field.min}
-                                        readOnly={field.readOnly || false}
-                                        className={`w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-pink-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white ${field.readOnly ? 'cursor-not-allowed bg-gray-100 dark:bg-gray-600' : ''
-                                            }`}
-                                    />
-                                )}
-                            </div>
-                        ))}
+                        {autocompleteInput('kargoFirmasi', 'Kargo Firması', kargoList)}
+                        <div>
+                            <label className="block mb-1 font-medium">Gönderi Numarası</label>
+                            <input
+                                name="gonderiNumarasi"
+                                value={formData.gonderiNumarasi}
+                                onChange={handleChange}
+                                required
+                                className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white"
+                            />
+                        </div>
+
+                        {autocompleteInput('gonderenFirma', 'Gönderen Firma', gonderenList)}
+                        {autocompleteInput('irsaliyeAdi', 'İrsaliye Adı', irsaliyeList)}
+
+                        <div>
+                            <label className="block mb-1 font-medium">İrsaliye No</label>
+                            <textarea
+                                name="irsaliyeNo"
+                                rows="3"
+                                value={formData.irsaliyeNo}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white"
+                                required
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block mb-1 font-medium">Odak Evrak No (Opsiyonel)</label>
+                            <textarea
+                                name="odakEvrakNo"
+                                rows="3"
+                                value={formData.odakEvrakNo}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block mb-1 font-medium">Evrak Adedi</label>
+                            <input
+                                type="number"
+                                name="evrakAdedi"
+                                value={formData.evrakAdedi}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white"
+                                required
+                            />
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={handleEkstraEvrak}
+                            className="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 rounded-lg shadow"
+                        >
+                            ➕ Ekstra Evrak Sayısı Ekle
+                        </button>
 
                         <button
                             type="submit"
-                            className="mt-4 bg-pink-600 hover:bg-pink-700 text-white font-semibold py-2 rounded-lg shadow transition"
+                            className="bg-pink-600 hover:bg-pink-700 text-white font-semibold py-2 rounded-lg shadow"
                         >
                             Kaydet
                         </button>
