@@ -28,6 +28,13 @@ function TumKargoBilgileri() {
     const [modalGoster, setModalGoster] = useState(false);
     const [excelModalAcik, setExcelModalAcik] = useState(false);
 
+    const [duzenlenenVeri, setDuzenlenenVeri] = useState(null);
+    const [duzenleModalAcik, setDuzenleModalAcik] = useState(false);
+    const [ekstraEvrakSayisi, setEkstraEvrakSayisi] = useState('');
+    const [ekstraEvrakSoruAcik, setEkstraEvrakSoruAcik] = useState(false);
+    const [ekstraEvrakEklendi, setEkstraEvrakEklendi] = useState(false);
+
+
     const getYil = (tarih) => {
         if (!tarih) return '';
         const date = new Date(tarih);
@@ -39,13 +46,13 @@ function TumKargoBilgileri() {
             const { data, error } = await supabase
                 .from('kargo_bilgileri')
                 .select('*')
-                .order('id', { ascending: false }) // ✅ Son girilen en üstte
+                .order('id', { ascending: false })
                 .limit(10000);
 
             if (error) {
                 console.error('Veri çekme hatası:', error);
             } else {
-                setVeriler(data); // ❌ yeniden sort etmene gerek kalmaz
+                setVeriler(data);
 
                 const yıllar = [...new Set(data.map(v => getYil(v.tarih)))].filter(Boolean).sort((a, b) => b - a);
                 setYilSecenekleri(yıllar);
@@ -61,7 +68,6 @@ function TumKargoBilgileri() {
 
             setLoading(false);
         };
-
 
         veriGetir();
     }, []);
@@ -153,9 +159,9 @@ function TumKargoBilgileri() {
         let hasMore = true;
 
         while (hasMore) {
-            const { data, error, count } = await supabase
+            const { data, error } = await supabase
                 .from('kargo_bilgileri')
-                .select('*', { count: 'exact' })
+                .select('*')
                 .range(from, to);
 
             if (error) {
@@ -177,12 +183,101 @@ function TumKargoBilgileri() {
         setExcelModalAcik(false);
     };
 
+    const duzenleModaliAc = (veri) => {
+        setDuzenlenenVeri({ ...veri });
+        setDuzenleModalAcik(true);
+        setEkstraEvrakSayisi('');
+        setEkstraEvrakSoruAcik(true); // Soru sorulsun
+        setEkstraEvrakEklendi(false); // İlk başta evet/hayır seçilmedi
+    };
+
+
+    const handleDuzenleInputChange = (e) => {
+        const { name, value } = e.target;
+
+        setDuzenlenenVeri(prev => {
+            const yeniVeri = { ...prev, [name]: value };
+
+            // İrsaliye ve odak evrak no'lara göre adet hesapla
+            const irsaliyeAdet = yeniVeri.irsaliye_no?.split('-').filter(s => s.trim() !== '').length || 0;
+            const odakAdet = yeniVeri.odak_evrak_no?.split('-').filter(s => s.trim() !== '').length || 0;
+            const ekstra = parseInt(ekstraEvrakSayisi) || 0;
+
+            yeniVeri.evrak_adedi = irsaliyeAdet + odakAdet + ekstra;
+
+            return yeniVeri;
+        });
+    };
+
+
+
+    const duzenleVeriyiGuncelle = async () => {
+        const {
+            id,
+            tarih,
+            kargo_firmasi,
+            gonderi_numarasi,
+            gonderen_firma,
+            irsaliye_adi,
+            irsaliye_no,
+            odak_evrak_no
+        } = duzenlenenVeri;
+
+        const irsaliyeAdet = irsaliye_no?.split('-').filter(s => s.trim() !== '').length || 0;
+        const odakAdet = odak_evrak_no?.split('-').filter(s => s.trim() !== '').length || 0;
+        const ekstra = parseInt(ekstraEvrakSayisi) || 0;
+        const evrak_adedi = irsaliyeAdet + odakAdet + ekstra;
+
+        const { error } = await supabase
+            .from('kargo_bilgileri')
+            .update({
+                tarih,
+                kargo_firmasi,
+                gonderi_numarasi,
+                gonderen_firma,
+                irsaliye_adi,
+                irsaliye_no,
+                odak_evrak_no,
+                evrak_adedi
+            })
+            .eq('id', id);
+
+        if (!error) {
+            alert('Başarıyla güncellendi.');
+            setVeriler(prev =>
+                prev.map(v => v.id === id ? { ...duzenlenenVeri, evrak_adedi } : v)
+            );
+            setDuzenleModalAcik(false);
+        } else {
+            alert('Güncelleme başarısız!');
+        }
+    };
+
+
+
+    const duzenleVeriyiSil = async () => {
+        if (window.confirm('Bu kaydı silmek istediğinize emin misiniz?')) {
+            const { error } = await supabase
+                .from('kargo_bilgileri')
+                .delete()
+                .eq('id', duzenlenenVeri.id);
+
+            if (!error) {
+                alert('Kayıt silindi.');
+                setVeriler(prev => prev.filter(v => v.id !== duzenlenenVeri.id));
+                setDuzenleModalAcik(false);
+            } else {
+                alert('Silme işlemi başarısız!');
+            }
+        }
+    };
 
     return (
         <Layout>
             <div className="min-h-screen p-6 bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white">
                 <h1 className="text-2xl font-bold mb-6 text-pink-600 dark:text-pink-400">📋 Tüm Kargo Bilgileri</h1>
 
+                {/* Filtreleme Alanları */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
                     <div>
                         <label className="block mb-1">Yıl</label>
@@ -199,7 +294,31 @@ function TumKargoBilgileri() {
                     </div>
                     <div>
                         <label className="block mb-1">Tarih Başlangıç</label>
-                        <input type="date" className="w-full p-2 rounded text-black" value={tarihBaslangic} onChange={e => setTarihBaslangic(e.target.value)} />
+                        <input
+                            type="number"
+                            min="0"
+                            className="p-2 rounded text-black w-full"
+                            placeholder="Ekstra evrak sayısı"
+                            value={ekstraEvrakSayisi}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                setEkstraEvrakSayisi(value);
+
+                                setDuzenlenenVeri(prev => {
+                                    const irsaliyeAdet = prev.irsaliye_no?.split('-').filter(s => s.trim() !== '').length || 0;
+                                    const odakAdet = prev.odak_evrak_no?.split('-').filter(s => s.trim() !== '').length || 0;
+                                    const ekstra = parseInt(value) || 0;
+
+                                    return {
+                                        ...prev,
+                                        evrak_adedi: irsaliyeAdet + odakAdet + ekstra
+                                    };
+                                });
+                            }}
+                        />
+
+
+
                     </div>
                     <div>
                         <label className="block mb-1">Tarih Bitiş</label>
@@ -219,11 +338,13 @@ function TumKargoBilgileri() {
                     </div>
                 </div>
 
+                {/* Filtreleme ve Excel Butonları */}
                 <div className="flex gap-2 mb-4">
                     <button onClick={filtrele} className="px-4 py-2 bg-pink-600 text-white rounded hover:bg-pink-700">Filtrele</button>
                     <button onClick={() => setExcelModalAcik(true)} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Excel’e Aktar</button>
                 </div>
 
+                {/* Veri Tablosu */}
                 {loading ? (
                     <p>Yükleniyor...</p>
                 ) : filteredVeriler.length === 0 ? (
@@ -241,6 +362,7 @@ function TumKargoBilgileri() {
                                     <th className="px-4 py-3 text-center">İrsaliye No</th>
                                     <th className="px-4 py-3 text-center">Odak Evrak No</th>
                                     <th className="px-4 py-3 text-center">Evrak Adedi</th>
+                                    <th className="px-4 py-3 text-center">İşlem</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -254,6 +376,14 @@ function TumKargoBilgileri() {
                                         <td className="px-4 py-3 text-center text-blue-600 underline cursor-pointer" onClick={() => modalAc('İrsaliye No', item.irsaliye_no)}>{kisalt(item.irsaliye_no)}</td>
                                         <td className="px-4 py-3 text-center text-blue-600 underline cursor-pointer" onClick={() => modalAc('Odak Evrak No', item.odak_evrak_no)}>{kisalt(item.odak_evrak_no)}</td>
                                         <td className="px-4 py-3 text-center">{item.evrak_adedi}</td>
+                                        <td className="px-4 py-3 text-center">
+                                            <button
+                                                onClick={() => duzenleModaliAc(item)}
+                                                className="px-2 py-1 text-sm bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                                            >
+                                                Düzenle
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -261,6 +391,7 @@ function TumKargoBilgileri() {
                     </div>
                 )}
 
+                {/* Modal - Uzun Bilgiler */}
                 {modalGoster && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-2xl w-full">
@@ -273,6 +404,7 @@ function TumKargoBilgileri() {
                     </div>
                 )}
 
+                {/* Modal - Excel Aktarımı */}
                 {excelModalAcik && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
@@ -303,6 +435,153 @@ function TumKargoBilgileri() {
                         </div>
                     </div>
                 )}
+
+                {/* Modal - Düzenleme */}
+                {duzenleModalAcik && duzenlenenVeri && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-xl w-full">
+                            <h2 className="text-lg font-semibold mb-4">Kargo Bilgisi Düzenle</h2>
+                            <div className="grid gap-4">
+                                <div>
+                                    <label className="block mb-1 text-sm font-medium text-gray-800 dark:text-white">Kargo Firması</label>
+                                    <input
+                                        className="p-2 rounded text-black w-full"
+                                        name="kargo_firmasi"
+                                        value={duzenlenenVeri.kargo_firmasi || ''}
+                                        onChange={handleDuzenleInputChange}
+                                        placeholder="Kargo Firması"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block mb-1 text-sm font-medium text-gray-800 dark:text-white">Gönderi No</label>
+                                    <input
+                                        className="p-2 rounded text-black w-full"
+                                        name="gonderi_numarasi"
+                                        value={duzenlenenVeri.gonderi_numarasi || ''}
+                                        onChange={handleDuzenleInputChange}
+                                        placeholder="Gönderi No"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block mb-1 text-sm font-medium text-gray-800 dark:text-white">Gönderen Firma</label>
+                                    <input
+                                        className="p-2 rounded text-black w-full"
+                                        name="gonderen_firma"
+                                        value={duzenlenenVeri.gonderen_firma || ''}
+                                        onChange={handleDuzenleInputChange}
+                                        placeholder="Gönderen Firma"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block mb-1 text-sm font-medium text-gray-800 dark:text-white">İrsaliye Adı</label>
+                                    <input
+                                        className="p-2 rounded text-black w-full"
+                                        name="irsaliye_adi"
+                                        value={duzenlenenVeri.irsaliye_adi || ''}
+                                        onChange={handleDuzenleInputChange}
+                                        placeholder="İrsaliye Adı"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block mb-1 text-sm font-medium text-gray-800 dark:text-white">İrsaliye No</label>
+                                    <textarea
+                                        className="p-2 rounded text-black w-full"
+                                        name="irsaliye_no"
+                                        rows="2"
+                                        value={duzenlenenVeri.irsaliye_no || ''}
+                                        onChange={handleDuzenleInputChange}
+                                        placeholder="İrsaliye No"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block mb-1 text-sm font-medium text-gray-800 dark:text-white">Odak Evrak No</label>
+                                    <textarea
+                                        className="p-2 rounded text-black w-full"
+                                        name="odak_evrak_no"
+                                        rows="2"
+                                        value={duzenlenenVeri.odak_evrak_no || ''}
+                                        onChange={handleDuzenleInputChange}
+                                        placeholder="Odak Evrak No"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block mb-1 text-sm font-medium text-gray-800 dark:text-white">Evrak Adedi</label>
+                                    <input
+                                        type="number"
+                                        name="evrak_adedi"
+                                        className="p-2 rounded text-black w-full"
+                                        placeholder="Evrak Adedi"
+                                        value={duzenlenenVeri.evrak_adedi || ''}
+                                        onChange={handleDuzenleInputChange}
+                                    />
+                                </div>
+
+                                {/* Ekstra Evrak Soru */}
+                                {ekstraEvrakSoruAcik && !ekstraEvrakEklendi && (
+                                    <div className="bg-yellow-100 border border-yellow-400 p-4 rounded">
+                                        <p className="mb-2 font-semibold text-yellow-800">Ekstra evrak eklemek istiyor musunuz?</p>
+                                        <div className="flex gap-4">
+                                            <button
+                                                type="button"
+                                                onClick={() => setEkstraEvrakEklendi(true)}
+                                                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                                            >
+                                                Evet
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setEkstraEvrakSoruAcik(false)}
+                                                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+                                            >
+                                                Hayır
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Ekstra Evrak Sayısı */}
+                                {ekstraEvrakEklendi && (
+                                    <div>
+                                        <label className="block mb-1 font-semibold text-yellow-800">Ekstra Evrak Sayısı</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            className="p-2 rounded text-black w-full"
+                                            placeholder="Ekstra evrak sayısı"
+                                            value={ekstraEvrakSayisi}
+                                            onChange={(e) => {
+                                                setEkstraEvrakSayisi(e.target.value);
+                                                handleDuzenleInputChange({ target: { name: 'ekstra', value: e.target.value } });
+                                            }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="mt-6 flex justify-between">
+                                <button
+                                    onClick={duzenleVeriyiGuncelle}
+                                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                                >
+                                    Güncelle
+                                </button>
+                                <button
+                                    onClick={duzenleVeriyiSil}
+                                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                                >
+                                    Sil
+                                </button>
+                                <button
+                                    onClick={() => setDuzenleModalAcik(false)}
+                                    className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                                >
+                                    Vazgeç
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
             </div>
         </Layout>
     );
