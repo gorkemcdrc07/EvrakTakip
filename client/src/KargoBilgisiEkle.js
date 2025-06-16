@@ -185,26 +185,27 @@ function KargoBilgisiEkle() {
                         </div>
 
                         {/* Ekstra Evrak Sorusu */}
-                        {ekstraEvrakSoruAcik && !ekstraEvrakEklendi && (
-                            <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 p-4 rounded-lg mt-4">
-                                <p className="mb-2 font-semibold">Ekstra evrak eklemek istiyor musunuz?</p>
-                                <div className="flex gap-4">
-                                    <button
-                                        type="button"
-                                        onClick={() => setEkstraEvrakEklendi(true)}
-                                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
-                                    >
-                                        Evet
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
-                                    >
-                                        Hayır
-                                    </button>
-                                </div>
+                       {ekstraEvrakSoruAcik && !ekstraEvrakEklendi && (
+                        <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 p-4 rounded-lg mt-4">
+                            <p className="mb-2 font-semibold">Ekstra evrak eklemek istiyor musunuz?</p>
+                            <div className="flex gap-4">
+                                <button
+                                    type="submit"
+                                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+                                >
+                                    Hayır
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setEkstraEvrakEklendi(true)}
+                                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                                >
+                                    Evet
+                                </button>
                             </div>
-                        )}
+                        </div>
+                    )}
+
 
                         {/* Ekstra Evrak Girişi */}
                         {ekstraEvrakEklendi && (
