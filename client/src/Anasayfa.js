@@ -76,6 +76,29 @@ function Anasayfa() {
     return (
         <Layout>
             <div className="min-h-screen font-sans bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+
+                {/* Sidebar */}
+                <div className={`fixed top-0 left-0 h-full w-64 bg-pink-100 dark:bg-gray-800 shadow-md p-4 transform transition-transform duration-300 z-50 ${menuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                    <button className="text-gray-600 dark:text-gray-300 text-xl self-end" onClick={toggleMenu}>✖</button>
+                    <div className="flex flex-col gap-4 mt-4">
+                        {(username === 'yaren' || username === 'ozge') && (
+                            <>
+                                <button onClick={() => window.open('/lokasyonlar', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📍 Lokasyonlar</button>
+                                <button onClick={() => window.open('/projeler', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📁 Projeler</button>
+                                <button onClick={() => window.open('/evrak-ekle', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📄 Evrak Ekle</button>
+                                <button onClick={() => window.open('/toplu-evraklar', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📄 Tüm Evraklar</button>
+                                <button onClick={() => window.open('/tum-kargo-bilgileri', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📋 Tüm Kargo Bilgileri</button>
+                            </>
+                        )}
+                        {username === 'refika' && (
+                            <>
+                                <button onClick={() => window.open('/kargo-bilgisi-ekle', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📦 Kargo Bilgisi Ekle</button>
+                                <button onClick={() => window.open('/tum-kargo-bilgileri', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📋 Tüm Kargo Bilgileri</button>
+                            </>
+                        )}
+                    </div>
+                </div>
+
                 {/* Navbar */}
                 <nav className={`flex justify-between items-center bg-pink-100 dark:bg-gray-800 shadow px-6 py-4 transition-all duration-300 ${menuOpen ? 'ml-64' : 'ml-0'}`}>
                     <button className="text-2xl text-gray-700 dark:text-gray-200" onClick={toggleMenu}>☰</button>
@@ -114,13 +137,12 @@ function Anasayfa() {
                         Bu sayfa sadece giriş yapan kullanıcılar içindir.
                     </p>
 
-                    {/* 📊 Grafiksel Analiz - Sadece refika için */}
+                    {/* Grafik Alanı (Sadece Refika) */}
                     {username === 'refika' && (
                         <div className="mt-8 p-6 rounded-xl bg-white dark:bg-gray-800 shadow-md">
                             <h3 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">
                                 📦 Günlük Kargo Sayısı (Son 7 Gün)
                             </h3>
-
                             <div className="text-3xl font-bold text-pink-600 dark:text-pink-400 mb-4">
                                 Toplam: {dailyData.reduce((sum, item) => sum + item.count, 0)} kayıt
                             </div>
@@ -154,7 +176,6 @@ function Anasayfa() {
                                 <p className="text-gray-500 dark:text-gray-400">Veri yükleniyor...</p>
                             )}
 
-                            {/* 🗒 Günlük Liste - Modern Kart Görünümü */}
                             <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                 {dailyData.map(item => (
                                     <div key={item.date} className="flex items-center gap-3 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow">
@@ -168,7 +189,6 @@ function Anasayfa() {
                             </div>
                         </div>
                     )}
-
                 </main>
             </div>
         </Layout>
