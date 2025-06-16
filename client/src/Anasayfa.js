@@ -14,13 +14,37 @@ function Anasayfa() {
     const [menuOpen, setMenuOpen] = useState(false);
     const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
     const [dailyData, setDailyData] = useState([]);
+    const [metric, setMetric] = useState('kargo');
+    const [firmalar, setFirmalar] = useState([]);
+    const [selectedFirma, setSelectedFirma] = useState('Hepsi');
 
     useEffect(() => {
         document.documentElement.classList.toggle('dark', darkMode);
     }, [darkMode]);
 
     useEffect(() => {
-        const fetchDailyKargoData = async () => {
+        const fetchFirmalar = async () => {
+            const { data, error } = await supabase
+                .from('kargo_bilgileri')
+                .select('kargo_firmasi');
+
+            if (!error && data) {
+                const unique = [...new Set(
+                    data
+                        .map(item => item.kargo_firmasi?.trim().toUpperCase())
+                        .filter(Boolean)
+                )];
+                setFirmalar(['Hepsi', ...unique]);
+            }
+        };
+
+        fetchFirmalar();
+    }, []);
+
+
+
+    useEffect(() => {
+        const fetchDailyData = async () => {
             const today = new Date();
             const oneWeekAgo = new Date();
             oneWeekAgo.setDate(today.getDate() - 6);
@@ -36,23 +60,35 @@ function Anasayfa() {
                 counts[key] = { date: key, label, count: 0 };
             }
 
-            const { data, error } = await supabase
+            let query = supabase
                 .from('kargo_bilgileri')
-                .select('tarih')
+                .select('tarih, kargo_firmasi, evrak_adedi')
                 .gte('tarih', oneWeekAgo.toISOString().split('T')[0])
                 .lte('tarih', today.toISOString().split('T')[0]);
 
+            if (selectedFirma !== 'Hepsi') {
+                query = query.eq('kargo_firmasi', selectedFirma);
+            }
+
+            const { data, error } = await query;
             if (error) return console.error('Veri alınamadı:', error);
 
-            data.forEach(({ tarih }) => {
-                if (counts[tarih]) counts[tarih].count += 1;
+            data.forEach(({ tarih, evrak_adedi }) => {
+                if (counts[tarih]) {
+                    if (metric === 'kargo') {
+                        counts[tarih].count += 1;
+                    } else {
+                        counts[tarih].count += evrak_adedi || 0;
+                    }
+                }
             });
 
             setDailyData(Object.values(counts));
         };
 
-        fetchDailyKargoData();
-    }, []);
+        fetchDailyData();
+    }, [metric, selectedFirma]);
+
 
     const handleLogout = () => {
         localStorage.removeItem('auth');
@@ -61,9 +97,7 @@ function Anasayfa() {
         navigate('/login');
     };
 
-    const toggleMenu = () => {
-        setMenuOpen(!menuOpen);
-    };
+    const toggleMenu = () => setMenuOpen(!menuOpen);
 
     const toggleDarkMode = () => {
         setDarkMode(prev => {
@@ -137,11 +171,24 @@ function Anasayfa() {
                         Bu sayfa sadece giriş yapan kullanıcılar içindir.
                     </p>
 
-                    {/* Grafik Alanı (Sadece Refika) */}
                     {username === 'refika' && (
                         <div className="mt-8 p-6 rounded-xl bg-white dark:bg-gray-800 shadow-md">
+                            {/* Filtre Seçenekleri */}
+                            <div className="flex gap-4 items-center mb-6">
+                                <select value={metric} onChange={e => setMetric(e.target.value)} className="px-4 py-2 rounded bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100">
+                                    <option value="kargo">📦 Kargo Sayısı</option>
+                                    <option value="evrak">📄 Evrak Adedi</option>
+                                </select>
+
+                                <select value={selectedFirma} onChange={e => setSelectedFirma(e.target.value)} className="px-4 py-2 rounded bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100">
+                                    {firmalar.map(firma => (
+                                        <option key={firma} value={firma}>{firma}</option>
+                                    ))}
+                                </select>
+                            </div>
+
                             <h3 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">
-                                📦 Günlük Kargo Sayısı (Son 7 Gün)
+                                {metric === 'kargo' ? '📦 Günlük Kargo Sayısı' : '📄 Günlük Evrak Adedi'} (Son 7 Gün)
                             </h3>
                             <div className="text-3xl font-bold text-pink-600 dark:text-pink-400 mb-4">
                                 Toplam: {dailyData.reduce((sum, item) => sum + item.count, 0)} kayıt
@@ -176,6 +223,7 @@ function Anasayfa() {
                                 <p className="text-gray-500 dark:text-gray-400">Veri yükleniyor...</p>
                             )}
 
+                            {/* Günlük Detay Kartları */}
                             <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                 {dailyData.map(item => (
                                     <div key={item.date} className="flex items-center gap-3 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow">
