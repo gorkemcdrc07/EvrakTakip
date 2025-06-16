@@ -1,23 +1,58 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from './components/Layout';
+import { supabase } from './supabaseClient';
+import {
+    BarChart, Bar, XAxis, YAxis, Tooltip,
+    ResponsiveContainer, CartesianGrid
+} from 'recharts';
 
 function Anasayfa() {
     const navigate = useNavigate();
     const adSoyad = localStorage.getItem('ad');
     const username = localStorage.getItem('username');
     const [menuOpen, setMenuOpen] = useState(false);
-    const [darkMode, setDarkMode] = useState(() => {
-        return localStorage.getItem('theme') === 'dark';
-    });
+    const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+    const [dailyData, setDailyData] = useState([]);
 
     useEffect(() => {
-        if (darkMode) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
+        document.documentElement.classList.toggle('dark', darkMode);
     }, [darkMode]);
+
+    useEffect(() => {
+        const fetchDailyKargoData = async () => {
+            const today = new Date();
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(today.getDate() - 6);
+
+            const gunIsimleri = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+            const counts = {};
+
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(oneWeekAgo);
+                date.setDate(date.getDate() + i);
+                const key = date.toISOString().split('T')[0];
+                const label = gunIsimleri[date.getDay()];
+                counts[key] = { date: key, label, count: 0 };
+            }
+
+            const { data, error } = await supabase
+                .from('kargo_bilgileri')
+                .select('tarih')
+                .gte('tarih', oneWeekAgo.toISOString().split('T')[0])
+                .lte('tarih', today.toISOString().split('T')[0]);
+
+            if (error) return console.error('Veri alınamadı:', error);
+
+            data.forEach(({ tarih }) => {
+                if (counts[tarih]) counts[tarih].count += 1;
+            });
+
+            setDailyData(Object.values(counts));
+        };
+
+        fetchDailyKargoData();
+    }, []);
 
     const handleLogout = () => {
         localStorage.removeItem('auth');
@@ -41,31 +76,6 @@ function Anasayfa() {
     return (
         <Layout>
             <div className="min-h-screen font-sans bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-
-                {/* Sidebar */}
-                <div className={`fixed top-0 left-0 h-full w-64 bg-pink-100 dark:bg-gray-800 shadow-md p-4 transform transition-transform duration-300 z-50 ${menuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                    <button className="text-gray-600 dark:text-gray-300 text-xl self-end" onClick={toggleMenu}>✖</button>
-
-                    <div className="flex flex-col gap-4 mt-4">
-                        {(username === 'yaren' || username === 'ozge') && (
-                            <>
-                                <button onClick={() => window.open('/lokasyonlar', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📍 Lokasyonlar</button>
-                                <button onClick={() => window.open('/projeler', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📁 Projeler</button>
-                                <button onClick={() => window.open('/evrak-ekle', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📄 Evrak Ekle</button>
-                                <button onClick={() => window.open('/toplu-evraklar', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📄 Tüm Evraklar</button>
-                                <button onClick={() => window.open('/tum-kargo-bilgileri', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📋 Tüm Kargo Bilgileri</button>
-                            </>
-                        )}
-
-                        {username === 'refika' && (
-                            <>
-                                <button onClick={() => window.open('/kargo-bilgisi-ekle', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📦 Kargo Bilgisi Ekle</button>
-                                <button onClick={() => window.open('/tum-kargo-bilgileri', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📋 Tüm Kargo Bilgileri</button>
-                            </>
-                        )}
-                    </div>
-                </div>
-
                 {/* Navbar */}
                 <nav className={`flex justify-between items-center bg-pink-100 dark:bg-gray-800 shadow px-6 py-4 transition-all duration-300 ${menuOpen ? 'ml-64' : 'ml-0'}`}>
                     <button className="text-2xl text-gray-700 dark:text-gray-200" onClick={toggleMenu}>☰</button>
@@ -103,6 +113,62 @@ function Anasayfa() {
                     <p className="mt-2 text-gray-700 dark:text-gray-300">
                         Bu sayfa sadece giriş yapan kullanıcılar içindir.
                     </p>
+
+                    {/* 📊 Grafiksel Analiz - Sadece refika için */}
+                    {username === 'refika' && (
+                        <div className="mt-8 p-6 rounded-xl bg-white dark:bg-gray-800 shadow-md">
+                            <h3 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">
+                                📦 Günlük Kargo Sayısı (Son 7 Gün)
+                            </h3>
+
+                            <div className="text-3xl font-bold text-pink-600 dark:text-pink-400 mb-4">
+                                Toplam: {dailyData.reduce((sum, item) => sum + item.count, 0)} kayıt
+                            </div>
+
+                            {dailyData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={dailyData} margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
+                                        <defs>
+                                            <linearGradient id="colorKargo" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor="#ec4899" stopOpacity={0.9} />
+                                                <stop offset="100%" stopColor="#f9a8d4" stopOpacity={0.6} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} />
+                                        <XAxis dataKey="label" tick={{ fill: '#9ca3af', fontSize: 14 }} />
+                                        <YAxis allowDecimals={false} tick={{ fill: '#9ca3af' }} />
+                                        <Tooltip
+                                            contentStyle={{
+                                                backgroundColor: '#fff',
+                                                borderRadius: '0.5rem',
+                                                fontSize: '0.9rem',
+                                                color: '#374151',
+                                                border: 'none',
+                                                boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+                                            }}
+                                        />
+                                        <Bar dataKey="count" fill="url(#colorKargo)" radius={[8, 8, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <p className="text-gray-500 dark:text-gray-400">Veri yükleniyor...</p>
+                            )}
+
+                            {/* 🗒 Günlük Liste - Modern Kart Görünümü */}
+                            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                {dailyData.map(item => (
+                                    <div key={item.date} className="flex items-center gap-3 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                                        <div className="text-2xl">📅</div>
+                                        <div className="flex flex-col">
+                                            <span className="font-semibold text-gray-800 dark:text-gray-100">{item.label} - {item.date}</span>
+                                            <span className="text-pink-600 dark:text-pink-300 font-bold">{item.count} kayıt</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                 </main>
             </div>
         </Layout>
