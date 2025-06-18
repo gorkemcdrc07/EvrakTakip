@@ -25,12 +25,41 @@ function TopluEvraklar() {
         endDate: '',
         lokasyon: [],
         proje: [],
-        aciklama: ''
+        aciklama: '',
+        seferno: ''
     });
+    // ✅ Buraya EKLE
+    const tumAciklamalar = React.useMemo(() => {
+        const set = new Set();
+        evraklar.forEach(e => {
+            e.evrakseferler?.forEach(s => {
+                if (s.aciklama?.trim()) {
+                    set.add(s.aciklama.trim());
+                }
+            });
+        });
+        return Array.from(set);
+    }, [evraklar]);
+    const tumSeferNolari = React.useMemo(() => {
+    const set = new Set();
+    evraklar.forEach(e => {
+        e.evrakseferler?.forEach(s => {
+            const sefer = s.seferno?.trim() || '(Boş)';
+            set.add(sefer);
+        });
+    });
+    return Array.from(set);
+}, [evraklar]);
+
+
 
     const [selectedEvrak, setSelectedEvrak] = useState(null);
     const [showEditModal, setShowEditModal] = useState(false);
     const [seciliLokasyon, setSeciliLokasyon] = useState('');
+    const [showSeferNolar, setShowSeferNolar] = useState(false);
+    const [showAciklamalar, setShowAciklamalar] = useState(false);
+
+
 
 
 
@@ -470,19 +499,33 @@ const exportEvrakToExcel = (evrak) => {
     };
 
     // ✅ 1. önce filteredEvraklar
-    const filteredEvraklar = evraklar.filter(evrak => {
-        const tarihMatch =
-            (!filters.startDate || new Date(evrak.tarih) >= new Date(filters.startDate)) &&
-            (!filters.endDate || new Date(evrak.tarih) <= new Date(filters.endDate));
-        const lokasyonMatch = filters.lokasyon.length === 0 || filters.lokasyon.includes(String(evrak.lokasyonid));
-        const evrakProjeIds = evrak.evrakproje?.map(p => String(p.projeid)) || [];
-        const projeMatch = filters.proje.length === 0 || evrakProjeIds.some(pid => filters.proje.includes(pid));
-        const seferAciklamalari = (evrak.evrakseferler || []).map(s => s.aciklama).join(", ");
-        const aciklamaMatch = filters.aciklama
-            ? seferAciklamalari.toLocaleLowerCase("tr").includes(filters.aciklama.toLocaleLowerCase("tr"))
-            : true;
-        return tarihMatch && lokasyonMatch && projeMatch && aciklamaMatch;
-    });
+  const filteredEvraklar = evraklar.filter(evrak => {
+  const tarihMatch =
+    (!filters.startDate || new Date(evrak.tarih) >= new Date(filters.startDate)) &&
+    (!filters.endDate || new Date(evrak.tarih) <= new Date(filters.endDate));
+
+  const lokasyonMatch = filters.lokasyon.length === 0 || filters.lokasyon.includes(String(evrak.lokasyonid));
+
+  const evrakProjeIds = evrak.evrakproje?.map(p => String(p.projeid)) || [];
+  const projeMatch = filters.proje.length === 0 || evrakProjeIds.some(pid => filters.proje.includes(pid));
+
+  const seferAciklamalari = (evrak.evrakseferler || []).map(s => s.aciklama).join(", ");
+  const aciklamaMatch = filters.aciklama
+    ? seferAciklamalari.toLocaleLowerCase("tr").includes(filters.aciklama.toLocaleLowerCase("tr"))
+    : true;
+
+  const seferNoMatch = filters.seferno
+    ? filters.seferno === '(Boş)'
+      ? (evrak.evrakseferler || []).some(s => !s.seferno?.trim())
+      : (evrak.evrakseferler || []).some(s =>
+          (s.seferno || '').toLocaleLowerCase("tr").includes(filters.seferno.toLocaleLowerCase("tr"))
+        )
+    : true;
+
+  return tarihMatch && lokasyonMatch && projeMatch && aciklamaMatch && seferNoMatch;
+});
+
+
 
     // ✅ 2. sonra useMemo
     const toplamSeferler = React.useMemo(() => {
@@ -723,31 +766,40 @@ const exportEvrakToExcel = (evrak) => {
                 <div style={{ flex: 2 }}>
 
                             <div className="flex gap-4 items-center flex-wrap">
-                                {/* Başlangıç Tarihi */}
-                                <div className="flex flex-col">
-                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        📅 Başlangıç Tarihi
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={filters.startDate}
-                                        onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-                                        className="px-3 py-2 rounded border border-gray-300 text-sm dark:bg-gray-800 dark:text-white dark:border-gray-600 w-48"
-                                    />
-                                </div>
+                               {/* Başlangıç Tarihi */}
+<div className="relative w-48">
+    <input
+        type="text"
+        onFocus={(e) => e.target.type = 'date'}
+        onBlur={(e) => {
+            if (!e.target.value) e.target.type = 'text';
+        }}
+        value={filters.startDate}
+        onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+        placeholder="Başlangıç Tarihi"
+        className="px-3 py-2 rounded border border-gray-300 text-sm dark:bg-gray-800 dark:text-white dark:border-gray-600 w-full"
+    />
+    <label className="absolute -top-4 left-0 text-sm font-medium text-gray-300 dark:text-gray-400">
+    </label>
+</div>
 
-                                {/* Bitiş Tarihi */}
-                                <div className="flex flex-col">
-                                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        📅 Bitiş Tarihi
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={filters.endDate}
-                                        onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-                                        className="px-3 py-2 rounded border border-gray-300 text-sm dark:bg-gray-800 dark:text-white dark:border-gray-600 w-48"
-                                    />
-                                </div>
+{/* Bitiş Tarihi */}
+<div className="relative w-48">
+    <input
+        type="text"
+        onFocus={(e) => e.target.type = 'date'}
+        onBlur={(e) => {
+            if (!e.target.value) e.target.type = 'text';
+        }}
+        value={filters.endDate}
+        onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+        placeholder="Bitiş Tarihi"
+        className="px-3 py-2 rounded border border-gray-300 text-sm dark:bg-gray-800 dark:text-white dark:border-gray-600 w-full"
+    />
+    <label className="absolute -top-4 left-0 text-sm font-medium text-gray-300 dark:text-gray-400">
+    </label>
+</div>
+
                             
 
 
@@ -835,14 +887,84 @@ const exportEvrakToExcel = (evrak) => {
                             )}
                         </div>
 
-                        {/* Açıklama inputu */}
-                        <input
-                            type="text"
-                            placeholder="Açıklama"
-                            value={filters.aciklama}
-                            onChange={(e) => setFilters({ ...filters, aciklama: e.target.value })}
-                            className="px-3 py-2 rounded border border-gray-300 text-sm dark:bg-gray-800 dark:text-white dark:border-gray-600 w-48"
-                        />
+                      <div className="relative w-48">
+    <div
+        onClick={() => setShowAciklamalar(!showAciklamalar)}
+        className="px-3 py-2 rounded border border-gray-300 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600 cursor-pointer select-none"
+    >
+        {filters.aciklama || 'Açıklama'} {showAciklamalar ? '▲' : '▼'}
+    </div>
+
+    {showAciklamalar && (
+        <div className="absolute z-10 mt-1 w-full max-h-48 overflow-auto rounded border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 shadow-lg">
+            <input
+                type="text"
+                placeholder="Ara..."
+                value={filters.aciklama}
+                onChange={(e) =>
+                    setFilters({ ...filters, aciklama: e.target.value })
+                }
+                className="w-full px-2 py-1 text-sm bg-white dark:bg-gray-800 dark:text-white border-b border-gray-300 dark:border-gray-600"
+            />
+            {tumAciklamalar
+.filter((a) =>
+  a?.toLocaleLowerCase('tr').includes(filters.aciklama?.toLocaleLowerCase('tr') || '')
+)
+                .map((aciklama, idx) => (
+                    <div
+                        key={idx}
+                        onClick={() =>
+                            setFilters({ ...filters, aciklama })
+                        }
+                        className="px-3 py-1 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                        {aciklama}
+                    </div>
+                ))}
+        </div>
+    )}
+</div>
+
+<div className="relative w-48">
+  <div
+    onClick={() => setShowSeferNolar(!showSeferNolar)}
+    className="px-3 py-2 rounded border border-gray-300 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600 cursor-pointer select-none"
+  >
+    {filters.seferno || 'Sefer No'} {showSeferNolar ? '▲' : '▼'}
+  </div>
+
+  {showSeferNolar && (
+    <div className="absolute z-10 mt-1 w-full max-h-48 overflow-auto rounded border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 shadow-lg">
+      <input
+        type="text"
+        placeholder="Ara..."
+        value={filters.seferno}
+        onChange={(e) =>
+          setFilters({ ...filters, seferno: e.target.value })
+        }
+        className="w-full px-2 py-1 text-sm bg-white dark:bg-gray-800 dark:text-white border-b border-gray-300 dark:border-gray-600"
+      />
+      {tumSeferNolari
+        .filter((s) =>
+          s.toLocaleLowerCase('tr').includes(filters.seferno.toLocaleLowerCase('tr'))
+        )
+        .map((sefer, idx) => (
+          <div
+            key={idx}
+            onClick={() =>
+              setFilters({ ...filters, seferno: sefer })
+            }
+            className="px-3 py-1 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            {sefer}
+          </div>
+        ))}
+    </div>
+  )}
+</div>
+
+
+
 
                         {/* Temizle Butonu */}
                         <button
@@ -875,126 +997,125 @@ const exportEvrakToExcel = (evrak) => {
                         <p style={{ textAlign: 'center' }}>Yükleniyor...</p>
                     ) : (
                         <table style={tableStyle}>
-                            <thead>
-                                        <tr style={{ backgroundColor: '#f3f4f6' }}>
+                                    <thead>
+                                      <tr style={{ backgroundColor: '#f3f4f6' }}>
+                                        <th style={cellStyle}>#</th> {/* <-- Sıra numarası sütunu */}
                                         <th style={cellStyle}>Tarih</th>
                                         <th style={cellStyle}>Lokasyon</th>
                                         <th style={cellStyle}>Projeler</th>
                                         <th style={cellStyle}>Toplam Sefer</th>
                                         <th style={cellStyle}>Sefer No</th>
                                         <th style={cellStyle}>Açıklama</th>
-
-
-                                </tr>
-                            </thead>
+                                      </tr>
+                                    </thead>
                                     <tbody>
-                                        {filteredEvraklar.map((evrak) => {
-                                            const seferler = evrak.evrakseferler || [];
-                                            const isExpanded = expandedRow === evrak.id;
-                                            const isProjelerVisible = acikProjeId === evrak.id;
+                                      {filteredEvraklar.map((evrak, index) => {
+    const seferler = evrak.evrakseferler || [];
+    const isExpanded = expandedRow === evrak.id;
+    const isProjelerVisible = acikProjeId === evrak.id;
 
-                                            return (
-                                                <React.Fragment key={evrak.id}>
-                                                    <tr
-                                                            onClick={() => setExpandedRow(isExpanded ? null : evrak.id)}
-                                                            className="cursor-pointer bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100"
-                                                        >
-                                                            <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
-                                                                {new Date(evrak.tarih).toLocaleDateString('tr-TR')}
-                                                            </td>
-                                                            <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
-                                                                {lokasyonlar[evrak.lokasyonid]}
-                                                            </td>
-                                                            <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setAcikProjeId(isProjelerVisible ? null : evrak.id);
-                                                                    }}
-                                                                    className="rounded-md px-2 py-1 text-xs cursor-pointer mb-2
-                                                                        bg-gray-100 border border-gray-300 text-gray-900
-                                                                        dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                                                >
-                                                                    {isProjelerVisible ? 'Projeleri Gizle' : 'Projeleri Göster'}
-                                                                </button>
+    return (
+        <React.Fragment key={evrak.id}>
+            <tr
+                onClick={() => setExpandedRow(isExpanded ? null : evrak.id)}
+                className="cursor-pointer bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100"
+            >
+                <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 font-semibold text-center">
+                    {index + 1}
+                </td>
+                <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
+                    {new Date(evrak.tarih).toLocaleDateString('tr-TR')}
+                </td>
+                <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
+                    {lokasyonlar[evrak.lokasyonid]}
+                </td>
+                <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setAcikProjeId(isProjelerVisible ? null : evrak.id);
+                        }}
+                        className="rounded-md px-2 py-1 text-xs cursor-pointer mb-2 bg-gray-100 border border-gray-300 text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    >
+                        {isProjelerVisible ? 'Projeleri Gizle' : 'Projeleri Göster'}
+                    </button>
+                    {isProjelerVisible && (
+                        <ul className="list-none p-2 m-0">
+                            {evrak.evrakproje?.map((p, idx) => (
+                                <li key={idx}>
+                                    {projeler[p.projeid]} ({p.sefersayisi})
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </td>
+                <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
+                    {evrak.sefersayisi}
+                </td>
+                <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center font-medium text-blue-700 dark:text-blue-400">
+                    {isExpanded ? '🔼 Gizle' : '🔽 Göster'}
+                </td>
+                <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
+                    {/* BOŞ: Açıklama alanı zaten detay satırlarında */}
+                </td>
+                <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedEvrak(evrak);
+                            setShowEditModal(true);
+                        }}
+                        className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                    >
+                        Düzenle
+                    </button>
+                </td>
+                <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            exportEvrakToExcel(evrak);
+                        }}
+                        className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+                    >
+                        Satır Raporu Al
+                    </button>
+                </td>
+            </tr>
 
-                                                                {isProjelerVisible && (
-                                                                    <ul className="list-none p-2 m-0">
-                                                                        {evrak.evrakproje?.map((p, idx) => (
-                                                                            <li key={idx}>
-                                                                                {projeler[p.projeid]} ({p.sefersayisi})
-                                                                            </li>
-                                                                        ))}
-                                                                    </ul>
-                                                                )}
-                                                            </td>
-                                                            <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
-                                                                {evrak.sefersayisi}
-                                                            </td>
-                                                            <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center font-medium text-blue-700 dark:text-blue-400">
-                                                                {isExpanded ? '🔼 Gizle' : '🔽 Göster'}
-                                                            </td>
-                                                            <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
-                                                                {/* BOŞ: Açıklama alanı zaten detay satırlarında */}
-                                                            </td>
-                                                            <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setSelectedEvrak(evrak);
-                                                                        setShowEditModal(true);
-                                                                    }}
-                                                                    className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
-                                                                >
-                                                                    Düzenle
-                                                                </button>
-                                                            </td>
-                                                            <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
-                                                              <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    exportEvrakToExcel(evrak);
-                                                                }}
-                                                                className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
-                                                            >
-                                                                Satır Raporu Al
-                                                            </button>
+            {isExpanded && (
+                seferler.length > 0 ? (
+                    seferler.map((sefer, i) => (
+                        <tr
+                            key={`${evrak.id}-${i}`}
+                            className={
+                                i % 2 === 0
+                                    ? "bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100"
+                                    : "bg-gray-50 text-gray-900 dark:bg-gray-700 dark:text-gray-200"
+                            }
+                        >
+                            <td className="border border-gray-200 dark:border-gray-700"></td> {/* boş sıra numarası hücresi */}
+                            <td colSpan={3} className="border border-gray-200 dark:border-gray-700"></td>
+                            <td className="border border-gray-200 dark:border-gray-700">{sefer.seferno}</td>
+                            <td className="border border-gray-200 dark:border-gray-700">{sefer.aciklama}</td>
+                            <td className="border border-gray-200 dark:border-gray-700" colSpan={3}></td>
+                        </tr>
+                    ))
+                ) : (
+                    <tr>
+                        <td className="border border-gray-200 dark:border-gray-700"></td>
+                        <td colSpan={4}></td>
+                        <td colSpan={2} className="text-center text-gray-400 dark:text-gray-500">
+                            Sefer kaydı bulunamadı
+                        </td>
+                        <td></td>
+                    </tr>
+                )
+            )}
+        </React.Fragment>
+    );
+})}
 
-
-
-                                                            </td>
-                                                        </tr>
-
-
-                                                    {isExpanded &&
-                                                        (seferler.length > 0 ? (
-                                                            seferler.map((sefer, i) => (
-                                                                <tr
-                                                                    key={`${evrak.id}-${i}`}
-                                                                    className={
-                                                                        i % 2 === 0
-                                                                            ? "bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100"
-                                                                            : "bg-gray-50 text-gray-900 dark:bg-gray-700 dark:text-gray-200"
-                                                                    }
-                                                                >
-                                                                    <td colSpan={4} className="border border-gray-200 dark:border-gray-700"></td>
-                                                                    <td className="border border-gray-200 dark:border-gray-700">{sefer.seferno}</td>
-                                                                    <td className="border border-gray-200 dark:border-gray-700">{sefer.aciklama}</td>
-                                                                    <td className="border border-gray-200 dark:border-gray-700"></td>
-                                                                </tr>
-                                                            ))
-                                                        ) : (
-                                                            <tr>
-                                                                <td colSpan={4}></td>
-                                                                <td colSpan={2} className="text-center text-gray-400 dark:text-gray-500">
-                                                                    Sefer kaydı bulunamadı
-                                                                </td>
-                                                                <td></td>
-                                                            </tr>
-                                                        ))}
-                                                </React.Fragment>
-                                            );
-                                        })}
                                     </tbody>
 
                         </table>

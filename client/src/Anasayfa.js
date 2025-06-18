@@ -122,6 +122,13 @@ function Anasayfa() {
                                 <button onClick={() => window.open('/evrak-ekle', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📄 Evrak Ekle</button>
                                 <button onClick={() => window.open('/toplu-evraklar', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📄 Tüm Evraklar</button>
                                 <button onClick={() => window.open('/tum-kargo-bilgileri', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📋 Tüm Kargo Bilgileri</button>
+                                <button
+                                    onClick={() => window.open('/arac-evrak-takip', '_blank')}
+                                    className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left"
+                                >
+                                    🚛 Araç Evrak Takip
+                                </button>
+
                             </>
                         )}
                         {username === 'refika' && (

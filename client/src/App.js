@@ -9,7 +9,8 @@ import Projeler from './Projeler';
 import TopluEvraklar from './TopluEvraklar';
 import EvrakEkle from './EvrakEkle';
 import KargoBilgisiEkle from './KargoBilgisiEkle';
-import TumKargoBilgileri from './TumKargoBilgileri'; // <-- Yeni import
+import TumKargoBilgileri from './TumKargoBilgileri';
+import AracEvrakTakip from './AracEvrakTakip'; // ✅ Doğru bileşen import edildi
 
 function App() {
     const [darkMode, toggleDarkMode] = useDarkMode();
@@ -26,7 +27,8 @@ function App() {
                     <Route path="/toplu-evraklar" element={<TopluEvraklar />} />
                     <Route path="/evrak-ekle" element={<EvrakEkle />} />
                     <Route path="/kargo-bilgisi-ekle" element={<KargoBilgisiEkle />} />
-                    <Route path="/tum-kargo-bilgileri" element={<TumKargoBilgileri />} /> {/* Yeni rota */}
+                    <Route path="/tum-kargo-bilgileri" element={<TumKargoBilgileri />} />
+                    <Route path="/arac-evrak-takip" element={<AracEvrakTakip />} /> {/* ✅ Doğru rota adı */}
                 </Routes>
             </Router>
         </div>
