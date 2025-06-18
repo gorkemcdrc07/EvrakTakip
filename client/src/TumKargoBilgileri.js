@@ -33,6 +33,8 @@ function TumKargoBilgileri() {
     const [ekstraEvrakSayisi, setEkstraEvrakSayisi] = useState('');
     const [ekstraEvrakSoruAcik, setEkstraEvrakSoruAcik] = useState(false);
     const [ekstraEvrakEklendi, setEkstraEvrakEklendi] = useState(false);
+    const [irsaliyeNoInput, setIrsaliyeNoInput] = useState('');
+
 
 
     const getYil = (tarih) => {
@@ -98,38 +100,44 @@ function TumKargoBilgileri() {
         setModalBaslik('');
     };
 
-    const filtrele = () => {
-        let filtrelenmis = [...veriler];
+   const filtrele = () => {
+    let filtrelenmis = [...veriler];
 
-        if (secilenYil) {
-            filtrelenmis = filtrelenmis.filter(v => getYil(v.tarih) === secilenYil);
-        }
+    if (secilenYil) {
+        filtrelenmis = filtrelenmis.filter(v => getYil(v.tarih) === secilenYil);
+    }
 
-        if (tarihBaslangic) {
-            filtrelenmis = filtrelenmis.filter(v => new Date(v.tarih) >= new Date(tarihBaslangic));
-        }
+    if (tarihBaslangic) {
+        filtrelenmis = filtrelenmis.filter(v => new Date(v.tarih) >= new Date(tarihBaslangic));
+    }
 
-        if (tarihBitis) {
-            filtrelenmis = filtrelenmis.filter(v => new Date(v.tarih) <= new Date(tarihBitis));
-        }
+    if (tarihBitis) {
+        filtrelenmis = filtrelenmis.filter(v => new Date(v.tarih) <= new Date(tarihBitis));
+    }
 
-        if (selectedIrsaliye.length > 0) {
-            const secilen = selectedIrsaliye.map(o => o.value.toLowerCase());
-            filtrelenmis = filtrelenmis.filter(v => secilen.includes(v.irsaliye_adi?.toLowerCase()));
-        }
+    if (selectedIrsaliye.length > 0) {
+        const secilen = selectedIrsaliye.map(o => o.value.toLowerCase());
+        filtrelenmis = filtrelenmis.filter(v => secilen.includes(v.irsaliye_adi?.toLowerCase()));
+    }
 
-        if (selectedKargo.length > 0) {
-            const secilen = selectedKargo.map(o => o.value.toLowerCase());
-            filtrelenmis = filtrelenmis.filter(v => secilen.includes(v.kargo_firmasi?.toLowerCase()));
-        }
+    if (selectedKargo.length > 0) {
+        const secilen = selectedKargo.map(o => o.value.toLowerCase());
+        filtrelenmis = filtrelenmis.filter(v => secilen.includes(v.kargo_firmasi?.toLowerCase()));
+    }
 
-        if (selectedGonderen.length > 0) {
-            const secilen = selectedGonderen.map(o => o.value.toLowerCase());
-            filtrelenmis = filtrelenmis.filter(v => secilen.includes(v.gonderen_firma?.toLowerCase()));
-        }
+    if (selectedGonderen.length > 0) {
+        const secilen = selectedGonderen.map(o => o.value.toLowerCase());
+        filtrelenmis = filtrelenmis.filter(v => secilen.includes(v.gonderen_firma?.toLowerCase()));
+    }
 
-        setFilteredVeriler(filtrelenmis);
-    };
+    if (irsaliyeNoInput.trim() !== '') {
+        const aranan = irsaliyeNoInput.trim().toLowerCase();
+        filtrelenmis = filtrelenmis.filter(v => v.irsaliye_no?.toLowerCase().includes(aranan));
+    }
+
+    setFilteredVeriler(filtrelenmis);
+};
+
 
     const excelAktarVeri = (veri, tur) => {
         const aktarilacak = veri.map(item => ({
@@ -336,6 +344,17 @@ function TumKargoBilgileri() {
                         <label className="block mb-1">Gönderen Firma</label>
                         <Select options={gonderenOptions} value={selectedGonderen} onChange={setSelectedGonderen} isMulti className="text-black" />
                     </div>
+                    <div>
+                        <label className="block mb-1">İrsaliye No (içerir)</label>
+                        <input
+                            type="text"
+                            className="w-full p-2 rounded text-black"
+                            placeholder="İrsaliye No ara..."
+                            value={irsaliyeNoInput}
+                            onChange={e => setIrsaliyeNoInput(e.target.value)}
+                        />
+                    </div>
+
                 </div>
 
                 {/* Filtreleme ve Excel Butonları */}
