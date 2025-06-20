@@ -270,6 +270,9 @@ function EvrakEkle() {
                                     <option value="">Açıklama Seçiniz</option>
                                     <option value="TARAFIMIZCA DÜZELTİLMİŞTİR">TARAFIMIZCA DÜZELTİLMİŞTİR</option>
                                     <option value="TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR">TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR</option>
+                                    <option value="EKSİK TARAMA">EKSİK TARAMA</option>
+                                    <option value="HASARLI TARAMA">HASARLI TARAMA</option>
+                                    <option value="GÖRÜNTÜ TARAMA">GÖRÜNTÜ TARAMA</option>
                                 </select>
                             </div>
                         ))}

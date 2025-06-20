@@ -11,6 +11,7 @@ function Login() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
         const { data, error } = await supabase
             .from('login')
             .select('*')
@@ -20,12 +21,12 @@ function Login() {
         if (error) {
             console.error(error);
             setMesaj('⚠️ Veritabanı hatası');
-        } else if (data.length === 0) {
+        } else if (!data || data.length === 0) {
             setMesaj('❌ Hatalı kullanıcı adı veya şifre');
         } else {
             localStorage.setItem('auth', 'true');
-            localStorage.setItem('username', kullaniciAdi);
-            localStorage.setItem('ad', data[0].kullanici);
+            localStorage.setItem('username', kullaniciAdi); // yetkilendirme için
+            localStorage.setItem('ad', data[0].kullanici);  // anasayfada ad soyad gösterimi
             navigate('/anasayfa');
         }
     };
@@ -37,7 +38,9 @@ function Login() {
                     onSubmit={handleSubmit}
                     className="w-full max-w-sm bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg flex flex-col gap-5"
                 >
-                    <h2 className="text-center text-2xl font-semibold text-gray-800 dark:text-gray-200">🔐 Giriş Yap</h2>
+                    <h2 className="text-center text-2xl font-semibold text-gray-800 dark:text-gray-200">
+                        🔐 Giriş Yap
+                    </h2>
 
                     <input
                         type="text"

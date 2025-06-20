@@ -7,24 +7,61 @@ function Lokasyonlar() {
     const navigate = useNavigate();
     const [lokasyonlar, setLokasyonlar] = useState([]);
     const [hata, setHata] = useState('');
+    const [yeniLokasyon, setYeniLokasyon] = useState('');
+    const [yukleniyor, setYukleniyor] = useState(false);
 
     useEffect(() => {
         document.title = 'Lokasyonlar';
-
-        const fetchData = async () => {
-            const { data, error } = await supabase.from('lokasyonlar').select('*');
-            if (error) {
-                console.error('❌ Veri çekme hatası:', error);
-                setHata('Veriler alınamadı');
-                setLokasyonlar([]);
-            } else {
-                console.log('✅ Gelen veri:', data);
-                setLokasyonlar(data);
-            }
-        };
-
         fetchData();
     }, []);
+
+    const fetchData = async () => {
+        const { data, error } = await supabase.from('lokasyonlar').select('*');
+        if (error) {
+            console.error('❌ Veri çekme hatası:', error);
+            setHata('Veriler alınamadı');
+            setLokasyonlar([]);
+        } else {
+            setHata('');
+            setLokasyonlar(data);
+        }
+    };
+
+    const handleEkle = async (e) => {
+        e.preventDefault();
+        if (!yeniLokasyon.trim()) return;
+
+        setYukleniyor(true);
+        const { data, error } = await supabase
+            .from('lokasyonlar')
+            .insert([{ lokasyon: yeniLokasyon.trim() }]);
+
+        if (error) {
+            setHata('Lokasyon eklenemedi.');
+            console.error(error);
+        } else {
+            setYeniLokasyon('');
+            fetchData(); // Listeyi güncelle
+        }
+        setYukleniyor(false);
+    };
+
+    const handleSil = async (id) => {
+        const confirm = window.confirm("Bu lokasyonu silmek istediğinizden emin misiniz?");
+        if (!confirm) return;
+
+        const { error } = await supabase
+            .from('lokasyonlar')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            setHata('Silme işlemi başarısız.');
+            console.error(error);
+        } else {
+            fetchData();
+        }
+    };
 
     return (
         <Layout>
@@ -39,6 +76,23 @@ function Lokasyonlar() {
                     </button>
                 </div>
 
+                <form onSubmit={handleEkle} className="mb-6 flex gap-2">
+                    <input
+                        type="text"
+                        value={yeniLokasyon}
+                        onChange={(e) => setYeniLokasyon(e.target.value)}
+                        placeholder="Yeni lokasyon girin"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded dark:bg-gray-800 dark:border-gray-700"
+                    />
+                    <button
+                        type="submit"
+                        disabled={yukleniyor}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+                    >
+                        {yukleniyor ? 'Ekleniyor...' : 'Ekle'}
+                    </button>
+                </form>
+
                 {hata && (
                     <p className="text-red-600 dark:text-red-400 font-semibold mb-4">{hata}</p>
                 )}
@@ -48,9 +102,15 @@ function Lokasyonlar() {
                         lokasyonlar.map((lokasyon) => (
                             <li
                                 key={lokasyon.id}
-                                className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-4 py-3 shadow-sm transition-colors"
+                                className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-4 py-3 shadow-sm flex justify-between items-center"
                             >
-                                {lokasyon.lokasyon}
+                                <span>{lokasyon.lokasyon}</span>
+                                <button
+                                    onClick={() => handleSil(lokasyon.id)}
+                                    className="text-sm text-red-600 hover:underline"
+                                >
+                                    Sil
+                                </button>
                             </li>
                         ))
                     ) : (
