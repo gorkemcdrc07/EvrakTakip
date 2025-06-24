@@ -115,22 +115,17 @@ function Anasayfa() {
                 <div className={`fixed top-0 left-0 h-full w-64 bg-pink-100 dark:bg-gray-800 shadow-md p-4 transform transition-transform duration-300 z-50 ${menuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                     <button className="text-gray-600 dark:text-gray-300 text-xl self-end" onClick={toggleMenu}>✖</button>
                     <div className="flex flex-col gap-4 mt-4">
-                        {(username === 'yaren' || username === 'ozge') && (
-                            <>
-                                <button onClick={() => window.open('/lokasyonlar', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📍 Lokasyonlar</button>
-                                <button onClick={() => window.open('/projeler', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📁 Projeler</button>
-                                <button onClick={() => window.open('/evrak-ekle', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📄 Evrak Ekle</button>
-                                <button onClick={() => window.open('/toplu-evraklar', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📄 Tüm Evraklar</button>
-                                <button onClick={() => window.open('/tum-kargo-bilgileri', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📋 Tüm Kargo Bilgileri</button>
-                                <button
-                                    onClick={() => window.open('/arac-evrak-takip', '_blank')}
-                                    className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left"
-                                >
-                                    🚛 Araç Evrak Takip
-                                </button>
-
-                            </>
-                        )}
+{(username === 'yaren' || username === 'ozge') && (
+    <>
+        <button onClick={() => window.open('/lokasyonlar', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📍 Lokasyonlar</button>
+        <button onClick={() => window.open('/projeler', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📁 Projeler</button>
+        <button onClick={() => window.open('/evrak-ekle', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📄 Evrak Ekle</button>
+        <button onClick={() => window.open('/toplu-evraklar', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📄 Tüm Evraklar</button>
+        <button onClick={() => window.open('/tum-kargo-bilgileri', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📋 Tüm Kargo Bilgileri</button>
+        <button onClick={() => window.open('/arac-evrak-takip', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">🚛 Araç Evrak Takip</button>
+        <button onClick={() => window.open('/tutanak', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📝 Tutanak</button>
+    </>
+)}
                         {username === 'refika' && (
                             <>
                                 <button onClick={() => window.open('/kargo-bilgisi-ekle', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📦 Kargo Bilgisi Ekle</button>
