@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from './supabaseClient';
 import {
     PieChart, Pie, Cell, Tooltip
@@ -13,9 +13,16 @@ import * as XLSX from 'xlsx';
 
 
 
+
+
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'];
 
 function TopluEvraklar() {
+    const lokasyonRef = useRef(null);
+    const projeRef = useRef(null);
+    const aciklamaRef = useRef(null);
+    const sefernoRef = useRef(null);
+
     const [evraklar, setEvraklar] = useState([]);
     const [lokasyonlar, setLokasyonlar] = useState({});
     const [projeler, setProjeler] = useState({});
@@ -28,7 +35,31 @@ function TopluEvraklar() {
         aciklama: '',
         seferno: ''
     });
-    // ✅ Buraya EKLE
+
+    // ✅ Tıklanınca dropdown'ları kapatan useEffect
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (lokasyonRef.current && !lokasyonRef.current.contains(e.target)) {
+                setShowLokasyonlar(false);
+            }
+            if (projeRef.current && !projeRef.current.contains(e.target)) {
+                setShowProjeler(false);
+            }
+            if (aciklamaRef.current && !aciklamaRef.current.contains(e.target)) {
+                setShowAciklamalar(false);
+            }
+            if (sefernoRef.current && !sefernoRef.current.contains(e.target)) {
+                setShowSeferNolar(false);
+            }
+        };
+
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
+
+    // ✅ Memo'lar bu useEffect'in ALTINDA olabilir
     const tumAciklamalar = React.useMemo(() => {
         const set = new Set();
         evraklar.forEach(e => {
@@ -40,16 +71,18 @@ function TopluEvraklar() {
         });
         return Array.from(set);
     }, [evraklar]);
+
     const tumSeferNolari = React.useMemo(() => {
-    const set = new Set();
-    evraklar.forEach(e => {
-        e.evrakseferler?.forEach(s => {
-            const sefer = s.seferno?.trim() || '(Boş)';
-            set.add(sefer);
+        const set = new Set();
+        evraklar.forEach(e => {
+            e.evrakseferler?.forEach(s => {
+                const sefer = s.seferno?.trim() || '(Boş)';
+                set.add(sefer);
+            });
         });
-    });
-    return Array.from(set);
-}, [evraklar]);
+        return Array.from(set);
+    }, [evraklar]);
+
 
 
 
@@ -767,7 +800,7 @@ const exportEvrakToExcel = (evrak) => {
 
                             <div className="flex gap-4 items-center flex-wrap">
                                {/* Başlangıç Tarihi */}
-<div className="relative w-48">
+                                <div ref={lokasyonRef} className="relative w-48">
     <input
         type="text"
         onFocus={(e) => e.target.type = 'date'}
@@ -784,7 +817,7 @@ const exportEvrakToExcel = (evrak) => {
 </div>
 
 {/* Bitiş Tarihi */}
-<div className="relative w-48">
+                                <div ref={projeRef} className="relative w-48">
     <input
         type="text"
         onFocus={(e) => e.target.type = 'date'}
@@ -805,7 +838,7 @@ const exportEvrakToExcel = (evrak) => {
 
 
                                 {/* Lokasyon Dropdown Checkbox */}
-                                <div className="relative w-48">
+                                <div ref={aciklamaRef} className="relative w-48">
                                     <div
                                         onClick={() => setShowLokasyonlar(!showLokasyonlar)}
                                         className="px-3 py-2 rounded border border-gray-300 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600 cursor-pointer select-none"
@@ -847,7 +880,7 @@ const exportEvrakToExcel = (evrak) => {
 
 
                         {/* Proje Dropdown Checkbox */}
-                        <div className="relative w-48">
+                                <div ref={sefernoRef} className="relative w-48">
                             <div
                                 onClick={() => setShowProjeler(!showProjeler)}
                                 className="px-3 py-2 rounded border border-gray-300 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600 cursor-pointer select-none"

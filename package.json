@@ -10,6 +10,7 @@
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.9.0",
     "file-saver": "^2.0.5",
+    "html-docx-js": "^0.3.1",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
     "lottie-react": "^2.4.1",
@@ -17,7 +18,7 @@
     "react-dom": "^18.2.0",
     "react-icons": "^5.5.0",
     "react-router-dom": "^6.15.0",
-    "react-scripts": "5.0.1",
+    "react-scripts": "^5.0.1",
     "react-select": "^5.10.1",
     "recharts": "^2.15.3",
     "web-vitals": "^2.1.4",
@@ -30,11 +31,22 @@
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
-    "extends": [ "react-app", "react-app/jest" ]
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
   },
   "browserslist": {
-    "production": [ ">0.2%", "not dead", "not op_mini all" ],
-    "development": [ "last 1 chrome version", "last 1 firefox version", "last 1 safari version" ]
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   },
   "devDependencies": {
     "@svgr/webpack": "^8.1.0",
