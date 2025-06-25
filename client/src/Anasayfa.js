@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import { supabase } from './supabaseClient';
 import {
-    BarChart, Bar, XAxis, YAxis, Tooltip,
+    BarChart, AreaChart, LineChart, Bar, XAxis, YAxis, Tooltip,
     ResponsiveContainer, CartesianGrid
 } from 'recharts';
+import { motion } from 'framer-motion';
 
 function Anasayfa() {
     const navigate = useNavigate();
@@ -15,8 +16,11 @@ function Anasayfa() {
     const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
     const [dailyData, setDailyData] = useState([]);
     const [metric, setMetric] = useState('kargo');
+    const [chartType, setChartType] = useState('bar');
     const [firmalar, setFirmalar] = useState([]);
     const [selectedFirma, setSelectedFirma] = useState('Hepsi');
+
+    const buttonClass = "flex items-center gap-3 px-5 py-3 rounded-xl bg-white/80 dark:bg-gray-700 text-gray-800 dark:text-white shadow-md hover:shadow-lg hover:scale-[1.02] transition-all duration-300 hover:bg-pink-100 dark:hover:bg-gray-600 backdrop-blur-md border border-gray-200 dark:border-gray-600";
 
     useEffect(() => {
         document.documentElement.classList.toggle('dark', darkMode);
@@ -30,9 +34,7 @@ function Anasayfa() {
 
             if (!error && data) {
                 const unique = [...new Set(
-                    data
-                        .map(item => item.kargo_firmasi?.trim().toUpperCase())
-                        .filter(Boolean)
+                    data.map(item => item.kargo_firmasi?.trim().toUpperCase()).filter(Boolean)
                 )];
                 setFirmalar(['Hepsi', ...unique]);
             }
@@ -40,8 +42,6 @@ function Anasayfa() {
 
         fetchFirmalar();
     }, []);
-
-
 
     useEffect(() => {
         const fetchDailyData = async () => {
@@ -89,93 +89,100 @@ function Anasayfa() {
         fetchDailyData();
     }, [metric, selectedFirma]);
 
-
     const handleLogout = () => {
-        localStorage.removeItem('auth');
-        localStorage.removeItem('username');
-        localStorage.removeItem('ad');
+        localStorage.clear();
         navigate('/login');
     };
 
     const toggleMenu = () => setMenuOpen(!menuOpen);
 
     const toggleDarkMode = () => {
-        setDarkMode(prev => {
-            const newMode = !prev;
-            localStorage.setItem('theme', newMode ? 'dark' : 'light');
-            return newMode;
-        });
+        const newMode = !darkMode;
+        setDarkMode(newMode);
+        localStorage.setItem('theme', newMode ? 'dark' : 'light');
+    };
+
+    const renderChart = () => {
+        const ChartComponent = chartType === 'bar' ? BarChart : chartType === 'line' ? LineChart : AreaChart;
+        return (
+            <ResponsiveContainer width="100%" height={300}>
+                <ChartComponent data={dailyData} margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
+                    <defs>
+                        <linearGradient id="colorKargo" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#ec4899" stopOpacity={0.9} />
+                            <stop offset="100%" stopColor="#f9a8d4" stopOpacity={0.6} />
+                        </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} />
+                    <XAxis dataKey="label" tick={{ fill: '#9ca3af', fontSize: 14 }} />
+                    <YAxis allowDecimals={false} tick={{ fill: '#9ca3af' }} />
+                    <Tooltip contentStyle={{ backgroundColor: '#fff', borderRadius: '0.5rem', fontSize: '0.9rem', color: '#374151', border: 'none', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }} />
+                    <Bar dataKey="count" fill="url(#colorKargo)" radius={[8, 8, 0, 0]} />
+                </ChartComponent>
+            </ResponsiveContainer>
+        );
     };
 
     return (
         <Layout>
-            <div className="min-h-screen font-sans bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-
-                {/* Sidebar */}
-                <div className={`fixed top-0 left-0 h-full w-64 bg-pink-100 dark:bg-gray-800 shadow-md p-4 transform transition-transform duration-300 z-50 ${menuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <div className="min-h-screen font-sans bg-gradient-to-br from-pink-50 via-white to-purple-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 text-gray-900 dark:text-white">
+                <motion.div initial={{ x: -300 }} animate={{ x: menuOpen ? 0 : -300 }} transition={{ type: 'spring', stiffness: 100 }} className="fixed top-0 left-0 h-full w-64 bg-white/10 backdrop-blur-md dark:bg-gray-800/30 shadow-xl rounded-r-xl border border-white/10 p-4 z-50">
                     <button className="text-gray-600 dark:text-gray-300 text-xl self-end" onClick={toggleMenu}>✖</button>
-                    <div className="flex flex-col gap-4 mt-4">
-{(username === 'yaren' || username === 'ozge') && (
-    <>
-        <button onClick={() => window.open('/lokasyonlar', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📍 Lokasyonlar</button>
-        <button onClick={() => window.open('/projeler', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📁 Projeler</button>
-        <button onClick={() => window.open('/evrak-ekle', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📄 Evrak Ekle</button>
-        <button onClick={() => window.open('/toplu-evraklar', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📄 Tüm Evraklar</button>
-        <button onClick={() => window.open('/tum-kargo-bilgileri', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📋 Tüm Kargo Bilgileri</button>
-        <button onClick={() => window.open('/arac-evrak-takip', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">🚛 Araç Evrak Takip</button>
-        <button onClick={() => window.open('/tutanak', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📝 Tutanak</button>
-    </>
-)}
+                    <div className="flex flex-col gap-3 mt-4">
+                        {(username === 'yaren' || username === 'ozge') && (
+                            <>
+                                <button onClick={() => window.open('/lokasyonlar', '_blank')} className={buttonClass}>📍 Lokasyonlar</button>
+                                <button onClick={() => window.open('/projeler', '_blank')} className={buttonClass}>📁 Projeler</button>
+                                <button onClick={() => window.open('/evrak-ekle', '_blank')} className={buttonClass}>📝 Evrak Ekle</button>
+                                <button onClick={() => window.open('/toplu-evraklar', '_blank')} className={buttonClass}>📄 Tüm Evraklar</button>
+                                <button onClick={() => window.open('/tum-kargo-bilgileri', '_blank')} className={buttonClass}>📋 Tüm Kargo Bilgileri</button>
+                                <button onClick={() => window.open('/tutanak', '_blank')} className={buttonClass}>📝 Tutanak</button>
+                            </>
+                        )}
                         {username === 'refika' && (
                             <>
-                                <button onClick={() => window.open('/kargo-bilgisi-ekle', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📦 Kargo Bilgisi Ekle</button>
-                                <button onClick={() => window.open('/tum-kargo-bilgileri', '_blank')} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded text-left">📋 Tüm Kargo Bilgileri</button>
+                                <button onClick={() => window.open('/kargo-bilgisi-ekle', '_blank')} className={buttonClass}>📦 Kargo Bilgisi Ekle</button>
+                                <button onClick={() => window.open('/tum-kargo-bilgileri', '_blank')} className={buttonClass}>📋 Tüm Kargo Bilgileri</button>
                             </>
                         )}
                     </div>
-                </div>
+                </motion.div>
 
-                {/* Navbar */}
-                <nav className={`flex justify-between items-center bg-pink-100 dark:bg-gray-800 shadow px-6 py-4 transition-all duration-300 ${menuOpen ? 'ml-64' : 'ml-0'}`}>
-                    <button className="text-2xl text-gray-700 dark:text-gray-200" onClick={toggleMenu}>☰</button>
+                <nav className={`flex justify-between items-center bg-white/60 dark:bg-gray-800 shadow px-6 py-4 transition-all duration-300 ${menuOpen ? 'ml-64' : 'ml-0'}`}>
+                    <button className="text-2xl text-gray-700 dark:text-white" onClick={toggleMenu}>☰</button>
                     <div className="text-lg font-bold">📁 Evrak Takip Sistemi</div>
                     <div className="flex items-center gap-3">
                         <span className="font-medium">{adSoyad}</span>
-                        <button
-                            onClick={toggleDarkMode}
-                            className="relative w-14 h-8 bg-gray-300 rounded-full dark:bg-gray-600 flex items-center px-1 cursor-pointer select-none"
-                            aria-label="Toggle Dark Mode"
-                            role="switch"
-                            aria-checked={darkMode}
-                        >
-                            <div className={`bg-white w-6 h-6 rounded-full shadow-md transform duration-300 ${darkMode ? 'translate-x-6' : 'translate-x-0'} flex items-center justify-center text-yellow-500 dark:text-yellow-400`}>
-                                {darkMode ? (
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z" />
-                                    </svg>
-                                ) : (
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m8.66-11H21m-18 0H3m15.36 7.36l.7.7m-12.02-12l.7.7m12.02 0l-.7.7m-12.02 12l-.7.7M12 7a5 5 0 100 10 5 5 0 000-10z" />
-                                    </svg>
-                                )}
-                            </div>
+                        <button onClick={toggleDarkMode} className="w-10 h-10 rounded-full bg-pink-100 dark:bg-gray-700 text-xl flex items-center justify-center transition hover:rotate-180">
+                            {darkMode ? '🌙' : '☀️'}
                         </button>
-                        <button onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded">
-                            Çıkış
-                        </button>
+                        <button onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded">Çıkış</button>
                     </div>
                 </nav>
 
-                {/* İçerik */}
                 <main className={`p-6 transition-all duration-300 ${menuOpen ? 'ml-64' : 'ml-0'}`}>
-                    <h2 className="text-2xl font-semibold">🎉 Hoş geldin, {adSoyad}!</h2>
-                    <p className="mt-2 text-gray-700 dark:text-gray-300">
-                        Bu sayfa sadece giriş yapan kullanıcılar içindir.
-                    </p>
-
                     {username === 'refika' && (
-                        <div className="mt-8 p-6 rounded-xl bg-white dark:bg-gray-800 shadow-md">
-                            {/* Filtre Seçenekleri */}
+                        <>
+                            <div className="bg-gradient-to-r from-pink-200 via-purple-100 to-white dark:from-gray-800 dark:via-gray-700 to-gray-900 p-6 rounded-xl shadow mb-6">
+                                <h1 className="text-3xl font-bold">👋 Hoş geldin, {adSoyad}</h1>
+                                <p className="text-gray-600 dark:text-gray-300">Bugün ne yapmak istersin?</p>
+                            </div>
+
+                            <div className="grid sm:grid-cols-3 gap-4 mb-8">
+                                <motion.div whileHover={{ scale: 1.05 }} className="p-5 bg-white dark:bg-gray-800 rounded-2xl shadow border-l-4 border-pink-500">
+                                    <h4 className="text-sm text-gray-500">Bugünkü Evrak</h4>
+                                    <p className="text-2xl font-bold text-pink-600">12</p>
+                                </motion.div>
+                                <motion.div whileHover={{ scale: 1.05 }} className="p-5 bg-white dark:bg-gray-800 rounded-2xl shadow border-l-4 border-pink-500">
+                                    <h4 className="text-sm text-gray-500">Toplam Firma</h4>
+                                    <p className="text-2xl font-bold text-pink-600">{firmalar.length - 1}</p>
+                                </motion.div>
+                                <motion.div whileHover={{ scale: 1.05 }} className="p-5 bg-white dark:bg-gray-800 rounded-2xl shadow border-l-4 border-pink-500">
+                                    <h4 className="text-sm text-gray-500">Kullanıcı</h4>
+                                    <p className="text-2xl font-bold text-pink-600">{adSoyad}</p>
+                                </motion.div>
+                            </div>
+
                             <div className="flex gap-4 items-center mb-6">
                                 <select value={metric} onChange={e => setMetric(e.target.value)} className="px-4 py-2 rounded bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100">
                                     <option value="kargo">📦 Kargo Sayısı</option>
@@ -187,6 +194,12 @@ function Anasayfa() {
                                         <option key={firma} value={firma}>{firma}</option>
                                     ))}
                                 </select>
+
+                                <div className="flex gap-2">
+                                    <button onClick={() => setChartType('bar')} className="text-sm px-3 py-1 rounded bg-pink-100 dark:bg-gray-700 hover:bg-pink-200 dark:hover:bg-gray-600">📊 Bar</button>
+                                    <button onClick={() => setChartType('line')} className="text-sm px-3 py-1 rounded bg-pink-100 dark:bg-gray-700 hover:bg-pink-200 dark:hover:bg-gray-600">📉 Line</button>
+                                    <button onClick={() => setChartType('area')} className="text-sm px-3 py-1 rounded bg-pink-100 dark:bg-gray-700 hover:bg-pink-200 dark:hover:bg-gray-600">📈 Area</button>
+                                </div>
                             </div>
 
                             <h3 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">
@@ -196,48 +209,17 @@ function Anasayfa() {
                                 Toplam: {dailyData.reduce((sum, item) => sum + item.count, 0)} kayıt
                             </div>
 
-                            {dailyData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={dailyData} margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
-                                        <defs>
-                                            <linearGradient id="colorKargo" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="0%" stopColor="#ec4899" stopOpacity={0.9} />
-                                                <stop offset="100%" stopColor="#f9a8d4" stopOpacity={0.6} />
-                                            </linearGradient>
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} />
-                                        <XAxis dataKey="label" tick={{ fill: '#9ca3af', fontSize: 14 }} />
-                                        <YAxis allowDecimals={false} tick={{ fill: '#9ca3af' }} />
-                                        <Tooltip
-                                            contentStyle={{
-                                                backgroundColor: '#fff',
-                                                borderRadius: '0.5rem',
-                                                fontSize: '0.9rem',
-                                                color: '#374151',
-                                                border: 'none',
-                                                boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-                                            }}
-                                        />
-                                        <Bar dataKey="count" fill="url(#colorKargo)" radius={[8, 8, 0, 0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <p className="text-gray-500 dark:text-gray-400">Veri yükleniyor...</p>
-                            )}
+                            {renderChart()}
 
-                            {/* Günlük Detay Kartları */}
                             <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                 {dailyData.map(item => (
-                                    <div key={item.date} className="flex items-center gap-3 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow">
-                                        <div className="text-2xl">📅</div>
-                                        <div className="flex flex-col">
-                                            <span className="font-semibold text-gray-800 dark:text-gray-100">{item.label} - {item.date}</span>
-                                            <span className="text-pink-600 dark:text-pink-300 font-bold">{item.count} kayıt</span>
-                                        </div>
-                                    </div>
+                                    <motion.div whileHover={{ scale: 1.02 }} key={item.date} className="p-5 bg-white dark:bg-gray-700 rounded-2xl shadow hover:shadow-lg transition-transform border-l-4 border-pink-500">
+                                        <div className="text-xl font-semibold mb-1 text-gray-800 dark:text-white">📅 {item.label}</div>
+                                        <div className="text-pink-600 dark:text-pink-300 font-bold text-lg">{item.count} kayıt</div>
+                                    </motion.div>
                                 ))}
                             </div>
-                        </div>
+                        </>
                     )}
                 </main>
             </div>

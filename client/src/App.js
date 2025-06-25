@@ -10,7 +10,6 @@ import TopluEvraklar from './TopluEvraklar';
 import EvrakEkle from './EvrakEkle';
 import KargoBilgisiEkle from './KargoBilgisiEkle';
 import TumKargoBilgileri from './TumKargoBilgileri';
-import AracEvrakTakip from './AracEvrakTakip';
 import Tutanak from './Tutanak'; // ✅ Yeni bileşen import edildi
 
 function App() {
@@ -29,7 +28,6 @@ function App() {
                     <Route path="/evrak-ekle" element={<EvrakEkle />} />
                     <Route path="/kargo-bilgisi-ekle" element={<KargoBilgisiEkle />} />
                     <Route path="/tum-kargo-bilgileri" element={<TumKargoBilgileri />} />
-                    <Route path="/arac-evrak-takip" element={<AracEvrakTakip />} />
                     <Route path="/tutanak" element={<Tutanak />} /> {/* ✅ Yeni rota eklendi */}
                 </Routes>
             </Router>

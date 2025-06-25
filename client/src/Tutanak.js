@@ -11,6 +11,15 @@ const Tutanak = () => {
     const [firma, setFirma] = useState('');
     const contentRef = useRef();
 
+    const formatDate = (date) => {
+        const d = new Date(date);
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}/${month}/${year}`;
+    };
+    const today = formatDate(new Date());
+
     const handlePaste = (e) => {
         const raw = e.target.value.trim();
         const delimiter = raw.includes('\t') ? '\t' : ';';
@@ -50,7 +59,66 @@ Sayın Taşıyıcı Muhatap; ${firma_}, ${tarih} tarihinde ${seferNo} nolu sefer
     };
 
     const handleWordExport = () => {
-        const html = `<html><body>${contentRef.current.innerHTML}</body></html>`;
+        const content = contentRef.current.cloneNode(true);
+        content.style.fontFamily = 'Times New Roman, serif';
+
+        const applyFontSize = (selector, size) => {
+            const elements = content.querySelectorAll(selector);
+            elements.forEach(el => {
+                el.style.fontSize = size;
+                el.style.fontFamily = 'Times New Roman, serif';
+            });
+        };
+
+        applyFontSize('h1, h2', '11pt');
+        applyFontSize('p', '11pt');
+
+        const paragraphs = content.querySelectorAll('p');
+        paragraphs.forEach((el, idx) => {
+            const txt = el.textContent;
+
+            if (
+                txt.startsWith('Sayın Taşıyıcı Muhatap') &&
+                txt.includes('teslim edildiğini beyan edilmiştir')
+            ) {
+                el.style.fontSize = '10pt';
+            }
+
+            if (
+                txt.includes('teslim edilmemesi nedeni') ||
+                txt.includes('KDV ödemeleri')
+            ) {
+                el.style.fontSize = '11pt';
+            }
+
+            if (txt === 'SORUMLULUK BEYANI') {
+                const next = paragraphs[idx + 1];
+                if (next && next.textContent.startsWith('ODAK TEDARİK')) {
+                    next.style.fontSize = '10pt';
+                }
+            }
+        });
+
+        const finalInnerHTML = content.innerHTML.replace(/Tarih: (.*?)\nBeyan eden;\n(.*?)\n\nKaşe \/ İmza/g, (match, tarih, firma) => {
+            return `
+        <p style="font-size:11pt; font-family:'Times New Roman', serif;">
+            Tarih: ${tarih}<br />
+            Beyan eden; ${firma}<br /><br />
+            Kaşe / İmza
+        </p>
+    `;
+        });
+
+        const html = `
+<html>
+    <head><meta charset="utf-8"></head>
+    <body style="font-family: 'Times New Roman', serif;">
+        ${finalInnerHTML}
+    </body>
+</html>
+`;
+
+
         const docxBlob = htmlDocx.asBlob(html);
         saveAs(docxBlob, 'tutanak.docx');
     };
@@ -120,10 +188,13 @@ Sayın Taşıyıcı Muhatap; ${firma_}, ${tarih} tarihinde ${seferNo} nolu sefer
                 <h2 className="mt-8 font-semibold text-lg">SORUMLULUK BEYANI</h2>
                 <p className="mt-2 whitespace-pre-wrap">{sorumluluk}</p>
 
-                <div className="mt-10">
-                    <p><strong>Tarih:</strong> ...............</p>
-                    <p className="mt-4"><strong>Beyan eden:</strong><br />{firma || '---'}</p>
-                    <p className="mt-10">Kaşe / İmza</p>
+                <div className="mt-10 whitespace-pre-wrap" style={{ fontSize: '11pt', fontFamily: 'Times New Roman, serif' }}>
+                    <p>
+                        Tarih: {today}{'\n'}
+                        Beyan eden;{'\n'}
+                        {firma || '---'}{'\n\n'}
+                        Kaşe / İmza
+                    </p>
                 </div>
             </div>
         </div>
