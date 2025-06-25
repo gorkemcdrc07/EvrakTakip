@@ -57,8 +57,15 @@ const Raporlar = () => {
                     startDate: startDate.toISOString(),
                     endDate: endDate.toISOString(),
                     userId: 1,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${process.env.REACT_APP_API_TOKEN}`, // Bu satırı kaldırmalısın
+                    }
                 }
             );
+
+
 
 
             const filtreliData = (response.data.Data || []).filter((item) => {

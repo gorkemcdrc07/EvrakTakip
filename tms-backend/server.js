@@ -5,7 +5,15 @@ require('dotenv').config();
 const tmsProxy = require('./api/tmsProxy');
 
 const app = express();
-app.use(cors());
+
+// CORS'u frontend adresine göre özelleştir
+app.use(cors({
+    origin: 'http://localhost:3000',  // frontend'in çalıştığı adres ve port (örn: 3000 veya 3001)
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+}));
+
 app.use(express.json());
 
 app.use('/api', tmsProxy);
