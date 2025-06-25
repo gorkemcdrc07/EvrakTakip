@@ -52,13 +52,14 @@ const Raporlar = () => {
         setHata(null);
         try {
             const response = await axios.post(
-                'http://localhost:5000/api/tmsdespatches/getall', // proxy backend URL
+                `${process.env.REACT_APP_API_BASE_URL}/tmsdespatches/getall`,
                 {
                     startDate: startDate.toISOString(),
                     endDate: endDate.toISOString(),
                     userId: 1,
                 }
             );
+
 
             const filtreliData = (response.data.Data || []).filter((item) => {
                 const projeEngellenenler = ['HASAR İADE', 'AKTÜl', 'KARGO HİZMETLERİ', 'HGS-YAKIT FATURA İŞLEME'];

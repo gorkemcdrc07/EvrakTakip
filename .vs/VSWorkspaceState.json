@@ -1,10 +1,12 @@
 {
   "ExpandedNodes": [
     "",
+    "\\client",
     "\\client\\src",
+    "\\server",
     "\\tms-backend",
     "\\tms-backend\\api"
   ],
-  "SelectedNode": "\\package.json",
+  "SelectedNode": "\\client\\src\\Raporlar.js",
   "PreviewInSolutionExplorer": false
 }
