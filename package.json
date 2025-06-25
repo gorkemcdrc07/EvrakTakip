@@ -1,18 +1,14 @@
 {
   "name": "my-fullstack-app",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
   "scripts": {
-    "start": "concurrently -k \"npm:server\" \"npm:client\"",
-    "server": "cd server && node index.js",
-    "client": "cd client && npm start"
+    "start": "concurrently -k \"npm run server\" \"npm run client\"",
+    "server": "nodemon ./tms-backend/server.js",
+    "client": "cd client && set PORT=3001 && npm start"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "devDependencies": {
-    "concurrently": "^8.2.0"
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.1.10"
   },
   "dependencies": {
     "date-fns": "^2.29.3",

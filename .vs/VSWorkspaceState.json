@@ -1,14 +1,10 @@
 {
   "ExpandedNodes": [
     "",
-    "\\client",
     "\\client\\src",
-    "\\client\\src\\assets",
-    "\\client\\src\\components",
-    "\\client\\src\\hooks",
-    "\\client\\src\\ımages",
-    "\\server"
+    "\\tms-backend",
+    "\\tms-backend\\api"
   ],
-  "SelectedNode": "\\client\\src\\Anasayfa.js",
+  "SelectedNode": "\\package.json",
   "PreviewInSolutionExplorer": false
 }
