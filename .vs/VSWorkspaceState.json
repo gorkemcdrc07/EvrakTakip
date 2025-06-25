@@ -2,11 +2,10 @@
   "ExpandedNodes": [
     "",
     "\\client",
-    "\\client\\src",
     "\\server",
     "\\tms-backend",
     "\\tms-backend\\api"
   ],
-  "SelectedNode": "\\tms-backend\\server.js",
+  "SelectedNode": "\\tms-backend\\api\\tmsProxy.js",
   "PreviewInSolutionExplorer": false
 }
