@@ -3,12 +3,44 @@
   "WorkspaceRootPath": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\tms-backend\\api\\tmsProxy.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:tms-backend\\api\\tmsProxy.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\apiClient.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\apiClient.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\Raporlar.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\Raporlar.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\server\\.gitignore||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:server\\.gitignore||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\.gitignore||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:.gitignore||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\.gitignore||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\.gitignore||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\server\\index.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:server\\index.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\package.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\package.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\supabaseClient.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\supabaseClient.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\package-lock.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\package-lock.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\tms-backend\\api\\tmsProxy.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:tms-backend\\api\\tmsProxy.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\tms-backend\\server.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
@@ -26,7 +58,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 3,
+          "SelectedChildIndex": 5,
           "Children": [
             {
               "$type": "Bookmark",
@@ -39,18 +71,123 @@
             {
               "$type": "Document",
               "DocumentIndex": 2,
-              "Title": "server.js",
-              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\tms-backend\\server.js",
-              "RelativeDocumentMoniker": "tms-backend\\server.js",
-              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\tms-backend\\server.js",
-              "RelativeToolTip": "tms-backend\\server.js",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABgAAAAAAAAAAAAAAA==",
+              "Title": ".gitignore",
+              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\server\\.gitignore",
+              "RelativeDocumentMoniker": "server\\.gitignore",
+              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\server\\.gitignore",
+              "RelativeToolTip": "server\\.gitignore",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2025-06-26T07:32:13.407Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "package.json",
+              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\package.json",
+              "RelativeDocumentMoniker": "client\\package.json",
+              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\package.json",
+              "RelativeToolTip": "client\\package.json",
+              "ViewState": "AgIAAAoAAAAAAAAAAAAgwEAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2025-06-26T07:02:40.3Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "index.js",
+              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\server\\index.js",
+              "RelativeDocumentMoniker": "server\\index.js",
+              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\server\\index.js",
+              "RelativeToolTip": "server\\index.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAACYAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-06-25T14:00:25.107Z"
+              "WhenOpened": "2025-06-26T07:00:22.517Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 0,
+              "Title": "apiClient.js",
+              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\apiClient.js",
+              "RelativeDocumentMoniker": "client\\src\\apiClient.js",
+              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\apiClient.js",
+              "RelativeToolTip": "client\\src\\apiClient.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-06-26T06:55:58.446Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "supabaseClient.js",
+              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\supabaseClient.js",
+              "RelativeDocumentMoniker": "client\\src\\supabaseClient.js",
+              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\supabaseClient.js",
+              "RelativeToolTip": "client\\src\\supabaseClient.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-06-26T06:50:15.369Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": ".gitignore",
+              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\.gitignore",
+              "RelativeDocumentMoniker": ".gitignore",
+              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\.gitignore",
+              "RelativeToolTip": ".gitignore",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABsAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2025-06-26T06:32:44.254Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "package-lock.json",
+              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\package-lock.json",
+              "RelativeDocumentMoniker": "client\\package-lock.json",
+              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\package-lock.json",
+              "RelativeToolTip": "client\\package-lock.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2025-06-26T06:32:42.521Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": ".gitignore",
+              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\.gitignore",
+              "RelativeDocumentMoniker": "client\\.gitignore",
+              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\.gitignore",
+              "RelativeToolTip": "client\\.gitignore",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABcAAAAEAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2025-06-26T06:32:25.354Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Raporlar.js",
+              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\Raporlar.js",
+              "RelativeDocumentMoniker": "client\\src\\Raporlar.js",
+              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\Raporlar.js",
+              "RelativeToolTip": "client\\src\\Raporlar.js",
+              "ViewState": "AgIAAL0BAAAAAAAAAAAowPMBAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-06-25T13:42:27.561Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
               "Title": "tmsProxy.js",
               "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\tms-backend\\api\\tmsProxy.js",
               "RelativeDocumentMoniker": "tms-backend\\api\\tmsProxy.js",
@@ -63,19 +200,19 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "Raporlar.js",
-              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\Raporlar.js",
-              "RelativeDocumentMoniker": "client\\src\\Raporlar.js",
-              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\Raporlar.js",
-              "RelativeToolTip": "client\\src\\Raporlar.js",
-              "ViewState": "AgIAAMkBAAAAAAAAAAAowP8BAAAAAAAAAAAAAA==",
+              "DocumentIndex": 10,
+              "Title": "server.js",
+              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\tms-backend\\server.js",
+              "RelativeDocumentMoniker": "tms-backend\\server.js",
+              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\tms-backend\\server.js",
+              "RelativeToolTip": "tms-backend\\server.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABgAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-06-25T13:42:27.561Z"
+              "WhenOpened": "2025-06-25T14:00:25.107Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 11,
               "Title": "package.json",
               "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\package.json",
               "RelativeDocumentMoniker": "package.json",

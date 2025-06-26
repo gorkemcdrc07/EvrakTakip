@@ -21,11 +21,9 @@ const Raporlar = () => {
         firma: '',
         proje: '',
         durum: '',
-        plaka: '',
-        kullanici: '',
-        aracGrubu: '',
-        calismaTipi: '',
+        kullanici: ''
     });
+
 
     const durumAciklamalari = {
         1: 'BEKLİYOR',
@@ -58,7 +56,7 @@ const Raporlar = () => {
             });
 
             const filtreliData = (response.data.Data || []).filter((item) => {
-                const projeEngellenenler = ['HASAR İADE', 'AKTÜl', 'KARGO HİZMETLERİ', 'HGS-YAKIT FATURA İŞLEME'];
+                const projeEngellenenler = ['HASAR İADE', 'AKTÜL', 'KARGO HİZMETLERİ', 'HGS-YAKIT FATURA İŞLEME'];
                 const firmaEngellenenler = [
                     'İZ KENT LOJİSTİK HİZMETLERİ LİMİTED ŞİRKETİ',
                     'ARKAS LOJİSTİK ANONİM ŞİRKETİ',
@@ -232,17 +230,15 @@ const Raporlar = () => {
             'HASARLI-ORJİNAL EVRAK GELDİ',
             'ORJİNAL EVRAK GELDİ'
         ];
+        const siralamaKriteri = sadeceBunlar.slice(0, 4);
 
-        // Tedarikçi > Proje > Durumlar
         const grouped = {};
-        // Tedarikçi > Proje > Sefer Sayısı
         const seferSayilari = {};
 
         filtrelenmisVeri.forEach((item) => {
             const tedarikci = item.SupplierCurrentAccountFullTitle || 'Bilinmeyen Tedarikçi';
             const proje = item.ProjectName || 'Bilinmeyen Proje';
-            const durumKodu = item.TMSDespatchDocumentStatu;
-            const durum = durumAciklamalari[durumKodu];
+            const durum = durumAciklamalari[item.TMSDespatchDocumentStatu];
             const documentNo = item.DocumentNo;
 
             if (!sadeceBunlar.includes(durum)) return;
@@ -254,38 +250,44 @@ const Raporlar = () => {
             }
 
             grouped[tedarikci][proje][durum]++;
-
-            // Sefer sayımı (benzersiz DocumentNo'ya göre)
-            if (!seferSayilari[tedarikci]) seferSayilari[tedarikci] = {};
-            if (!seferSayilari[tedarikci][proje]) seferSayilari[tedarikci][proje] = new Set();
-            if (documentNo) seferSayilari[tedarikci][proje].add(documentNo);
+            const key = `${tedarikci}__${proje}`;
+            if (!seferSayilari[key]) seferSayilari[key] = new Set();
+            if (documentNo) seferSayilari[key].add(documentNo);
         });
 
         const workbook = new ExcelJS.Workbook();
-        const sheet = workbook.addWorksheet('Tedarikçi Bazlı Projeler');
+        const sheet = workbook.addWorksheet('Tedarikçi Bazlı Rapor');
 
-        Object.entries(grouped).forEach(([tedarikci, projeler]) => {
-            const columnCount = sadeceBunlar.length + 2;
+        const headers = ['Proje', ...sadeceBunlar, 'Toplam Sefer'];
 
-            // Tedarikçi başlığı
-            const titleRow = sheet.addRow([`Tedarikçi: ${tedarikci}`]);
-            titleRow.font = { bold: true, size: 13, color: { argb: 'FFFFFFFF' } };
-            titleRow.alignment = { horizontal: 'left', vertical: 'middle' };
-            sheet.mergeCells(`A${titleRow.number}:${String.fromCharCode(65 + columnCount - 1)}${titleRow.number}`);
+        const sorted = Object.entries(grouped)
+            .map(([tedarikci, projeler]) => {
+                let total = 0;
+                Object.values(projeler).forEach((durumlar) => {
+                    total += siralamaKriteri.reduce((sum, d) => sum + durumlar[d], 0);
+                });
+                return { tedarikci, projeler, total };
+            })
+            .sort((a, b) => b.total - a.total);
+
+        sorted.forEach(({ tedarikci, projeler }) => {
+            const titleRow = sheet.addRow([`🏢 ${tedarikci}`]);
+            titleRow.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
+            sheet.mergeCells(`A${titleRow.number}:${String.fromCharCode(65 + headers.length - 1)}${titleRow.number}`);
             titleRow.getCell(1).fill = {
                 type: 'pattern',
                 pattern: 'solid',
-                fgColor: { argb: 'FF404040' },
+                fgColor: { argb: 'FF7BAE57' }, // koyu pastel yeşil
             };
+            titleRow.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } }; // beyaz yazı
 
-            // Başlık satırı
-            const headerRow = sheet.addRow(['Proje', ...sadeceBunlar, 'Toplam Sefer']);
+            const headerRow = sheet.addRow(headers);
             headerRow.eachCell((cell) => {
-                cell.font = { bold: true, color: { argb: 'FF000000' } };
+                cell.font = { bold: true };
                 cell.fill = {
                     type: 'pattern',
                     pattern: 'solid',
-                    fgColor: { argb: 'FFEFEFEF' },
+                    fgColor: { argb: 'FFF4F4F4' }, // açık gri pastel
                 };
                 cell.alignment = { vertical: 'middle', horizontal: 'center' };
                 cell.border = {
@@ -296,22 +298,23 @@ const Raporlar = () => {
                 };
             });
 
-            // Proje satırları
-            Object.entries(projeler).forEach(([proje, durumlar]) => {
-                const seferSet = seferSayilari[tedarikci]?.[proje] || new Set();
-                const toplamSefer = seferSet.size;
+            Object.entries(projeler).forEach(([proje, durumlar], index) => {
+                const toplam = sadeceBunlar.reduce((sum, d) => sum + durumlar[d], 0);
+                const key = `${tedarikci}__${proje}`;
+                const seferSayisi = seferSayilari[key]?.size || 0;
 
-                const rowValues = [proje, ...sadeceBunlar.map((d) => durumlar[d]), toplamSefer];
-                const row = sheet.addRow(rowValues);
+                const row = sheet.addRow([
+                    proje,
+                    ...sadeceBunlar.map((d) => durumlar[d]),
+                    seferSayisi
+                ]);
 
-                row.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
-
-                const bg = row.number % 2 === 0 ? 'FFFDFDFD' : 'FFFFFFFF';
+                const fillColor = index % 2 === 0 ? 'FFFAFAFA' : 'FFFFFFFF'; // yumuşak zebra
                 row.eachCell((cell) => {
                     cell.fill = {
                         type: 'pattern',
                         pattern: 'solid',
-                        fgColor: { argb: bg },
+                        fgColor: { argb: fillColor },
                     };
                     cell.border = {
                         top: { style: 'thin' },
@@ -319,28 +322,147 @@ const Raporlar = () => {
                         bottom: { style: 'thin' },
                         right: { style: 'thin' },
                     };
+                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
                 });
+
+                row.getCell(1).alignment = { horizontal: 'left' };
             });
 
-            sheet.addRow([]);
+            sheet.addRow([]); // boşluk
         });
 
-        // Sütun ayarları
         sheet.columns.forEach((col, idx) => {
             col.width = idx === 0 ? 35 : 18;
-            col.alignment = {
-                vertical: 'middle',
-                horizontal: idx === 0 ? 'left' : 'center',
-                wrapText: true,
-            };
+            col.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
         });
 
         const buffer = await workbook.xlsx.writeBuffer();
         const blob = new Blob([buffer], {
             type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         });
-        saveAs(blob, `tedarikci_gruplu_raporu_${new Date().toLocaleDateString('tr-TR')}.xlsx`);
+        saveAs(blob, `tedarikci_modern_pastel_rapor_${new Date().toLocaleDateString('tr-TR')}.xlsx`);
     };
+
+
+    const kullaniciBazliRaporOlustur = async () => {
+        if (filtrelenmisVeri.length === 0) {
+            alert('Raporlanacak veri bulunamadı.');
+            return;
+        }
+
+        const sadeceBunlar = [
+            'BEKLİYOR',
+            'EKSİK EVRAK',
+            'HASARLI GÖRÜNTÜ İŞLENDİ',
+            'HASARLI-ORJİNAL EVRAK GELDİ',
+            'ORJİNAL EVRAK GELDİ'
+        ];
+
+        const siralamaKriteri = sadeceBunlar.slice(0, 4);
+
+        const grouped = {};
+
+        filtrelenmisVeri.forEach((item) => {
+            const kullanici = item.TMSDespatchCreatedBy || 'Bilinmeyen Kullanıcı';
+            const proje = item.ProjectName || 'Bilinmeyen Proje';
+            const durum = durumAciklamalari[item.TMSDespatchDocumentStatu];
+            if (!sadeceBunlar.includes(durum)) return;
+
+            if (!grouped[kullanici]) grouped[kullanici] = {};
+            if (!grouped[kullanici][proje]) {
+                grouped[kullanici][proje] = {};
+                sadeceBunlar.forEach((d) => (grouped[kullanici][proje][d] = 0));
+            }
+
+            grouped[kullanici][proje][durum]++;
+        });
+
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('Kullanıcı Bazlı Rapor');
+
+        const headers = ['Kullanıcı / Proje', ...sadeceBunlar, 'Genel Toplam'];
+        const headerRow = sheet.addRow(headers);
+
+        // Başlık stili
+        headerRow.eachCell((cell) => {
+            cell.font = { bold: true, color: { argb: 'FF000000' } };
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFDCE6F1' }, // açık mavi-gri pastel ton
+            };
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' },
+            };
+        });
+
+        const sortedUsers = Object.entries(grouped)
+            .map(([kullanici, projeler]) => {
+                let toplam = 0;
+                Object.values(projeler).forEach((durumlar) => {
+                    toplam += siralamaKriteri.reduce((sum, d) => sum + durumlar[d], 0);
+                });
+                return { kullanici, projeler, toplam };
+            })
+            .sort((a, b) => b.toplam - a.toplam);
+
+        sortedUsers.forEach(({ kullanici, projeler }) => {
+            const titleRow = sheet.addRow([`👤 ${kullanici}`]);
+            titleRow.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
+            sheet.mergeCells(`A${titleRow.number}:${String.fromCharCode(65 + headers.length - 1)}${titleRow.number}`);
+            titleRow.getCell(1).fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FF4A86E8' }, // canlı mavi
+            };
+
+            Object.entries(projeler).forEach(([proje, durumlar], index) => {
+                const toplam = sadeceBunlar.reduce((sum, d) => sum + durumlar[d], 0);
+                const row = sheet.addRow([
+                    proje,
+                    ...sadeceBunlar.map((d) => durumlar[d]),
+                    toplam,
+                ]);
+
+                // Zebra satır deseni
+                const fillColor = index % 2 === 0 ? 'FFF7F7F7' : 'FFFFFFFF';
+                row.eachCell((cell) => {
+                    cell.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: fillColor },
+                    };
+                    cell.border = {
+                        top: { style: 'thin' },
+                        left: { style: 'thin' },
+                        bottom: { style: 'thin' },
+                        right: { style: 'thin' },
+                    };
+                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                });
+
+                row.getCell(1).alignment = { horizontal: 'left' };
+            });
+
+            sheet.addRow([]); // boşluk satırı
+        });
+
+        sheet.columns.forEach((col, idx) => {
+            col.width = idx === 0 ? 35 : 18;
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+        saveAs(blob, `kullanici_modern_raporu_${new Date().toLocaleDateString('tr-TR')}.xlsx`);
+    };
+
+
 
 
 
@@ -355,16 +477,12 @@ const Raporlar = () => {
             (filters.firma === '' || item.SupplierCurrentAccountFullTitle === filters.firma) &&
             (filters.proje === '' || item.ProjectName === filters.proje) &&
             (filters.durum === '' || item.TMSDespatchDocumentStatu === filters.durum) &&
-            (filters.plaka === '' || item.PlateNumber === filters.plaka) &&
-            (filters.kullanici === '' || item.TMSDespatchCreatedBy === filters.kullanici) &&
-            (filters.aracGrubu === '' || item.SpecialGroupName === filters.aracGrubu) &&
-            (filters.calismaTipi === '' || item.VehicleWorkingTypeName === filters.calismaTipi)
+            (filters.kullanici === '' || item.TMSDespatchCreatedBy === filters.kullanici)
         );
     });
 
     return (
         <div className="p-6 text-white bg-gray-900 min-h-screen">
-            <h1 className="text-2xl font-bold mb-6">Raporlar</h1>
 
             <div className="bg-gray-800 p-4 rounded-lg shadow-md mb-6 flex flex-wrap items-end gap-4">
                 <div className="flex flex-col">
@@ -413,6 +531,14 @@ const Raporlar = () => {
                     Tedarikçi Altında Projeler Raporu
                 </button>
 
+                <button
+                    onClick={kullaniciBazliRaporOlustur}
+                    className="h-[42px] px-6 bg-pink-600 hover:bg-pink-700 text-white font-semibold rounded-md transition"
+                >
+                    Kullanıcı Bazlı Rapor
+                </button>
+
+
 
 
             </div>
@@ -423,10 +549,7 @@ const Raporlar = () => {
                         { key: 'firma', label: 'Tedarikçi Firma', mapKey: 'SupplierCurrentAccountFullTitle' },
                         { key: 'proje', label: 'Proje Adı', mapKey: 'ProjectName' },
                         { key: 'durum', label: 'Durum', mapKey: 'TMSDespatchDocumentStatu' },
-                        { key: 'plaka', label: 'Plaka', mapKey: 'PlateNumber' },
-                        { key: 'kullanici', label: 'Kullanıcı', mapKey: 'TMSDespatchCreatedBy' },
-                        { key: 'aracGrubu', label: 'Araç Çalışma Alt Grubu', mapKey: 'SpecialGroupName' },
-                        { key: 'calismaTipi', label: 'Çalışma Tipi', mapKey: 'VehicleWorkingTypeName' },
+                        { key: 'kullanici', label: 'Kullanıcı', mapKey: 'TMSDespatchCreatedBy' }
                     ].map(({ key, label, mapKey }) => (
                         <div key={key}>
                             <label className="text-sm text-gray-300 mb-1 block">{label}</label>
@@ -436,14 +559,15 @@ const Raporlar = () => {
                                 className="px-3 py-2 bg-gray-700 text-white rounded w-48"
                             >
                                 <option value="">Tümü</option>
-                                {getUniqueValues(mapKey).map((val, i) => (
-                                    <option key={i} value={val}>{val}</option>
+                                {getUniqueValues('TMSDespatchDocumentStatu').map((val, i) => (
+                                    <option key={i} value={val}>{durumAciklamalari[val] || val}</option>
                                 ))}
                             </select>
                         </div>
                     ))}
                 </div>
             )}
+
 
             {loading ? (
                 <p>Yükleniyor...</p>
