@@ -1,28 +1,38 @@
-﻿const express = require('express');
+﻿require('dotenv').config(); // .env dosyasını okuyabilmek için en üstte olmalı
+const express = require('express');
+const axios = require('axios');
+const cors = require('cors');
+
 const app = express();
 const PORT = 5000;
 
+app.use(cors());
 app.use(express.json());
 
-// Sağlık kontrolü için basit bir GET
-app.get('/', (req, res) => {
-    res.send('✅ Sunucu çalışıyor!');
+app.post('/api/tmsdespatches/getall', async (req, res) => {
+    try {
+        const response = await axios.post(
+            'https://api.odaklojistik.com.tr/api/tmsdespatches/getall',
+            req.body,
+            {
+                headers: {
+                    Authorization: `Bearer ${process.env.API_TOKEN}`, // 🔧 Burada düzeltme yaptık
+                    'Content-Type': 'application/json',
+                },
+            }
+        );
+
+        res.status(200).json(response.data);
+    } catch (err) {
+        console.error('❌ Proxy Hatası:', err.message);
+        res.status(500).json({ message: 'Proxy üzerinden API isteği başarısız oldu.' });
+    }
 });
 
-// 🔧 Eksik olan bu kısım ↓
-app.post('/api/evrak-ekle', (req, res) => {
-    const { tarih, lokasyon_id, proje_id, seferler } = req.body;
-
-    console.log('📥 Gelen veri:', req.body);
-
-    // Normalde burada veritabanına kayıt yapılır
-    // Örnek cevap gönderiyoruz:
-    res.status(200).json({
-        message: 'Evrak ve seferler başarıyla alındı.',
-        data: { tarih, lokasyon_id, proje_id, seferler }
-    });
+app.get('/', (req, res) => {
+    res.send('✅ Sunucu çalışıyor');
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 Sunucu http://localhost:${PORT} adresinde çalışıyor.`);
+    console.log(`🚀 Proxy sunucu http://localhost:${PORT} adresinde çalışıyor.`);
 });

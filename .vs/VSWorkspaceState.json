@@ -2,10 +2,14 @@
   "ExpandedNodes": [
     "",
     "\\client",
+    "\\client\\src",
+    "\\client\\src\\assets",
+    "\\client\\src\\components",
+    "\\client\\src\\hooks",
+    "\\client\\src\\ımages",
     "\\server",
-    "\\tms-backend",
-    "\\tms-backend\\api"
+    "\\tms-backend"
   ],
-  "SelectedNode": "\\tms-backend\\api\\tmsProxy.js",
+  "SelectedNode": "\\client\\src\\apiClient.js",
   "PreviewInSolutionExplorer": false
 }

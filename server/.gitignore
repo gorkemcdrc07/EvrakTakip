@@ -1,0 +1,16 @@
+# Ortam değişkenleri
+.env
+
+# Node modülleri
+node_modules/
+
+# Log dosyaları
+*.log
+
+# Derleme klasörleri
+dist/
+build/
+
+# IDE/editor klasörleri
+.vscode/
+.vs/

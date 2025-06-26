@@ -1,5 +1,5 @@
 ﻿import React, { useState } from 'react';
-import axios from 'axios';
+import api from './apiClient'; // 👈 Burada axios yerine import
 import DatePicker, { registerLocale } from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import tr from 'date-fns/locale/tr';
@@ -51,22 +51,11 @@ const Raporlar = () => {
         setLoading(true);
         setHata(null);
         try {
-            const response = await axios.post(
-                `${process.env.REACT_APP_API_BASE_URL}/tmsdespatches/getall`,
-                {
-                    startDate: startDate.toISOString(),
-                    endDate: endDate.toISOString(),
-                    userId: 1,
-                },
-                {
-                    headers: {
-                        Authorization: `Bearer ${process.env.REACT_APP_API_TOKEN}`, // Bu satırı kaldırmalısın
-                    }
-                }
-            );
-
-
-
+            const response = await api.post('/tmsdespatches/getall', {
+                startDate: startDate.toISOString(),
+                endDate: endDate.toISOString(),
+                userId: 1,
+            });
 
             const filtreliData = (response.data.Data || []).filter((item) => {
                 const projeEngellenenler = ['HASAR İADE', 'AKTÜl', 'KARGO HİZMETLERİ', 'HGS-YAKIT FATURA İŞLEME'];
@@ -88,7 +77,6 @@ const Raporlar = () => {
                     !firmaEngellenenler.includes(item.SupplierCurrentAccountFullTitle)
                 );
             });
-
 
             setVeriler(filtreliData);
         } catch (error) {
