@@ -37,27 +37,25 @@ function TopluEvraklar() {
     });
 
     // ✅ Tıklanınca dropdown'ları kapatan useEffect
-    useEffect(() => {
-        const handleClickOutside = (e) => {
-            if (lokasyonRef.current && !lokasyonRef.current.contains(e.target)) {
-                setShowLokasyonlar(false);
-            }
-            if (projeRef.current && !projeRef.current.contains(e.target)) {
-                setShowProjeler(false);
-            }
-            if (aciklamaRef.current && !aciklamaRef.current.contains(e.target)) {
-                setShowAciklamalar(false);
-            }
-            if (sefernoRef.current && !sefernoRef.current.contains(e.target)) {
-                setShowSeferNolar(false);
-            }
-        };
+   useEffect(() => {
+    const handleClickOutside = (e) => {
+        if (
+            lokasyonRef.current && !lokasyonRef.current.contains(e.target) &&
+            projeRef.current && !projeRef.current.contains(e.target) &&
+            aciklamaRef.current && !aciklamaRef.current.contains(e.target) &&
+            sefernoRef.current && !sefernoRef.current.contains(e.target)
+        ) {
+            setShowLokasyonlar(false);
+            setShowProjeler(false);
+            setShowAciklamalar(false);
+            setShowSeferNolar(false);
+        }
+    };
 
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, []);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+}, []);
+
 
     // ✅ Memo'lar bu useEffect'in ALTINDA olabilir
     const tumAciklamalar = React.useMemo(() => {
@@ -853,24 +851,25 @@ const exportEvrakToExcel = (evrak) => {
                                                     key={id}
                                                     className="flex items-center space-x-2 px-3 py-1 cursor-pointer text-sm text-gray-900 dark:text-gray-200"
                                                 >
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={filters.lokasyon.includes(String(id))}
-                                                        onChange={() => {
-                                                            if (filters.lokasyon.includes(id)) {
-                                                                setFilters((prev) => ({
-                                                                    ...prev,
-                                                                    lokasyon: prev.lokasyon.filter((x) => x !== id),
-                                                                }));
-                                                            } else {
-                                                                setFilters((prev) => ({
-                                                                    ...prev,
-                                                                    lokasyon: [...prev.lokasyon, id],
-                                                                }));
-                                                            }
-                                                        }}
-                                                        className="form-checkbox text-pink-600"
-                                                    />
+                                                   <input
+  type="checkbox"
+  checked={filters.lokasyon.includes(String(id))}
+  onChange={() => {
+    const idStr = String(id); // ✅ id'yi string'e çevir
+
+    setFilters((prev) => {
+      const isSelected = prev.lokasyon.includes(idStr);
+      return {
+        ...prev,
+        lokasyon: isSelected
+          ? prev.lokasyon.filter((x) => x !== idStr)
+          : [...prev.lokasyon, idStr],
+      };
+    });
+  }}
+  className="form-checkbox text-pink-600"
+/>
+
                                                     <span>{name}</span>
                                                 </label>
                                             ))}
@@ -944,15 +943,17 @@ const exportEvrakToExcel = (evrak) => {
   a?.toLocaleLowerCase('tr').includes(filters.aciklama?.toLocaleLowerCase('tr') || '')
 )
                 .map((aciklama, idx) => (
-                    <div
-                        key={idx}
-                        onClick={() =>
-                            setFilters({ ...filters, aciklama })
-                        }
-                        className="px-3 py-1 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                    >
-                        {aciklama}
-                    </div>
+                   <div
+  key={idx}
+  onClick={() => {
+    setFilters({ ...filters, aciklama });
+    setShowAciklamalar(false); // 👈 ekleyin
+  }}
+  className="px-3 py-1 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+>
+  {aciklama}
+</div>
+
                 ))}
         </div>
     )}
