@@ -11,7 +11,8 @@ import EvrakEkle from './EvrakEkle';
 import KargoBilgisiEkle from './KargoBilgisiEkle';
 import TumKargoBilgileri from './TumKargoBilgileri';
 import Tutanak from './Tutanak';
-import Raporlar from './Raporlar'; // ✅ Raporlar bileşeni import edildi
+import Raporlar from './Raporlar';
+import HedefKargo from './hedefKargo'; // ✅ BURAYA EKLENDİ
 
 function App() {
     const [darkMode, toggleDarkMode] = useDarkMode();
@@ -30,7 +31,8 @@ function App() {
                     <Route path="/kargo-bilgisi-ekle" element={<KargoBilgisiEkle />} />
                     <Route path="/tum-kargo-bilgileri" element={<TumKargoBilgileri />} />
                     <Route path="/tutanak" element={<Tutanak />} />
-                    <Route path="/raporlar" element={<Raporlar />} /> {/* ✅ Yeni rota eklendi */}
+                    <Route path="/raporlar" element={<Raporlar />} />
+                    <Route path="/hedef-kargo" element={<HedefKargo />} /> {/* ✅ HEDEF KARGO EKLENDİ */}
                 </Routes>
             </Router>
         </div>

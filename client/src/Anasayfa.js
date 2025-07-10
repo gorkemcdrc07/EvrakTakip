@@ -137,9 +137,11 @@ function Anasayfa() {
                                 <button onClick={() => window.open('/toplu-evraklar', '_blank')} className={buttonClass}>📄 Tüm Evraklar</button>
                                 <button onClick={() => window.open('/tum-kargo-bilgileri', '_blank')} className={buttonClass}>📋 Tüm Kargo Bilgileri</button>
                                 <button onClick={() => window.open('/tutanak', '_blank')} className={buttonClass}>📝 Tutanak</button>
-                                <button onClick={() => window.open('/raporlar', '_blank')} className={buttonClass}>📊 Raporlar</button> {/* ← yeni buton */}
+                                <button onClick={() => window.open('/raporlar', '_blank')} className={buttonClass}>📊 Raporlar</button>
+                                <button onClick={() => window.open('/hedef-kargo', '_blank')} className={buttonClass}>🎯 HEDEF KARGO</button>
                             </>
                         )}
+
                         {username === 'refika' && (
                             <>
                                 <button onClick={() => window.open('/kargo-bilgisi-ekle', '_blank')} className={buttonClass}>📦 Kargo Bilgisi Ekle</button>
