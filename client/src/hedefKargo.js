@@ -1,5 +1,7 @@
 ﻿import React, { useEffect, useState, useCallback } from 'react';
 import { supabase } from './supabaseClient';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 function HedefKargo() {
     const [kargoData, setKargoData] = useState([]);
@@ -9,28 +11,21 @@ function HedefKargo() {
     const [adding, setAdding] = useState(false);
 
     const [filters, setFilters] = useState({
-        tarih: [],
-        gonderici: [],
-        tedarikci: [],
-        teslim_edilen_kisi: [],
-        teslim_tarihi: []
+        tarih: '',
+        gonderici: '',
+        tedarikci: '',
+        teslim_edilen_kisi: '',
+        teslim_tarihi: ''
     });
 
-    const toggleFilter = (column, value) => {
-        setFilters((prev) => {
-            const currentValues = new Set(prev[column]);
-            if (currentValues.has(value)) {
-                currentValues.delete(value);
-            } else {
-                currentValues.add(value);
-            }
-            return { ...prev, [column]: Array.from(currentValues) };
-        });
+    const handleFilterChange = (e) => {
+        const { name, value } = e.target;
+        setFilters(prev => ({ ...prev, [name]: value }));
     };
 
-    const filteredData = kargoData.filter((item) =>
+    const filteredData = kargoData.filter(item =>
         Object.entries(filters).every(([field, selected]) =>
-            selected.length === 0 || selected.includes(item[field])
+            selected === '' || item[field] === selected
         )
     );
 
@@ -63,7 +58,6 @@ function HedefKargo() {
 
         if (!error) setKargoData(data);
         else console.error('Veri alınamadı:', error);
-
         setLoading(false);
     };
 
@@ -82,13 +76,7 @@ function HedefKargo() {
 
     const handleEdit = (item) => {
         setEditingItem(item);
-        setEditForm({
-            tarih: item.tarih || '',
-            gonderici: item.gonderici || '',
-            tedarikci: item.tedarikci || '',
-            teslim_edilen_kisi: item.teslim_edilen_kisi || '',
-            teslim_tarihi: item.teslim_tarihi || ''
-        });
+        setEditForm({ ...item });
     };
 
     const handleFormChange = useCallback((e) => {
@@ -147,131 +135,181 @@ function HedefKargo() {
         });
     };
 
+    const exportToExcel = async () => {
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('HedefKargo');
+
+        const columns = [
+            { header: 'TARİH', key: 'tarih' },
+            { header: 'GÖNDERİCİ', key: 'gonderici' },
+            { header: 'TEDARİKÇİ', key: 'tedarikci' },
+            { header: 'TESLİM EDİLEN KİŞİ', key: 'teslim_edilen_kisi' },
+            { header: 'TESLİM TARİHİ', key: 'teslim_tarihi' }
+        ];
+
+        worksheet.columns = columns.map(col => ({
+            ...col,
+            width: 25
+        }));
+
+        // Başlık stili
+        worksheet.getRow(1).eachCell(cell => {
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: '000080' } // Lacivert
+            };
+            cell.font = {
+                color: { argb: 'FFFFFF' },
+                bold: true,
+                size: 12,
+                name: 'Arial'
+            };
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+        });
+
+        // Veri satırları
+        filteredData.forEach((item) => {
+            worksheet.addRow({
+                tarih: formatDate(item.tarih),
+                gonderici: item.gonderici,
+                tedarikci: item.tedarikci,
+                teslim_edilen_kisi: item.teslim_edilen_kisi,
+                teslim_tarihi: formatDate(item.teslim_tarihi)
+            });
+        });
+
+        // Tüm hücrelerde kenarlık ve hizalama
+        worksheet.eachRow((row) => {
+            row.eachCell(cell => {
+                cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+            });
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+        saveAs(blob, 'hedef_kargo.xlsx');
+    };
+
+    const fieldLabels = {
+        tarih: 'TARİH',
+        gonderici: 'GÖNDERİCİ',
+        tedarikci: 'TEDARİKÇİ',
+        teslim_edilen_kisi: 'TESLİM EDİLEN KİŞİ',
+        teslim_tarihi: 'TESLİM TARİHİ'
+    };
+
     return (
         <div className="p-6 bg-gradient-to-br from-white to-pink-50 dark:from-gray-900 dark:to-gray-800 min-h-screen text-gray-800 dark:text-white">
             <div className="flex justify-between items-center mb-8">
                 <h1 className="text-3xl font-bold">🎯 HEDEF KARGO</h1>
-                <button
-                    onClick={() => setAdding(true)}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
-                >
-                    ➕ Veri Ekle
-                </button>
+                <div className="space-x-2">
+                    <button
+                        onClick={() => setAdding(true)}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+                    >
+                        ➕ Veri Ekle
+                    </button>
+                    <button
+                        onClick={exportToExcel}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
+                    >
+                        📁 Excel'e Aktar
+                    </button>
+                </div>
             </div>
 
-            {/* 🔍 FİLTRE PANELİ */}
             {!editingItem && !adding && !loading && (
-                <div className="mb-6 p-4 bg-white dark:bg-gray-700 shadow rounded-lg">
-                    <h2 className="text-lg font-semibold mb-3">🔍 Detaylı Filtre</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {["tarih", "gonderici", "tedarikci", "teslim_edilen_kisi", "teslim_tarihi"].map((field) => {
-                            const uniqueValues = [...new Set(kargoData.map(item => item[field]))];
-                            return (
-                                <div key={field}>
-                                    <label className="block mb-1 text-sm font-medium">{field.replaceAll("_", " ").toUpperCase()}</label>
-                                    <input
-                                        type="text"
-                                        placeholder="Metinle ara..."
-                                        onChange={(e) => {
-                                            const input = e.target.value.toLowerCase();
-                                            const matched = uniqueValues.filter(val =>
-                                                (val || "").toLowerCase().includes(input)
-                                            );
-                                            setFilters(prev => ({
-                                                ...prev,
-                                                [field]: input === "" ? [] : matched
-                                            }));
-                                        }}
-                                        className="w-full px-3 py-2 rounded border dark:bg-gray-800"
-                                    />
-                                    <div className="max-h-32 overflow-auto mt-2 bg-gray-50 dark:bg-gray-800 p-2 rounded border">
-                                        {uniqueValues.map((val) => (
-                                            <label key={val} className="block text-sm mb-1">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={filters[field].includes(val)}
-                                                    onChange={() => toggleFilter(field, val)}
-                                                    className="mr-2"
-                                                />
-                                                {field.includes("tarih") ? formatDate(val) : val || "(boş)"}
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                    <div className="mt-4 text-right">
-                        <button
-                            onClick={() =>
-                                setFilters({
-                                    tarih: [],
-                                    gonderici: [],
-                                    tedarikci: [],
-                                    teslim_edilen_kisi: [],
-                                    teslim_tarihi: []
-                                })
-                            }
-                            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg"
-                        >
-                            Filtreleri Temizle
-                        </button>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6 bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
+                    {Object.keys(filters).map(field => {
+                        const uniqueValues = [...new Set(kargoData.map(item => item[field]))];
+                        return (
+                            <div key={field}>
+                                <label className="block text-sm font-semibold mb-1">{fieldLabels[field]}</label>
+                                <input
+                                    list={`filter-${field}`}
+                                    name={field}
+                                    value={filters[field]}
+                                    onChange={handleFilterChange}
+                                    className="w-full px-2 py-2 rounded border dark:bg-gray-800"
+                                    placeholder="Filtrele..."
+                                />
+                                <datalist id={`filter-${field}`}>
+                                    {uniqueValues.map((val, idx) => (
+                                        <option key={idx} value={val}>
+                                            {field.includes('tarih') ? formatDate(val) : val || '(boş)'}
+                                        </option>
+                                    ))}
+                                </datalist>
+                            </div>
+                        );
+                    })}
                 </div>
             )}
 
-            {/* TABLO */}
+
             {loading ? (
                 <p className="text-lg">Yükleniyor...</p>
-            ) : (!editingItem && !adding && (
-                <div className="overflow-x-auto shadow-xl rounded-xl">
-                    <table className="min-w-full text-sm md:text-base bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600">
-                        <thead className="bg-pink-100 dark:bg-gray-700 text-left">
-                            <tr>
-                                <th className="px-4 py-3 border-b">TARİH</th>
-                                <th className="px-4 py-3 border-b">GÖNDERİCİ</th>
-                                <th className="px-4 py-3 border-b">TEDARİKÇİ</th>
-                                <th className="px-4 py-3 border-b">TESLİM EDİLEN KİŞİ</th>
-                                <th className="px-4 py-3 border-b">TESLİM TARİHİ</th>
-                                <th className="px-4 py-3 border-b text-center">İŞLEMLER</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredData.map((item, index) => (
-                                <tr
-                                    key={item.id}
-                                    className={`${index % 2 === 0
-                                        ? 'bg-white dark:bg-gray-800'
-                                        : 'bg-gray-50 dark:bg-gray-700'
-                                        } hover:bg-pink-50 dark:hover:bg-gray-600 transition`}
-                                >
-                                    <td className="px-4 py-3 border-b">{formatDate(item.tarih)}</td>
-                                    <td className="px-4 py-3 border-b">{item.gonderici}</td>
-                                    <td className="px-4 py-3 border-b">{item.tedarikci}</td>
-                                    <td className="px-4 py-3 border-b">{item.teslim_edilen_kisi}</td>
-                                    <td className="px-4 py-3 border-b">{formatDate(item.teslim_tarihi)}</td>
-                                    <td className="px-4 py-3 border-b flex gap-2 justify-center flex-wrap">
-                                        <button
-                                            className="px-3 py-1 bg-yellow-400 hover:bg-yellow-500 text-white rounded"
-                                            onClick={() => handleEdit(item)}
-                                        >
-                                            Düzenle
-                                        </button>
-                                        <button
-                                            className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded"
-                                            onClick={() => confirmDelete(item)}
-                                        >
-                                            Sil
-                                        </button>
-                                    </td>
+            ) : (
+                !editingItem &&
+                !adding && (
+                    <div className="overflow-x-auto shadow-xl rounded-xl">
+                        <table className="min-w-full text-sm md:text-base bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600">
+                            <thead className="bg-pink-100 dark:bg-gray-700 text-left">
+                                <tr>
+                                    {Object.values(fieldLabels).map((label, i) => (
+                                        <th key={i} className="px-4 py-3 border-b">{label}</th>
+                                    ))}
+                                    <th className="px-4 py-3 border-b text-center">İŞLEMLER</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            ))}
+                            </thead>
+                            <tbody>
+                                {filteredData.map((item, index) => (
+                                    <tr
+                                        key={item.id}
+                                        className={`${index % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-700'} hover:bg-pink-50 dark:hover:bg-gray-600 transition`}
+                                    >
+                                        <td className="px-4 py-3 border-b">{formatDate(item.tarih)}</td>
+                                        <td className="px-4 py-3 border-b">{item.gonderici}</td>
+                                        <td className="px-4 py-3 border-b">{item.tedarikci}</td>
+                                        <td className="px-4 py-3 border-b">{item.teslim_edilen_kisi}</td>
+                                        <td className="px-4 py-3 border-b">{formatDate(item.teslim_tarihi)}</td>
+                                        <td className="px-4 py-3 border-b flex gap-2 justify-center flex-wrap">
+                                            <button
+                                                className="px-3 py-1 bg-yellow-400 hover:bg-yellow-500 text-white rounded"
+                                                onClick={() => handleEdit(item)}
+                                            >
+                                                Düzenle
+                                            </button>
+                                            <button
+                                                className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded"
+                                                onClick={() => confirmDelete(item)}
+                                            >
+                                                Sil
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )
+            )}
 
-            {/* MODALLAR */}
             {editingItem && (
                 <EditModal
                     editForm={editForm}
