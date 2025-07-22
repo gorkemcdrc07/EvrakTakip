@@ -106,9 +106,14 @@ function HedefKargo() {
     };
 
     const handleAdd = async () => {
+        // "" olan alanları null yap
+        const cleanedForm = Object.fromEntries(
+            Object.entries(addForm).map(([key, val]) => [key, val === '' ? null : val])
+        );
+
         const { data, error } = await supabase
             .from('hedef_kargo')
-            .insert([addForm])
+            .insert([cleanedForm])
             .select();
 
         if (!error && data?.length > 0) {
