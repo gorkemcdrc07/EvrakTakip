@@ -22,11 +22,15 @@ function HedefKargo() {
         const { name, value } = e.target;
         setFilters(prev => ({ ...prev, [name]: value }));
     };
-
     const filteredData = kargoData.filter(item =>
-        Object.entries(filters).every(([field, selected]) =>
-            selected === '' || item[field] === selected
-        )
+        Object.entries(filters).every(([field, selected]) => {
+            if (selected === '') return true;
+
+            const itemValue = (item[field] || '').toString().toLocaleLowerCase('tr');
+            const selectedValue = selected.toString().toLocaleLowerCase('tr');
+
+            return itemValue.includes(selectedValue);
+        })
     );
 
     const [editForm, setEditForm] = useState({
@@ -51,13 +55,20 @@ function HedefKargo() {
 
     const fetchData = async () => {
         setLoading(true);
+
         const { data, error } = await supabase
             .from('hedef_kargo')
             .select('*')
+            .filter('tarih', 'gte', '2025-01-01')
+            .filter('tarih', 'lte', '2025-12-31')
             .order('tarih', { ascending: false });
 
-        if (!error) setKargoData(data);
-        else console.error('Veri alınamadı:', error);
+        if (error) {
+            console.error('Veri alınamadı:', error);
+        } else {
+            setKargoData(data);
+        }
+
         setLoading(false);
     };
 
@@ -241,7 +252,13 @@ function HedefKargo() {
             {!editingItem && !adding && !loading && (
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6 bg-white dark:bg-gray-700 p-4 rounded-lg shadow">
                     {Object.keys(filters).map(field => {
-                        const uniqueValues = [...new Set(kargoData.map(item => item[field]))];
+                        const uniqueValues = [
+                            ...new Set(
+                                kargoData.map(item =>
+                                    (item[field] || '').toString().trim().toLowerCase()
+                                )
+                            )
+                        ];
                         return (
                             <div key={field}>
                                 <label className="block text-sm font-semibold mb-1">{fieldLabels[field]}</label>
