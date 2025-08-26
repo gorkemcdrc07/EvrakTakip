@@ -89,6 +89,8 @@ function TopluEvraklar() {
     const [seciliLokasyon, setSeciliLokasyon] = useState('');
     const [showSeferNolar, setShowSeferNolar] = useState(false);
     const [showAciklamalar, setShowAciklamalar] = useState(false);
+    // mevcut statelerin yanına ekleyin
+    const [deletingId, setDeletingId] = useState(null);
 
 
 
@@ -175,6 +177,36 @@ function TopluEvraklar() {
         setProjeler(projeMap);
         setLoading(false);
     };
+    const handleEvrakSil = async (evrak) => {
+        const onay = window.confirm(`#${evrak.id} numaralı evrağı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`);
+        if (!onay) return;
+
+        try {
+            setDeletingId(evrak.id);
+
+            // 1) bağlı seferler
+            await supabase.from('evrakseferler').delete().eq('evrakid', evrak.id);
+
+            // 2) bağlı projeler
+            await supabase.from('evrakproje').delete().eq('evrakid', evrak.id);
+
+            // 3) evrağın kendisi
+            const { error } = await supabase.from('evraklar').delete().eq('id', evrak.id);
+            if (error) throw error;
+
+            // İyileştirme: tam sayfayı yenilemeden listedeki öğeyi çıkar
+            setEvraklar((prev) => prev.filter((e) => e.id !== evrak.id));
+            // veya garanti olsun isterseniz:
+            // await fetchVeriler();
+
+        } catch (err) {
+            console.error('Silme hatası:', err);
+            alert('Silme sırasında bir hata oluştu.');
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
 
     const handleEvrakGuncelle = async () => {
         const evrakId = selectedEvrak.id;
@@ -742,7 +774,11 @@ const exportEvrakToExcel = (evrak) => {
                                         >
                                             <option value="TARAFIMIZCA DÜZELTİLMİŞTİR">TARAFIMIZCA DÜZELTİLMİŞTİR</option>
                                             <option value="TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR">TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR</option>
+                                            <option value="EKSİK TARAMA">EKSİK TARAMA</option>
+                                            <option value="HASARLI TARAMA">HASARLI TARAMA</option>
+                                            <option value="GÖRÜNTÜ TARAMA">GÖRÜNTÜ TARAMA</option>
                                         </select>
+
                                         <button
                                             onClick={() => {
                                                 const newList = selectedEvrak.evrakseferler.filter((_, idx) => idx !== i);
@@ -1104,6 +1140,7 @@ const exportEvrakToExcel = (evrak) => {
                         Düzenle
                     </button>
                 </td>
+
                 <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
                     <button
                         onClick={(e) => {
@@ -1115,6 +1152,24 @@ const exportEvrakToExcel = (evrak) => {
                         Satır Raporu Al
                     </button>
                 </td>
+
+                {/* YENİ: Sil butonu */}
+                <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleEvrakSil(evrak);
+                        }}
+                        disabled={deletingId === evrak.id}
+                        className={`text-xs px-3 py-1 rounded ${deletingId === evrak.id
+                            ? 'bg-red-300 cursor-not-allowed text-white'
+                            : 'bg-red-600 hover:bg-red-700 text-white'
+                            }`}
+                    >
+                        {deletingId === evrak.id ? 'Siliniyor…' : 'Sil'}
+                    </button>
+                </td>
+
             </tr>
 
             {isExpanded && (
