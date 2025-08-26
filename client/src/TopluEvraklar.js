@@ -1,133 +1,74 @@
-﻿import React, { useEffect, useState, useRef } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
-import {
-    PieChart, Pie, Cell, Tooltip
-} from 'recharts';
+import { PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { FiFile } from 'react-icons/fi';
 import Layout from './components/Layout';
-import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
-
-
-
-
-
-
-
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'];
 
 function TopluEvraklar() {
-    const lokasyonRef = useRef(null);
-    const projeRef = useRef(null);
-    const aciklamaRef = useRef(null);
-    const sefernoRef = useRef(null);
-
     const [evraklar, setEvraklar] = useState([]);
     const [lokasyonlar, setLokasyonlar] = useState({});
     const [projeler, setProjeler] = useState({});
     const [loading, setLoading] = useState(true);
-    const [filters, setFilters] = useState({
+
+    // filtre state'leri
+    const initialFilterState = {
         startDate: '',
         endDate: '',
         lokasyon: [],
         proje: [],
         aciklama: '',
         seferno: ''
-    });
-
-    // ✅ Tıklanınca dropdown'ları kapatan useEffect
-   useEffect(() => {
-    const handleClickOutside = (e) => {
-        if (
-            lokasyonRef.current && !lokasyonRef.current.contains(e.target) &&
-            projeRef.current && !projeRef.current.contains(e.target) &&
-            aciklamaRef.current && !aciklamaRef.current.contains(e.target) &&
-            sefernoRef.current && !sefernoRef.current.contains(e.target)
-        ) {
-            setShowLokasyonlar(false);
-            setShowProjeler(false);
-            setShowAciklamalar(false);
-            setShowSeferNolar(false);
-        }
     };
+    const [filters, setFilters] = useState(initialFilterState);
+    const [showFilters, setShowFilters] = useState(false);
+    const [draft, setDraft] = useState(initialFilterState);
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-}, []);
-
-
-    // ✅ Memo'lar bu useEffect'in ALTINDA olabilir
-    const tumAciklamalar = React.useMemo(() => {
-        const set = new Set();
-        evraklar.forEach(e => {
-            e.evrakseferler?.forEach(s => {
-                if (s.aciklama?.trim()) {
-                    set.add(s.aciklama.trim());
-                }
-            });
-        });
-        return Array.from(set);
-    }, [evraklar]);
-
-    const tumSeferNolari = React.useMemo(() => {
-        const set = new Set();
-        evraklar.forEach(e => {
-            e.evrakseferler?.forEach(s => {
-                const sefer = s.seferno?.trim() || '(Boş)';
-                set.add(sefer);
-            });
-        });
-        return Array.from(set);
-    }, [evraklar]);
-
-
-
+    const hasActiveFilters = Boolean(
+        filters.startDate ||
+        filters.endDate ||
+        filters.lokasyon?.length ||
+        filters.proje?.length ||
+        filters.aciklama ||
+        filters.seferno
+    );
 
     const [selectedEvrak, setSelectedEvrak] = useState(null);
     const [showEditModal, setShowEditModal] = useState(false);
     const [seciliLokasyon, setSeciliLokasyon] = useState('');
-    const [showSeferNolar, setShowSeferNolar] = useState(false);
-    const [showAciklamalar, setShowAciklamalar] = useState(false);
-    // mevcut statelerin yanına ekleyin
     const [deletingId, setDeletingId] = useState(null);
+    const [acikProjeId, setAcikProjeId] = useState(null);
 
-
-
-
-
-
+    // ✅ yeni: satır içi expand yerine card modal
+    const [detailEvrak, setDetailEvrak] = useState(null);
+    const [showDetailCard, setShowDetailCard] = useState(false);
 
     const normalize = (str) =>
-        (str || "")
-            .trim()
-            .toLocaleUpperCase("tr")
-            .replace(/\s+/g, " ");
+        (str || '').trim().toLocaleUpperCase('tr').replace(/\s+/g, ' ');
 
     const toplamSefer = evraklar.reduce((sum, evrak) => sum + (evrak.sefersayisi || 0), 0);
 
-    const duzeltilmis = evraklar.reduce((sum, evrak) =>
-        sum + (evrak.evrakseferler?.filter(s =>
-            normalize(s.aciklama) === "TARAFIMIZCA DÜZELTİLMİŞTİR"
-        ).length || 0), 0);
+    const duzeltilmis = evraklar.reduce(
+        (sum, evrak) =>
+            sum +
+            (evrak.evrakseferler?.filter(
+                (s) => normalize(s.aciklama) === 'TARAFIMIZCA DÜZELTİLMİŞTİR'
+            ).length || 0),
+        0
+    );
 
-    const orjinaleCekilmis = evraklar.reduce((sum, evrak) =>
-        sum + (evrak.evrakseferler?.filter(s =>
-            normalize(s.aciklama) === "TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR"
-        ).length || 0), 0);
+    const orjinaleCekilmis = evraklar.reduce(
+        (sum, evrak) =>
+            sum +
+            (evrak.evrakseferler?.filter(
+                (s) => normalize(s.aciklama) === 'TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR'
+            ).length || 0),
+        0
+    );
 
-    const oran = (value) => toplamSefer ? ((value / toplamSefer) * 100).toFixed(1) : '0.0';
-    const [expandedRow, setExpandedRow] = useState(null);
-    const [acikProjeId, setAcikProjeId] = useState(null);
-    const [showLokasyonlar, setShowLokasyonlar] = useState(false);
-    const [showProjeler, setShowProjeler] = useState(false);
-
-
-
-
-
-
-
+    const oran = (value) => (toplamSefer ? ((value / toplamSefer) * 100).toFixed(1) : '0.0');
 
     useEffect(() => {
         fetchVeriler();
@@ -136,29 +77,28 @@ function TopluEvraklar() {
     const fetchVeriler = async () => {
         const { data: evrakData, error } = await supabase
             .from('evraklar')
-            .select(`
-            id,
-            tarih,
-            lokasyonid,
-            sefersayisi,
-            evrakseferler:evrakseferler!fk_evrakseferler_evrakid (
-                seferno,
-                aciklama
-            ),
-            evrakproje:evrakproje!fk_evrakproje_evrakid (
-                projeid,
-                sefersayisi
-            )
-        `);
+            .select(
+                `
+        id,
+        tarih,
+        lokasyonid,
+        sefersayisi,
+        evrakseferler:evrakseferler!fk_evrakseferler_evrakid (
+          seferno,
+          aciklama
+        ),
+        evrakproje:evrakproje!fk_evrakproje_evrakid (
+          projeid,
+          sefersayisi
+        )
+      `
+            );
 
         if (error) {
-            console.error("❌ Hata:", error);
-
-
+            console.error('❌ Hata:', error);
             return;
         }
 
-        // 🔽 Tarih sıralaması garanti altına alınıyor (yeni → eski)
         const sortedEvraklar = (evrakData || []).sort(
             (a, b) => new Date(b.tarih) - new Date(a.tarih)
         );
@@ -167,38 +107,32 @@ function TopluEvraklar() {
         const { data: projeData } = await supabase.from('projeler').select('*');
 
         const lokasyonMap = {};
-        lokasyonData?.forEach(l => (lokasyonMap[l.id] = l.lokasyon));
+        lokasyonData?.forEach((l) => (lokasyonMap[l.id] = l.lokasyon));
 
         const projeMap = {};
-        projeData?.forEach(p => (projeMap[p.id] = p.proje));
+        projeData?.forEach((p) => (projeMap[p.id] = p.proje));
 
         setEvraklar(sortedEvraklar);
         setLokasyonlar(lokasyonMap);
         setProjeler(projeMap);
         setLoading(false);
     };
+
     const handleEvrakSil = async (evrak) => {
-        const onay = window.confirm(`#${evrak.id} numaralı evrağı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`);
+        const onay = window.confirm(
+            `#${evrak.id} numaralı evrağı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`
+        );
         if (!onay) return;
 
         try {
             setDeletingId(evrak.id);
 
-            // 1) bağlı seferler
             await supabase.from('evrakseferler').delete().eq('evrakid', evrak.id);
-
-            // 2) bağlı projeler
             await supabase.from('evrakproje').delete().eq('evrakid', evrak.id);
-
-            // 3) evrağın kendisi
             const { error } = await supabase.from('evraklar').delete().eq('id', evrak.id);
             if (error) throw error;
 
-            // İyileştirme: tam sayfayı yenilemeden listedeki öğeyi çıkar
             setEvraklar((prev) => prev.filter((e) => e.id !== evrak.id));
-            // veya garanti olsun isterseniz:
-            // await fetchVeriler();
-
         } catch (err) {
             console.error('Silme hatası:', err);
             alert('Silme sırasında bir hata oluştu.');
@@ -207,34 +141,28 @@ function TopluEvraklar() {
         }
     };
 
-
     const handleEvrakGuncelle = async () => {
         const evrakId = selectedEvrak.id;
         const tarih = selectedEvrak.tarih;
         const lokasyonid = selectedEvrak.lokasyonid;
 
         const evrakproje = Array.isArray(selectedEvrak.evrakproje)
-            ? selectedEvrak.evrakproje.filter(p => p.projeid && !isNaN(p.projeid))
+            ? selectedEvrak.evrakproje.filter((p) => p.projeid && !isNaN(p.projeid))
             : [];
 
         const toplamSefer = evrakproje.reduce((sum, p) => sum + Number(p.sefersayisi || 0), 0);
 
         const evrakseferler = Array.isArray(selectedEvrak.evrakseferler)
-            ? selectedEvrak.evrakseferler.filter(s => s.seferno && s.aciklama)
+            ? selectedEvrak.evrakseferler.filter((s) => s.seferno && s.aciklama)
             : [];
 
         try {
-            // 1. Evrak güncelle
-            await supabase.from('evraklar')
-                .update({ tarih, lokasyonid, sefersayisi: toplamSefer })
-                .eq('id', evrakId);
+            await supabase.from('evraklar').update({ tarih, lokasyonid, sefersayisi: toplamSefer }).eq('id', evrakId);
 
-            // 2. Projeleri sil-yeniden ekle
             await supabase.from('evrakproje').delete().eq('evrakid', evrakId);
-
             if (evrakproje.length > 0) {
                 await supabase.from('evrakproje').insert(
-                    evrakproje.map(p => ({
+                    evrakproje.map((p) => ({
                         evrakid: evrakId,
                         projeid: Number(p.projeid),
                         sefersayisi: Number(p.sefersayisi || 0)
@@ -242,12 +170,10 @@ function TopluEvraklar() {
                 );
             }
 
-            // 3. Seferleri sil-yeniden ekle
             await supabase.from('evrakseferler').delete().eq('evrakid', evrakId);
-
             if (evrakseferler.length > 0) {
                 await supabase.from('evrakseferler').insert(
-                    evrakseferler.map(s => ({
+                    evrakseferler.map((s) => ({
                         evrakid: evrakId,
                         seferno: s.seferno,
                         aciklama: s.aciklama
@@ -255,24 +181,19 @@ function TopluEvraklar() {
                 );
             }
 
-            // 4. Yeniden veri çek, modalı kapat
             await fetchVeriler();
             setShowEditModal(false);
             setSelectedEvrak(null);
-
         } catch (error) {
-            console.error("Evrak güncelleme hatası:", error);
-            alert("Güncelleme sırasında bir hata oluştu.");
+            console.error('Evrak güncelleme hatası:', error);
+            alert('Güncelleme sırasında bir hata oluştu.');
         }
     };
 
-
-
-
     const aciklamaVerileri = () => {
         const counts = {};
-        evraklar.forEach(evrak => {
-            evrak.evrakseferler?.forEach(sefer => {
+        evraklar.forEach((evrak) => {
+            evrak.evrakseferler?.forEach((sefer) => {
                 counts[sefer.aciklama] = (counts[sefer.aciklama] || 0) + 1;
             });
         });
@@ -281,8 +202,8 @@ function TopluEvraklar() {
 
     const projeSeferVerileri = () => {
         const projeCount = {};
-        evraklar.forEach(e => {
-            e.evrakproje?.forEach(p => {
+        evraklar.forEach((e) => {
+            e.evrakproje?.forEach((p) => {
                 const proje = projeler[p.projeid];
                 if (proje) {
                     projeCount[proje] = (projeCount[proje] || 0) + p.sefersayisi;
@@ -294,24 +215,16 @@ function TopluEvraklar() {
 
     const lokasyonBazliAciklamaVerileri = () => {
         const sonuc = {};
-
-        evraklar.forEach(evrak => {
+        evraklar.forEach((evrak) => {
             const lokasyonAdi = lokasyonlar?.[evrak.lokasyonid];
             if (!lokasyonAdi) return;
 
-            // Eğer lokasyon için nesne yoksa başlat
             if (!sonuc[lokasyonAdi]) {
-                sonuc[lokasyonAdi] = {
-                    toplamSefer: 0,
-                    aciklamalar: {}
-                };
+                sonuc[lokasyonAdi] = { toplamSefer: 0, aciklamalar: {} };
             }
-
-            // Toplam sefer sayısını topla
             sonuc[lokasyonAdi].toplamSefer += evrak.sefersayisi || 0;
 
-            // Açıklama sayılarını topla
-            evrak.evrakseferler?.forEach(sefer => {
+            evrak.evrakseferler?.forEach((sefer) => {
                 const aciklama = sefer.aciklama;
                 if (aciklama) {
                     sonuc[lokasyonAdi].aciklamalar[aciklama] =
@@ -323,30 +236,21 @@ function TopluEvraklar() {
         return sonuc;
     };
 
-
-    const renderCustomLabel = ({ value }) => `${value}`;
-
     const exportToExcel = () => {
         const sheetData = [];
         const merges = [];
 
-        // Başlık satırı
-        const headers = [
-            'Tarih',
-            'Lokasyon',
-            'Projeler',
-            'Toplam Sefer Sayısı',
-            'Sefer No',
-            'Açıklama'
-        ];
+        const headers = ['Tarih', 'Lokasyon', 'Projeler', 'Toplam Sefer Sayısı', 'Sefer No', 'Açıklama'];
         sheetData.push(headers);
 
         let currentRow = 1;
 
-        evraklar.forEach(evrak => {
+        evraklar.forEach((evrak) => {
             const tarih = new Date(evrak.tarih).toLocaleDateString('tr-TR');
             const lokasyon = lokasyonlar[evrak.lokasyonid] || 'Bilinmeyen Lokasyon';
-            const projeList = evrak.evrakproje?.map(p => `${projeler[p.projeid]} (${p.sefersayisi})`).join(', ') || 'Yok';
+            const projeList =
+                evrak.evrakproje?.map((p) => `${projeler[p.projeid]} (${p.sefersayisi})`).join(', ') ||
+                'Yok';
             const toplamSefer = evrak.sefersayisi || 0;
 
             const seferler = evrak.evrakseferler?.length
@@ -356,7 +260,7 @@ function TopluEvraklar() {
             const rowStart = currentRow;
             const rowEnd = currentRow + seferler.length - 1;
 
-            seferler.forEach(sefer => {
+            seferler.forEach((sefer) => {
                 sheetData.push([
                     tarih,
                     lokasyon,
@@ -368,13 +272,12 @@ function TopluEvraklar() {
                 currentRow++;
             });
 
-            // Merge alanları
             if (seferler.length > 1) {
                 merges.push(
                     { s: { r: rowStart, c: 0 }, e: { r: rowEnd, c: 0 } },
                     { s: { r: rowStart, c: 1 }, e: { r: rowEnd, c: 1 } },
                     { s: { r: rowStart, c: 2 }, e: { r: rowEnd, c: 2 } },
-                    { s: { r: rowStart, c: 3 }, e: { r: rowEnd, c: 3 } },
+                    { s: { r: rowStart, c: 3 }, e: { r: rowEnd, c: 3 } }
                 );
             }
         });
@@ -382,46 +285,26 @@ function TopluEvraklar() {
         const ws = XLSX.utils.aoa_to_sheet(sheetData);
         ws['!merges'] = merges;
 
-        // Sütun genişlikleri
-        ws['!cols'] = [
-            { wch: 15 },
-            { wch: 25 },
-            { wch: 40 },
-            { wch: 22 },
-            { wch: 18 },
-            { wch: 40 },
-        ];
+        ws['!cols'] = [{ wch: 15 }, { wch: 25 }, { wch: 40 }, { wch: 22 }, { wch: 18 }, { wch: 40 }];
 
-        // Stil ayarları
         const borderStyle = {
             top: { style: 'thin', color: { rgb: 'CCCCCC' } },
             bottom: { style: 'thin', color: { rgb: 'CCCCCC' } },
             left: { style: 'thin', color: { rgb: 'CCCCCC' } },
-            right: { style: 'thin', color: { rgb: 'CCCCCC' } },
+            right: { style: 'thin', color: { rgb: 'CCCCCC' } }
         };
 
         const headerStyle = {
-            font: { bold: true, color: { rgb: "FFFFFF" } },
-            alignment: { horizontal: "center", vertical: "center" },
-            fill: { fgColor: { rgb: "3B82F6" } },
-            border: borderStyle,
+            font: { bold: true, color: { rgb: 'FFFFFF' } },
+            alignment: { horizontal: 'center', vertical: 'center' },
+            fill: { fgColor: { rgb: '3B82F6' } },
+            border: borderStyle
         };
 
-        const rowStyleLight = {
-            fill: { fgColor: { rgb: "F9FAFB" } },
-            border: borderStyle,
-        };
+        const rowStyleLight = { fill: { fgColor: { rgb: 'F9FAFB' } }, border: borderStyle };
+        const rowStyleDark = { fill: { fgColor: { rgb: 'EDF2F7' } }, border: borderStyle };
+        const plainCell = { border: borderStyle };
 
-        const rowStyleDark = {
-            fill: { fgColor: { rgb: "EDF2F7" } },
-            border: borderStyle,
-        };
-
-        const plainCell = {
-            border: borderStyle,
-        };
-
-        // Tüm hücrelere stil uygula
         const range = XLSX.utils.decode_range(ws['!ref']);
         for (let R = range.s.r; R <= range.e.r; ++R) {
             for (let C = range.s.c; C <= range.e.c; ++C) {
@@ -440,179 +323,167 @@ function TopluEvraklar() {
 
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Evraklar');
-
         XLSX.writeFile(wb, 'Toplu_Evraklar_Rapor.xlsx');
     };
-const exportEvrakToExcel = (evrak) => {
-    const tarih = new Date(evrak.tarih).toLocaleDateString('tr-TR');
-    const lokasyon = lokasyonlar[evrak.lokasyonid] || 'Bilinmeyen Lokasyon';
-    const toplamSefer = evrak.sefersayisi || 0;
 
-    const sheetData = [];
+    const exportEvrakToExcel = (evrak) => {
+        const tarih = new Date(evrak.tarih).toLocaleDateString('tr-TR');
+        const lokasyon = lokasyonlar[evrak.lokasyonid] || 'Bilinmeyen Lokasyon';
+        const toplamSefer = evrak.sefersayisi || 0;
 
-    // Genel Bilgi
-    sheetData.push(["TARİH", "LOKASYON", "TOPLAM SEFER"]);
-    sheetData.push([tarih, lokasyon, toplamSefer]);
-    sheetData.push([]);
+        const sheetData = [];
+        sheetData.push(['TARİH', 'LOKASYON', 'TOPLAM SEFER']);
+        sheetData.push([tarih, lokasyon, toplamSefer]);
+        sheetData.push([]);
 
-    // Projeler
-    sheetData.push(["PROJE", "SEFER SAYISI"]);
-    (evrak.evrakproje || []).forEach(p => {
-        const projeAd = projeler[p.projeid] || 'Bilinmeyen Proje';
-        sheetData.push([projeAd, p.sefersayisi]);
-    });
-    sheetData.push([]);
+        sheetData.push(['PROJE', 'SEFER SAYISI']);
+        (evrak.evrakproje || []).forEach((p) => {
+            const projeAd = projeler[p.projeid] || 'Bilinmeyen Proje';
+            sheetData.push([projeAd, p.sefersayisi]);
+        });
+        sheetData.push([]);
 
-    // Açıklama Özeti
-    const aciklamaSayaci = {};
-    (evrak.evrakseferler || []).forEach(s => {
-        const aciklama = s.aciklama || 'Bilinmeyen';
-        aciklamaSayaci[aciklama] = (aciklamaSayaci[aciklama] || 0) + 1;
-    });
+        const aciklamaSayaci = {};
+        (evrak.evrakseferler || []).forEach((s) => {
+            const aciklama = s.aciklama || 'Bilinmeyen';
+            aciklamaSayaci[aciklama] = (aciklamaSayaci[aciklama] || 0) + 1;
+        });
 
-    sheetData.push(["AÇIKLAMA ÖZETİ"]);
-    Object.entries(aciklamaSayaci).forEach(([aciklama, count]) => {
-        sheetData.push([`${aciklama}: ${count}`]);
-    });
+        sheetData.push(['AÇIKLAMA ÖZETİ']);
+        Object.entries(aciklamaSayaci).forEach(([aciklama, count]) => {
+            sheetData.push([`${aciklama}: ${count}`]);
+        });
 
-    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+        const ws = XLSX.utils.aoa_to_sheet(sheetData);
+        ws['!cols'] = [{ wch: 40 }, { wch: 25 }, { wch: 20 }];
 
-    // Kolon genişlikleri
-    ws['!cols'] = [
-        { wch: 40 },
-        { wch: 25 },
-        { wch: 20 }
-    ];
+        const borderAll = {
+            top: { style: 'thin', color: { rgb: '000000' } },
+            bottom: { style: 'thin', color: { rgb: '000000' } },
+            left: { style: 'thin', color: { rgb: '000000' } },
+            right: { style: 'thin', color: { rgb: '000000' } }
+        };
 
-    // Stil tanımları
-    const borderAll = {
-        top: { style: 'thin', color: { rgb: "000000" } },
-        bottom: { style: 'thin', color: { rgb: "000000" } },
-        left: { style: 'thin', color: { rgb: "000000" } },
-        right: { style: 'thin', color: { rgb: "000000" } },
-    };
+        const styles = {
+            header: {
+                font: { bold: true, color: { rgb: '000000' } },
+                fill: { fgColor: { rgb: 'D9D9D9' } },
+                border: borderAll
+            },
+            subHeader: {
+                font: { bold: true },
+                fill: { fgColor: { rgb: 'BDD7EE' } },
+                border: borderAll
+            },
+            summaryHeader: {
+                font: { bold: true },
+                fill: { fgColor: { rgb: 'C6EFCE' } },
+                border: borderAll
+            },
+            cell: { border: borderAll }
+        };
 
-    const styles = {
-        header: {
-            font: { bold: true, color: { rgb: "000000" } },
-            fill: { fgColor: { rgb: "D9D9D9" } }, // Açık gri
-            border: borderAll,
-        },
-        subHeader: {
-            font: { bold: true },
-            fill: { fgColor: { rgb: "BDD7EE" } }, // Açık mavi
-            border: borderAll,
-        },
-        summaryHeader: {
-            font: { bold: true },
-            fill: { fgColor: { rgb: "C6EFCE" } }, // Açık yeşil
-            border: borderAll,
-        },
-        cell: {
-            border: borderAll,
-        }
-    };
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        for (let R = range.s.r; R <= range.e.r; ++R) {
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+                const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                const cell = ws[cellAddress];
+                if (!cell) continue;
 
-    // Hücreleri biçimlendir
-    const range = XLSX.utils.decode_range(ws['!ref']);
-    for (let R = range.s.r; R <= range.e.r; ++R) {
-        for (let C = range.s.c; C <= range.e.c; ++C) {
-            const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
-            const cell = ws[cellAddress];
-            if (!cell) continue;
-
-            // Satır başlığına göre stilleri belirle
-            if (R === 0) {
-                cell.s = styles.header;
-            } else if (R === 3) {
-                cell.s = styles.subHeader;
-            } else if (sheetData[R] && sheetData[R][0] === "AÇIKLAMA ÖZETİ") {
-                cell.s = styles.summaryHeader;
-            } else {
-                cell.s = styles.cell;
+                if (R === 0) cell.s = styles.header;
+                else if (R === 3) cell.s = styles.subHeader;
+                else if (sheetData[R] && sheetData[R][0] === 'AÇIKLAMA ÖZETİ') cell.s = styles.summaryHeader;
+                else cell.s = styles.cell;
             }
         }
-    }
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Evrak Raporu');
-
-    XLSX.writeFile(wb, `evrak_raporu_${evrak.id}.xlsx`);
-};
-
-
-
-   
-
-
-   
-
-
-
-    const lokasyonSeferVerileri = () => {
-        const result = {};
-        evraklar.forEach(evrak => {
-            const lokasyon = lokasyonlar[evrak.lokasyonid];
-            if (!lokasyon) return;
-
-            result[lokasyon] = (result[lokasyon] || 0) + (evrak.sefersayisi || 0);
-        });
-
-        return Object.entries(result).map(([name, value]) => ({ name, value }));
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Evrak Raporu');
+        XLSX.writeFile(wb, `evrak_raporu_${evrak.id}.xlsx`);
     };
 
-    // ✅ 1. önce filteredEvraklar
-  const filteredEvraklar = evraklar.filter(evrak => {
-  const tarihMatch =
-    (!filters.startDate || new Date(evrak.tarih) >= new Date(filters.startDate)) &&
-    (!filters.endDate || new Date(evrak.tarih) <= new Date(filters.endDate));
+    // tablo filtresi
+    const filteredEvraklar = evraklar.filter((evrak) => {
+        const tarihMatch =
+            (!filters.startDate || new Date(evrak.tarih) >= new Date(filters.startDate)) &&
+            (!filters.endDate || new Date(evrak.tarih) <= new Date(filters.endDate));
 
-  const lokasyonMatch = filters.lokasyon.length === 0 || filters.lokasyon.includes(String(evrak.lokasyonid));
+        const lokasyonMatch =
+            filters.lokasyon.length === 0 || filters.lokasyon.includes(String(evrak.lokasyonid));
 
-  const evrakProjeIds = evrak.evrakproje?.map(p => String(p.projeid)) || [];
-  const projeMatch = filters.proje.length === 0 || evrakProjeIds.some(pid => filters.proje.includes(pid));
+        const evrakProjeIds = evrak.evrakproje?.map((p) => String(p.projeid)) || [];
+        const projeMatch =
+            filters.proje.length === 0 || evrakProjeIds.some((pid) => filters.proje.includes(pid));
 
-  const seferAciklamalari = (evrak.evrakseferler || []).map(s => s.aciklama).join(", ");
-  const aciklamaMatch = filters.aciklama
-    ? seferAciklamalari.toLocaleLowerCase("tr").includes(filters.aciklama.toLocaleLowerCase("tr"))
-    : true;
+        const seferAciklamalari = (evrak.evrakseferler || []).map((s) => s.aciklama).join(', ');
+        const aciklamaMatch = filters.aciklama
+            ? seferAciklamalari.toLocaleLowerCase('tr').includes(filters.aciklama.toLocaleLowerCase('tr'))
+            : true;
 
-  const seferNoMatch = filters.seferno
-    ? filters.seferno === '(Boş)'
-      ? (evrak.evrakseferler || []).some(s => !s.seferno?.trim())
-      : (evrak.evrakseferler || []).some(s =>
-          (s.seferno || '').toLocaleLowerCase("tr").includes(filters.seferno.toLocaleLowerCase("tr"))
-        )
-    : true;
+        const seferNoMatch = filters.seferno
+            ? filters.seferno === '(Boş)'
+                ? (evrak.evrakseferler || []).some((s) => !s.seferno?.trim())
+                : (evrak.evrakseferler || []).some((s) =>
+                    (s.seferno || '').toLocaleLowerCase('tr').includes(filters.seferno.toLocaleLowerCase('tr'))
+                )
+            : true;
 
-  return tarihMatch && lokasyonMatch && projeMatch && aciklamaMatch && seferNoMatch;
-});
+        return tarihMatch && lokasyonMatch && projeMatch && aciklamaMatch && seferNoMatch;
+    });
 
+    // panel için bağımlı seçenekler
+    const candidateEvraklar = React.useMemo(() => {
+        let arr = evraklar || [];
+        if (draft.startDate) arr = arr.filter((e) => new Date(e.tarih) >= new Date(draft.startDate));
+        if (draft.endDate) arr = arr.filter((e) => new Date(e.tarih) <= new Date(draft.endDate));
+        if (draft.proje?.length) {
+            arr = arr.filter((e) => {
+                const ids = (e.evrakproje || []).map((p) => String(p.projeid));
+                return ids.some((id) => draft.proje.includes(id));
+            });
+        }
+        return arr;
+    }, [evraklar, draft.startDate, draft.endDate, draft.proje]);
 
+    const projeOptions = React.useMemo(() => {
+        const ids = new Set();
+        candidateEvraklar.forEach((e) => e.evrakproje?.forEach((p) => ids.add(String(p.projeid))));
+        return [...ids]
+            .map((id) => ({ id, name: projeler?.[id] }))
+            .filter((x) => x.name);
+    }, [candidateEvraklar, projeler]);
 
-    // ✅ 2. sonra useMemo
-    const toplamSeferler = React.useMemo(() => {
-        if (!Array.isArray(filteredEvraklar) || filteredEvraklar.length === 0 || !lokasyonlar) return {};
+    const lokasyonOptions = React.useMemo(() => {
+        const ids = new Set(candidateEvraklar.map((e) => String(e.lokasyonid)));
+        return [...ids]
+            .map((id) => ({ id, name: lokasyonlar?.[id] }))
+            .filter((x) => x.name);
+    }, [candidateEvraklar, lokasyonlar]);
 
-        const totals = {};
-        filteredEvraklar.forEach((evrak) => {
-            const loc = lokasyonlar?.[evrak.lokasyonid] || 'Bilinmeyen Lokasyon';
-            if (!totals[loc]) totals[loc] = 0;
-            totals[loc] += evrak.sefersayisi || 0;
-        });
+    const aciklamaOptions = React.useMemo(() => {
+        const s = new Set();
+        candidateEvraklar.forEach((e) =>
+            e.evrakseferler?.forEach((x) => x.aciklama?.trim() && s.add(x.aciklama.trim()))
+        );
+        return [...s];
+    }, [candidateEvraklar]);
 
-        return totals;
-    }, [filteredEvraklar, lokasyonlar]);
+    const seferOptions = React.useMemo(() => {
+        const s = new Set();
+        candidateEvraklar.forEach((e) =>
+            e.evrakseferler?.forEach((x) => s.add(x.seferno?.trim() || '(Boş)'))
+        );
+        return [...s];
+    }, [candidateEvraklar]);
 
-
-
-
-
-
-
+    const openDetail = (evrak) => {
+        setDetailEvrak(evrak);
+        setShowDetailCard(true);
+    };
 
     return (
-       <>
+        <>
+            {/* DÜZENLE MODAL */}
             {showEditModal && selectedEvrak && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-lg relative">
@@ -626,32 +497,11 @@ const exportEvrakToExcel = (evrak) => {
 
                         <h2 className="text-lg font-semibold mb-4">🛠️ Evrak Düzenle</h2>
 
-                        {/* Başlangıç Tarihi */}
-                        <input
-                            type="date"
-                            value={filters.startDate}
-                            onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-                            className="px-3 py-2 rounded border border-gray-300 text-sm dark:bg-gray-800 dark:text-white dark:border-gray-600 w-48"
-                        />
-
-                        {/* Bitiş Tarihi */}
-                        <input
-                            type="date"
-                            value={filters.endDate}
-                            onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-                            className="px-3 py-2 rounded border border-gray-300 text-sm dark:bg-gray-800 dark:text-white dark:border-gray-600 w-48"
-                        />
-
-
-                        {/* LOKASYON */}
                         <label className="block mb-2 text-sm">Lokasyon</label>
                         <select
                             value={selectedEvrak.lokasyonid}
                             onChange={(e) =>
-                                setSelectedEvrak({
-                                    ...selectedEvrak,
-                                    lokasyonid: parseInt(e.target.value),
-                                })
+                                setSelectedEvrak({ ...selectedEvrak, lokasyonid: parseInt(e.target.value) })
                             }
                             className="w-full p-2 mb-4 border rounded dark:bg-gray-700 dark:text-white"
                         >
@@ -662,10 +512,8 @@ const exportEvrakToExcel = (evrak) => {
                             ))}
                         </select>
 
-                        {/* PROJELER */}
                         <div className="mb-4">
                             <label className="block mb-1 text-sm">Projeler</label>
-
                             {selectedEvrak.evrakproje?.map((p, i) => (
                                 <div key={i} className="flex gap-2 mb-2 items-center">
                                     <select
@@ -678,7 +526,9 @@ const exportEvrakToExcel = (evrak) => {
                                         className="flex-1 p-2 border rounded dark:bg-gray-700 dark:text-white"
                                     >
                                         {Object.entries(projeler || {}).map(([id, name]) => (
-                                            <option key={id} value={id}>{name}</option>
+                                            <option key={id} value={id}>
+                                                {name}
+                                            </option>
                                         ))}
                                     </select>
 
@@ -690,7 +540,8 @@ const exportEvrakToExcel = (evrak) => {
                                             newList[i].sefersayisi = parseInt(e.target.value) || 0;
 
                                             const toplamSefer = newList.reduce(
-                                                (sum, p) => sum + (parseInt(p.sefersayisi) || 0), 0
+                                                (sum, p) => sum + (parseInt(p.sefersayisi) || 0),
+                                                0
                                             );
 
                                             setSelectedEvrak({
@@ -706,7 +557,8 @@ const exportEvrakToExcel = (evrak) => {
                                         onClick={() => {
                                             const newList = selectedEvrak.evrakproje.filter((_, idx) => idx !== i);
                                             const toplamSefer = newList.reduce(
-                                                (sum, p) => sum + (parseInt(p.sefersayisi) || 0), 0
+                                                (sum, p) => sum + (parseInt(p.sefersayisi) || 0),
+                                                0
                                             );
                                             setSelectedEvrak({
                                                 ...selectedEvrak,
@@ -723,9 +575,11 @@ const exportEvrakToExcel = (evrak) => {
 
                             <button
                                 onClick={() => {
-                                    const newList = [...selectedEvrak.evrakproje, { projeid: Object.keys(projeler)[0] || '', sefersayisi: 0 }];
+                                    const firstId = Object.keys(projeler)[0] || '';
+                                    const newList = [...selectedEvrak.evrakproje, { projeid: firstId, sefersayisi: 0 }];
                                     const toplamSefer = newList.reduce(
-                                        (sum, p) => sum + (parseInt(p.sefersayisi) || 0), 0
+                                        (sum, p) => sum + (parseInt(p.sefersayisi) || 0),
+                                        0
                                     );
                                     setSelectedEvrak({
                                         ...selectedEvrak,
@@ -738,18 +592,13 @@ const exportEvrakToExcel = (evrak) => {
                                 + Proje Ekle
                             </button>
 
-                            {/* Toplam Sefer Sayısı Gösterimi */}
                             <div className="mt-2 text-sm text-gray-700 dark:text-gray-300 font-medium">
                                 Toplam Sefer Sayısı: {selectedEvrak.sefersayisi || 0}
                             </div>
                         </div>
 
-
-
-                        {/* SEFERLER */}
                         <div className="mb-4">
                             <label className="block mb-1 text-sm">Seferler</label>
-
                             {selectedEvrak.evrakseferler?.map((s, i) => (
                                 <div key={i} className="mb-2 flex flex-col gap-1">
                                     <input
@@ -794,10 +643,10 @@ const exportEvrakToExcel = (evrak) => {
 
                             <button
                                 onClick={() => {
-                                    const newList = [...selectedEvrak.evrakseferler, {
-                                        seferno: '',
-                                        aciklama: 'TARAFIMIZCA DÜZELTİLMİŞTİR' // varsayılan
-                                    }];
+                                    const newList = [
+                                        ...selectedEvrak.evrakseferler,
+                                        { seferno: '', aciklama: 'TARAFIMIZCA DÜZELTİLMİŞTİR' }
+                                    ];
                                     setSelectedEvrak({ ...selectedEvrak, evrakseferler: newList });
                                 }}
                                 className="bg-blue-500 text-white px-3 py-1 rounded text-sm mt-2"
@@ -806,8 +655,6 @@ const exportEvrakToExcel = (evrak) => {
                             </button>
                         </div>
 
-
-                        {/* BUTONLAR */}
                         <div className="flex justify-end gap-2 mt-6">
                             <button
                                 onClick={() => setShowEditModal(false)}
@@ -826,611 +673,658 @@ const exportEvrakToExcel = (evrak) => {
                 </div>
             )}
 
-        <Layout>
-
-        <div className="flex flex-col gap-8 p-8 bg-white text-black dark:bg-gray-900 dark:text-white transition-colors duration-300">
-            <div style={{ display: 'flex', gap: '2rem' }}>
-                <div style={{ flex: 2 }}>
-
-                            <div className="flex gap-4 items-center flex-wrap">
-                               {/* Başlangıç Tarihi */}
-                                <div ref={lokasyonRef} className="relative w-48">
-    <input
-        type="text"
-        onFocus={(e) => e.target.type = 'date'}
-        onBlur={(e) => {
-            if (!e.target.value) e.target.type = 'text';
-        }}
-        value={filters.startDate}
-        onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-        placeholder="Başlangıç Tarihi"
-        className="px-3 py-2 rounded border border-gray-300 text-sm dark:bg-gray-800 dark:text-white dark:border-gray-600 w-full"
-    />
-    <label className="absolute -top-4 left-0 text-sm font-medium text-gray-300 dark:text-gray-400">
-    </label>
-</div>
-
-{/* Bitiş Tarihi */}
-                                <div ref={projeRef} className="relative w-48">
-    <input
-        type="text"
-        onFocus={(e) => e.target.type = 'date'}
-        onBlur={(e) => {
-            if (!e.target.value) e.target.type = 'text';
-        }}
-        value={filters.endDate}
-        onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-        placeholder="Bitiş Tarihi"
-        className="px-3 py-2 rounded border border-gray-300 text-sm dark:bg-gray-800 dark:text-white dark:border-gray-600 w-full"
-    />
-    <label className="absolute -top-4 left-0 text-sm font-medium text-gray-300 dark:text-gray-400">
-    </label>
-</div>
-
-                            
-
-
-
-                                {/* Lokasyon Dropdown Checkbox */}
-                                <div ref={aciklamaRef} className="relative w-48">
-                                    <div
-                                        onClick={() => setShowLokasyonlar(!showLokasyonlar)}
-                                        className="px-3 py-2 rounded border border-gray-300 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600 cursor-pointer select-none"
-                                    >
-                                        Lokasyonlar {showLokasyonlar ? '▲' : '▼'}
-                                    </div>
-
-                                    {showLokasyonlar && (
-                                        <div className="absolute z-10 mt-1 w-full max-h-48 overflow-auto rounded border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 shadow-lg">
-                                            {Object.entries(lokasyonlar || {}).map(([id, name]) => (
-                                                <label
-                                                    key={id}
-                                                    className="flex items-center space-x-2 px-3 py-1 cursor-pointer text-sm text-gray-900 dark:text-gray-200"
-                                                >
-                                                   <input
-  type="checkbox"
-  checked={filters.lokasyon.includes(String(id))}
-  onChange={() => {
-    const idStr = String(id); // ✅ id'yi string'e çevir
-
-    setFilters((prev) => {
-      const isSelected = prev.lokasyon.includes(idStr);
-      return {
-        ...prev,
-        lokasyon: isSelected
-          ? prev.lokasyon.filter((x) => x !== idStr)
-          : [...prev.lokasyon, idStr],
-      };
-    });
-  }}
-  className="form-checkbox text-pink-600"
-/>
-
-                                                    <span>{name}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-
-                        {/* Proje Dropdown Checkbox */}
-                                <div ref={sefernoRef} className="relative w-48">
-                            <div
-                                onClick={() => setShowProjeler(!showProjeler)}
-                                className="px-3 py-2 rounded border border-gray-300 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600 cursor-pointer select-none"
-                            >
-                                Projeler {showProjeler ? '▲' : '▼'}
-                            </div>
-
-                            {showProjeler && (
-                                <div className="absolute z-10 mt-1 w-full max-h-48 overflow-auto rounded border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 shadow-lg">
-                                    {Object.entries(projeler).map(([id, name]) => (
-                                        <label
-                                            key={id}
-                                            className="flex items-center space-x-2 px-3 py-1 cursor-pointer text-sm text-gray-900 dark:text-gray-200"
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={filters.proje.includes(id)}
-                                                onChange={() => {
-                                                    if (filters.proje.includes(id)) {
-                                                        setFilters((prev) => ({
-                                                            ...prev,
-                                                            proje: prev.proje.filter((x) => x !== id),
-                                                        }));
-                                                    } else {
-                                                        setFilters((prev) => ({
-                                                            ...prev,
-                                                            proje: [...prev.proje, id],
-                                                        }));
-                                                    }
-                                                }}
-                                                className="form-checkbox text-pink-600"
-                                            />
-                                            <span>{name}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                      <div className="relative w-48">
-    <div
-        onClick={() => setShowAciklamalar(!showAciklamalar)}
-        className="px-3 py-2 rounded border border-gray-300 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600 cursor-pointer select-none"
-    >
-        {filters.aciklama || 'Açıklama'} {showAciklamalar ? '▲' : '▼'}
-    </div>
-
-    {showAciklamalar && (
-        <div className="absolute z-10 mt-1 w-full max-h-48 overflow-auto rounded border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 shadow-lg">
-            <input
-                type="text"
-                placeholder="Ara..."
-                value={filters.aciklama}
-                onChange={(e) =>
-                    setFilters({ ...filters, aciklama: e.target.value })
-                }
-                className="w-full px-2 py-1 text-sm bg-white dark:bg-gray-800 dark:text-white border-b border-gray-300 dark:border-gray-600"
-            />
-            {tumAciklamalar
-.filter((a) =>
-  a?.toLocaleLowerCase('tr').includes(filters.aciklama?.toLocaleLowerCase('tr') || '')
-)
-                .map((aciklama, idx) => (
-                   <div
-  key={idx}
-  onClick={() => {
-    setFilters({ ...filters, aciklama });
-    setShowAciklamalar(false); // 👈 ekleyin
-  }}
-  className="px-3 py-1 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
->
-  {aciklama}
-</div>
-
-                ))}
-        </div>
-    )}
-</div>
-
-<div className="relative w-48">
-  <div
-    onClick={() => setShowSeferNolar(!showSeferNolar)}
-    className="px-3 py-2 rounded border border-gray-300 bg-white dark:bg-gray-800 dark:text-white dark:border-gray-600 cursor-pointer select-none"
-  >
-    {filters.seferno || 'Sefer No'} {showSeferNolar ? '▲' : '▼'}
-  </div>
-
-  {showSeferNolar && (
-    <div className="absolute z-10 mt-1 w-full max-h-48 overflow-auto rounded border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 shadow-lg">
-      <input
-        type="text"
-        placeholder="Ara..."
-        value={filters.seferno}
-        onChange={(e) =>
-          setFilters({ ...filters, seferno: e.target.value })
-        }
-        className="w-full px-2 py-1 text-sm bg-white dark:bg-gray-800 dark:text-white border-b border-gray-300 dark:border-gray-600"
-      />
-      {tumSeferNolari
-        .filter((s) =>
-          s.toLocaleLowerCase('tr').includes(filters.seferno.toLocaleLowerCase('tr'))
-        )
-        .map((sefer, idx) => (
-          <div
-            key={idx}
-            onClick={() =>
-              setFilters({ ...filters, seferno: sefer })
-            }
-            className="px-3 py-1 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-          >
-            {sefer}
-          </div>
-        ))}
-    </div>
-  )}
-</div>
-
-
-
-
-                        {/* Temizle Butonu */}
+            <Layout>
+                <div className="flex flex-col gap-8 p-8 bg-white text-black dark:bg-gray-900 dark:text-white transition-colors duration-300">
+                    {/* Üst bar */}
+                    <div className="bg-gray-800 p-4 rounded-lg shadow-md mb-2 flex flex-wrap items-center gap-3">
                         <button
-                                    onClick={() =>
-                                        setFilters({
-                                            startDate: '',
-                                            endDate: '',
-                                            lokasyon: [],
-                                            proje: [],
-                                            aciklama: ''
-                                        })
-                                    }
-                            className="px-3 py-2 rounded border border-gray-300 bg-gray-100 text-sm hover:bg-gray-200 dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:hover:bg-gray-600"
+                            onClick={() => {
+                                setDraft(filters);
+                                setShowFilters(true);
+                            }}
+                            className="h-[40px] px-4 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-semibold"
                         >
-                            Temizle
+                            🔎 Filtre
                         </button>
-                        {/* Excel'e Aktar Butonu */}
+
+                        {hasActiveFilters && (
+                            <button
+                                onClick={() => setFilters(initialFilterState)}
+                                className="h-[40px] px-4 rounded-md bg-gray-600 hover:bg-gray-700 text-white"
+                            >
+                                Temizle
+                            </button>
+                        )}
+
                         <button
-                            onClick={exportToExcel}
-                            className="flex items-center gap-2 px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 transition-colors duration-200"
+                            onClick={() => exportToExcel()}
+                            className="flex items-center gap-2 h-[40px] px-4 rounded-md bg-green-600 hover:bg-green-700 text-white font-semibold"
                         >
                             <FiFile size={18} />
                             Excel'e Aktar
                         </button>
                     </div>
 
-
-
-                    {loading ? (
-                        <p style={{ textAlign: 'center' }}>Yükleniyor...</p>
-                    ) : (
-                        <table style={tableStyle}>
+                    {/* Ana içerik */}
+                    <div style={{ display: 'flex', gap: '2rem' }}>
+                        {/* Sol: tablo */}
+                        <div style={{ flex: 2 }}>
+                            {loading ? (
+                                <p style={{ textAlign: 'center' }}>Yükleniyor...</p>
+                            ) : (
+                                <table style={tableStyle}>
                                     <thead>
-                                      <tr style={{ backgroundColor: '#f3f4f6' }}>
-                                        <th style={cellStyle}>#</th> {/* <-- Sıra numarası sütunu */}
-                                        <th style={cellStyle}>Tarih</th>
-                                        <th style={cellStyle}>Lokasyon</th>
-                                        <th style={cellStyle}>Projeler</th>
-                                        <th style={cellStyle}>Toplam Sefer</th>
-                                        <th style={cellStyle}>Sefer No</th>
-                                        <th style={cellStyle}>Açıklama</th>
-                                      </tr>
+                                        <tr style={{ backgroundColor: '#f3f4f6' }}>
+                                            <th style={cellStyle}>#</th>
+                                            <th style={cellStyle}>Tarih</th>
+                                            <th style={cellStyle}>Lokasyon</th>
+                                            <th style={cellStyle}>Projeler</th>
+                                            <th style={cellStyle}>Toplam Sefer</th>
+                                            <th style={cellStyle}>Sefer No</th>
+                                            <th style={cellStyle}>Açıklama</th>
+                                            <th style={cellStyle}></th>
+                                            <th style={cellStyle}></th>
+                                            <th style={cellStyle}></th>
+                                        </tr>
                                     </thead>
                                     <tbody>
-                                      {filteredEvraklar.map((evrak, index) => {
-    const seferler = evrak.evrakseferler || [];
-    const isExpanded = expandedRow === evrak.id;
-    const isProjelerVisible = acikProjeId === evrak.id;
+                                        {filteredEvraklar.map((evrak, index) => {
+                                            const isProjelerVisible = acikProjeId === evrak.id;
 
-    return (
-        <React.Fragment key={evrak.id}>
-            <tr
-                onClick={() => setExpandedRow(isExpanded ? null : evrak.id)}
-                className="cursor-pointer bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100"
-            >
-                <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 font-semibold text-center">
-                    {index + 1}
-                </td>
-                <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
-                    {new Date(evrak.tarih).toLocaleDateString('tr-TR')}
-                </td>
-                <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
-                    {lokasyonlar[evrak.lokasyonid]}
-                </td>
-                <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setAcikProjeId(isProjelerVisible ? null : evrak.id);
-                        }}
-                        className="rounded-md px-2 py-1 text-xs cursor-pointer mb-2 bg-gray-100 border border-gray-300 text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                    >
-                        {isProjelerVisible ? 'Projeleri Gizle' : 'Projeleri Göster'}
-                    </button>
-                    {isProjelerVisible && (
-                        <ul className="list-none p-2 m-0">
-                            {evrak.evrakproje?.map((p, idx) => (
-                                <li key={idx}>
-                                    {projeler[p.projeid]} ({p.sefersayisi})
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </td>
-                <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
-                    {evrak.sefersayisi}
-                </td>
-                <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center font-medium text-blue-700 dark:text-blue-400">
-                    {isExpanded ? '🔼 Gizle' : '🔽 Göster'}
-                </td>
-                <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
-                    {/* BOŞ: Açıklama alanı zaten detay satırlarında */}
-                </td>
-                <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedEvrak(evrak);
-                            setShowEditModal(true);
-                        }}
-                        className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
-                    >
-                        Düzenle
-                    </button>
-                </td>
+                                            return (
+                                                <React.Fragment key={evrak.id}>
+                                                    <tr className="bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100">
+                                                        <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 font-semibold text-center">
+                                                            {index + 1}
+                                                        </td>
+                                                        <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
+                                                            {new Date(evrak.tarih).toLocaleDateString('tr-TR')}
+                                                        </td>
+                                                        <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
+                                                            {lokasyonlar[evrak.lokasyonid]}
+                                                        </td>
+                                                        <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setAcikProjeId(isProjelerVisible ? null : evrak.id);
+                                                                }}
+                                                                className="rounded-md px-2 py-1 text-xs cursor-pointer mb-2 bg-gray-100 border border-gray-300 text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                            >
+                                                                {isProjelerVisible ? 'Projeleri Gizle' : 'Projeleri Göster'}
+                                                            </button>
+                                                            {isProjelerVisible && (
+                                                                <ul className="list-none p-2 m-0">
+                                                                    {evrak.evrakproje?.map((p, idx) => (
+                                                                        <li key={idx}>
+                                                                            {projeler[p.projeid]} ({p.sefersayisi})
+                                                                        </li>
+                                                                    ))}
+                                                                </ul>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
+                                                            {evrak.sefersayisi}
+                                                        </td>
 
-                <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            exportEvrakToExcel(evrak);
-                        }}
-                        className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
-                    >
-                        Satır Raporu Al
-                    </button>
-                </td>
+                                                        {/* ✅ Sefer No hücresi: card aç */}
+                                                        <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    openDetail(evrak);
+                                                                }}
+                                                                className="text-xs bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700"
+                                                            >
+                                                                Detay
+                                                            </button>
+                                                        </td>
 
-                {/* YENİ: Sil butonu */}
-                <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            handleEvrakSil(evrak);
-                        }}
-                        disabled={deletingId === evrak.id}
-                        className={`text-xs px-3 py-1 rounded ${deletingId === evrak.id
-                            ? 'bg-red-300 cursor-not-allowed text-white'
-                            : 'bg-red-600 hover:bg-red-700 text-white'
-                            }`}
-                    >
-                        {deletingId === evrak.id ? 'Siliniyor…' : 'Sil'}
-                    </button>
-                </td>
+                                                        {/* ✅ Açıklama hücresi: card aç */}
+                                                        <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    openDetail(evrak);
+                                                                }}
+                                                                className="text-xs underline text-blue-700 dark:text-blue-400"
+                                                            >
+                                                                Detay
+                                                            </button>
+                                                        </td>
 
-            </tr>
+                                                        <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setSelectedEvrak(evrak);
+                                                                    setShowEditModal(true);
+                                                                }}
+                                                                className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                                                            >
+                                                                Düzenle
+                                                            </button>
+                                                        </td>
 
-            {isExpanded && (
-                seferler.length > 0 ? (
-                    seferler.map((sefer, i) => (
-                        <tr
-                            key={`${evrak.id}-${i}`}
-                            className={
-                                i % 2 === 0
-                                    ? "bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100"
-                                    : "bg-gray-50 text-gray-900 dark:bg-gray-700 dark:text-gray-200"
-                            }
-                        >
-                            <td className="border border-gray-200 dark:border-gray-700"></td> {/* boş sıra numarası hücresi */}
-                            <td colSpan={3} className="border border-gray-200 dark:border-gray-700"></td>
-                            <td className="border border-gray-200 dark:border-gray-700">{sefer.seferno}</td>
-                            <td className="border border-gray-200 dark:border-gray-700">{sefer.aciklama}</td>
-                            <td className="border border-gray-200 dark:border-gray-700" colSpan={3}></td>
-                        </tr>
-                    ))
-                ) : (
-                    <tr>
-                        <td className="border border-gray-200 dark:border-gray-700"></td>
-                        <td colSpan={4}></td>
-                        <td colSpan={2} className="text-center text-gray-400 dark:text-gray-500">
-                            Sefer kaydı bulunamadı
-                        </td>
-                        <td></td>
-                    </tr>
-                )
-            )}
-        </React.Fragment>
-    );
-})}
+                                                        <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    exportEvrakToExcel(evrak);
+                                                                }}
+                                                                className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+                                                            >
+                                                                Satır Raporu Al
+                                                            </button>
+                                                        </td>
 
+                                                        <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleEvrakSil(evrak);
+                                                                }}
+                                                                disabled={deletingId === evrak.id}
+                                                                className={`text-xs px-3 py-1 rounded ${deletingId === evrak.id
+                                                                        ? 'bg-red-300 cursor-not-allowed text-white'
+                                                                        : 'bg-red-600 hover:bg-red-700 text-white'
+                                                                    }`}
+                                                            >
+                                                                {deletingId === evrak.id ? 'Siliniyor…' : 'Sil'}
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                </React.Fragment>
+                                            );
+                                        })}
                                     </tbody>
+                                </table>
+                            )}
+                        </div>
 
-                        </table>
-                    )}
-                </div>
-
-                        <div className="flex flex-col gap-10 pb-8 flex-[1.5]">
-                            {/* Açıklama Dağılımı + Özet Bilgiler */}
-                            <div className="flex flex-wrap gap-8 p-8 rounded-xl bg-white dark:bg-gray-800 shadow-md dark:shadow-lg items-center justify-between">
-                                <div>
-                                    <PieChart width={240} height={240}>
-                                        <Pie
-                                            data={aciklamaVerileri()}
-                                            dataKey="value"
-                                            nameKey="name"
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={60}
-                                            outerRadius={100}
-                                            label={({ value }) => `${value}`}
-                                            paddingAngle={5}
-                                        >
-                                            {aciklamaVerileri().map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip formatter={(value) => [`${value} sefer`]} />
-                                    </PieChart>
-                                </div>
-
-                                <div className="flex flex-col justify-center gap-4 flex-1 min-w-[220px]">
-                                    <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg text-center font-bold text-gray-900 dark:text-gray-200 text-lg">
-                                        🚛 Toplam Sefer: {toplamSefer.toLocaleString()}
-                                    </div>
-
-                                    <div className="flex justify-between bg-green-100 dark:bg-green-900 p-3 rounded-lg text-green-700 dark:text-green-300 font-medium text-sm">
-                                        <span>✔️ Düzeltilmiş:</span>
-                                        <span>{duzeltilmis} (%{oran(duzeltilmis)})</span>
-                                    </div>
-
-                                    <div className="flex justify-between bg-blue-100 dark:bg-blue-900 p-3 rounded-lg text-blue-700 dark:text-blue-300 font-medium text-sm">
-                                        <span>🔁 Orijinale Çekilmiş:</span>
-                                        <span>{orjinaleCekilmis} (%{oran(orjinaleCekilmis)})</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Proje Bazlı Kartlar */}
-                            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md dark:shadow-lg p-6 flex flex-col gap-5">
-                                <div className="bg-green-600 text-white py-3 px-5 rounded-xl font-semibold text-center text-lg shadow-md">
-                                    📦 Proje Bazlı Seferler
-                                </div>
-
-                                <div className="grid grid-cols-5 gap-4">
-                                    {projeSeferVerileri()
-                                        .sort((a, b) => b.value - a.value)
-                                        .map(item => (
-                                            <div
-                                                key={item.name}
-                                                className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 text-center text-sm text-gray-900 dark:text-gray-200 border border-gray-300 dark:border-gray-600"
+                        {/* Sağ: grafikler - panel açıkken gizle */}
+                        {!showFilters && (
+                            <div className="flex flex-col gap-10 pb-8 flex-[1.5]">
+                                <div className="flex flex-wrap gap-8 p-8 rounded-xl bg-white dark:bg-gray-800 shadow-md dark:shadow-lg items-center justify-between">
+                                    <div>
+                                        <PieChart width={240} height={240}>
+                                            <Pie
+                                                data={aciklamaVerileri()}
+                                                dataKey="value"
+                                                nameKey="name"
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={60}
+                                                outerRadius={100}
+                                                label={({ value }) => `${value}`}
+                                                paddingAngle={5}
                                             >
-                                                <div className="font-semibold mb-1">{item.name}</div>
-                                                <div className="text-green-500">{item.value.toLocaleString()} sefer</div>
-                                            </div>
-                                        ))}
-                                </div>
-                            </div>
-
-                            <div
-                                className="p-6 rounded-xl bg-white dark:bg-gray-800 shadow-md dark:shadow-lg mt-6 border-t border-gray-300 dark:border-gray-700"
-                            >
-                                <h4 className="text-center text-lg font-semibold text-gray-700 dark:text-gray-300 mb-6">
-                                    📍 Lokasyonlardaki Açıklama Dağılımı
-                                </h4>
-
-                                {/* FLEX: Lokasyon seçimi solda, grafik sağda */}
-                                <div className="flex flex-wrap md:flex-nowrap items-start justify-center gap-8 mb-8">
-                                    {/* Sol: Lokasyon Seçimi */}
-                                    <div className="w-full md:w-64">
-                                        <label className="block mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                                            📍 Lokasyon Seç (Donut Grafik için)
-                                        </label>
-                                        <select
-                                            value={seciliLokasyon}
-                                            onChange={(e) => setSeciliLokasyon(e.target.value)}
-                                            className="w-full px-3 py-2 rounded border border-gray-300 text-sm dark:bg-gray-800 dark:text-white dark:border-gray-600"
-                                        >
-                                            <option value="">— Lokasyon Seçin —</option>
-                                            {Object.entries(lokasyonlar).map(([id, name]) => (
-                                                <option key={id} value={name}>{name}</option>
-                                            ))}
-                                        </select>
+                                                {aciklamaVerileri().map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip formatter={(value) => [`${value} sefer`]} />
+                                        </PieChart>
                                     </div>
 
-                                    {seciliLokasyon && (
-                                        <div className="flex flex-col items-center md:flex-row md:items-start md:justify-center gap-6">
-                                            {/* Grafik */}
-                                            <div className="flex flex-col items-center">
-                                                <h3 className="text-md font-semibold text-gray-700 dark:text-white mb-2">
-                                                    {seciliLokasyon} Açıklama Dağılımı
-                                                </h3>
-                                                <PieChart width={280} height={280}>
-                                                    <Pie
-                                                        data={
-                                                            Object.entries(lokasyonBazliAciklamaVerileri()[seciliLokasyon]?.aciklamalar || {})
-                                                                .map(([name, value]) => ({ name, value }))
-                                                        }
-                                                        dataKey="value"
-                                                        nameKey="name"
-                                                        cx="50%"
-                                                        cy="50%"
-                                                        innerRadius={70}
-                                                        outerRadius={100}
-                                                        paddingAngle={2}
-                                                        minAngle={5}
-                                                        labelLine={false}
-                                                        label={({ value }) => `${value}`}
-                                                    >
-                                                        {Object.entries(lokasyonBazliAciklamaVerileri()[seciliLokasyon]?.aciklamalar || {})
-                                                            .map((_, index) => (
+                                    <div className="flex flex-col justify-center gap-4 flex-1 min-w-[220px]">
+                                        <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg text-center font-bold text-gray-900 dark:text-gray-200 text-lg">
+                                            🚛 Toplam Sefer: {toplamSefer.toLocaleString()}
+                                        </div>
+
+                                        <div className="flex justify-between bg-green-100 dark:bg-green-900 p-3 rounded-lg text-green-700 dark:text-green-300 font-medium text-sm">
+                                            <span>✔️ Düzeltilmiş:</span>
+                                            <span>
+                                                {duzeltilmis} (%{oran(duzeltilmis)})
+                                            </span>
+                                        </div>
+
+                                        <div className="flex justify-between bg-blue-100 dark:bg-blue-900 p-3 rounded-lg text-blue-700 dark:text-blue-300 font-medium text-sm">
+                                            <span>🔁 Orijinale Çekilmiş:</span>
+                                            <span>
+                                                {orjinaleCekilmis} (%{oran(orjinaleCekilmis)})
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md dark:shadow-lg p-6 flex flex-col gap-5">
+                                    <div className="bg-green-600 text-white py-3 px-5 rounded-xl font-semibold text-center text-lg shadow-md">
+                                        📦 Proje Bazlı Seferler
+                                    </div>
+
+                                    <div className="grid grid-cols-5 gap-4">
+                                        {projeSeferVerileri()
+                                            .sort((a, b) => b.value - a.value)
+                                            .map((item) => (
+                                                <div
+                                                    key={item.name}
+                                                    className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 text-center text-sm text-gray-900 dark:text-gray-200 border border-gray-300 dark:border-gray-600"
+                                                >
+                                                    <div className="font-semibold mb-1">{item.name}</div>
+                                                    <div className="text-green-500">{item.value.toLocaleString()} sefer</div>
+                                                </div>
+                                            ))}
+                                    </div>
+                                </div>
+
+                                <div className="p-6 rounded-xl bg-white dark:bg-gray-800 shadow-md dark:shadow-lg mt-6 border-t border-gray-300 dark:border-gray-700">
+                                    <h4 className="text-center text-lg font-semibold text-gray-700 dark:text-gray-300 mb-6">
+                                        📍 Lokasyonlardaki Açıklama Dağılımı
+                                    </h4>
+
+                                    <div className="flex flex-wrap md:flex-nowrap items-start justify-center gap-8 mb-8">
+                                        <div className="w-full md:w-64">
+                                            <label className="block mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                                📍 Lokasyon Seç (Donut Grafik için)
+                                            </label>
+                                            <select
+                                                value={seciliLokasyon}
+                                                onChange={(e) => setSeciliLokasyon(e.target.value)}
+                                                className="w-full px-3 py-2 rounded border border-gray-300 text-sm dark:bg-gray-800 dark:text-white dark:border-gray-600"
+                                            >
+                                                <option value="">— Lokasyon Seçin —</option>
+                                                {Object.entries(lokasyonlar).map(([id, name]) => (
+                                                    <option key={id} value={name}>
+                                                        {name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {seciliLokasyon && (
+                                            <div className="flex flex-col items-center md:flex-row md:items-start md:justify-center gap-6">
+                                                <div className="flex flex-col items-center">
+                                                    <h3 className="text-md font-semibold text-gray-700 dark:text-white mb-2">
+                                                        {seciliLokasyon} Açıklama Dağılımı
+                                                    </h3>
+                                                    <PieChart width={280} height={280}>
+                                                        <Pie
+                                                            data={Object.entries(
+                                                                lokasyonBazliAciklamaVerileri()[seciliLokasyon]?.aciklamalar || {}
+                                                            ).map(([name, value]) => ({ name, value }))}
+                                                            dataKey="value"
+                                                            nameKey="name"
+                                                            cx="50%"
+                                                            cy="50%"
+                                                            innerRadius={70}
+                                                            outerRadius={100}
+                                                            paddingAngle={2}
+                                                            minAngle={5}
+                                                            labelLine={false}
+                                                            label={({ value }) => `${value}`}
+                                                        >
+                                                            {Object.entries(
+                                                                lokasyonBazliAciklamaVerileri()[seciliLokasyon]?.aciklamalar || {}
+                                                            ).map((_, index) => (
                                                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                                             ))}
-                                                    </Pie>
-                                                    <Tooltip formatter={(value, name) => [`${value} sefer`, name]} />
-                                                </PieChart>
-                                            </div>
+                                                        </Pie>
+                                                        <Tooltip formatter={(value, name) => [`${value} sefer`, name]} />
+                                                    </PieChart>
+                                                </div>
 
-                                            {/* Legend */}
-                                            <div className="mt-4 md:mt-12 space-y-2 text-sm">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-4 h-4 rounded" style={{ backgroundColor: '#3b82f6' }}></div>
-                                                    <span className="text-gray-700 dark:text-gray-200">TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-4 h-4 rounded" style={{ backgroundColor: '#10b981' }}></div>
-                                                    <span className="text-gray-700 dark:text-gray-200">TARAFIMIZCA DÜZELTİLMİŞTİR</span>
+                                                <div className="mt-4 md:mt-12 space-y-2 text-sm">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-4 h-4 rounded" style={{ backgroundColor: '#3b82f6' }}></div>
+                                                        <span className="text-gray-700 dark:text-gray-200">
+                                                            TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-4 h-4 rounded" style={{ backgroundColor: '#10b981' }}></div>
+                                                        <span className="text-gray-700 dark:text-gray-200">TARAFIMIZCA DÜZELTİLMİŞTİR</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-auto-fill min-w-[280px] gap-6 px-2">
+                                        {Object.entries(lokasyonBazliAciklamaVerileri() || {}).map(([lokasyon, data]) => {
+                                            const { toplamSefer, aciklamalar } = data;
+                                            return (
+                                                <div
+                                                    key={lokasyon}
+                                                    className="bg-gray-100 dark:bg-gray-700 rounded-xl p-4 shadow-sm flex flex-col gap-2"
+                                                >
+                                                    <h5 className="text-gray-900 dark:text-gray-200 font-semibold text-base mb-2">
+                                                        📍 {lokasyon} - Toplam Sefer: {toplamSefer}
+                                                    </h5>
+
+                                                    {Object.entries(aciklamalar).map(([aciklama, count]) => {
+                                                        const normalized = aciklama.trim().toLocaleUpperCase('tr');
+                                                        let bgColor = 'bg-gray-300';
+                                                        let textColor = 'text-gray-900';
+
+                                                        if (normalized === 'TARAFIMIZCA DÜZELTİLMİŞTİR') {
+                                                            bgColor = 'bg-green-600';
+                                                            textColor = 'white';
+                                                        } else if (normalized === 'TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR') {
+                                                            bgColor = 'bg-blue-600';
+                                                            textColor = 'white';
+                                                        }
+
+                                                        return (
+                                                            <div
+                                                                key={aciklama}
+                                                                className={`${bgColor} ${textColor} px-3 py-1 rounded-md text-sm font-medium flex justify-between items-center`}
+                                                            >
+                                                                <span>{aciklama}</span>
+                                                                <span className="font-bold">{count}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
 
+                                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md dark:shadow-lg p-6 flex flex-col gap-5 mt-8">
+                                    <div className="bg-yellow-500 text-white py-3 px-5 rounded-xl font-semibold text-center text-lg shadow-md">
+                                        🗺️ Lokasyon Bazlı Seferler
+                                    </div>
 
+                                    <div className="grid grid-cols-auto-fill min-w-[160px] gap-4">
+                                        {Object.entries(
+                                            filteredEvraklar.reduce((acc, e) => {
+                                                const name = lokasyonlar[e.lokasyonid];
+                                                if (!name) return acc;
+                                                acc[name] = (acc[name] || 0) + (e.sefersayisi || 0);
+                                                return acc;
+                                            }, {})
+                                        )
+                                            .map(([name, value]) => ({ name, value }))
+                                            .sort((a, b) => b.value - a.value)
+                                            .map((item) => (
+                                                <div
+                                                    key={item.name}
+                                                    className="bg-yellow-50 dark:bg-yellow-900 rounded-lg p-3 text-center text-sm text-yellow-900 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-700"
+                                                >
+                                                    <div className="font-semibold mb-1">{item.name}</div>
+                                                    <div className="text-yellow-700 dark:text-yellow-400">
+                                                        {item.value.toLocaleString()} sefer
+                                                    </div>
+                                                </div>
+                                            ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </Layout>
 
-                                {/* Aşağıda: Liste görünümü */}
-                                <div className="grid grid-cols-auto-fill min-w-[280px] gap-6 px-2">
-                                    {Object.entries(lokasyonBazliAciklamaVerileri() || {}).map(([lokasyon, data]) => {
-                                        const { toplamSefer, aciklamalar } = data;
+            {/* SOL FİLTRE PANELİ */}
+            {showFilters && (
+                <div className="fixed inset-0 z-50">
+                    <div className="absolute inset-0 bg-black/40" onClick={() => setShowFilters(false)} />
+                    <div className="absolute left-0 top-0 h-full w-full max-w-[380px] bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-2xl p-5 overflow-y-auto">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold">Filtreler</h3>
+                            <button onClick={() => setShowFilters(false)} className="text-xl px-2">×</button>
+                        </div>
+
+                        {/* Tarihler */}
+                        <div className="space-y-3">
+                            <div>
+                                <label className="text-sm">Başlangıç Tarihi</label>
+                                <input
+                                    type="date"
+                                    value={draft.startDate}
+                                    onChange={(e) => setDraft({ ...draft, startDate: e.target.value })}
+                                    className="mt-1 w-full px-3 py-2 rounded border border-gray-300 dark:bg-gray-800 dark:border-gray-700"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-sm">Bitiş Tarihi</label>
+                                <input
+                                    type="date"
+                                    value={draft.endDate}
+                                    onChange={(e) => setDraft({ ...draft, endDate: e.target.value })}
+                                    className="mt-1 w-full px-3 py-2 rounded border border-gray-300 dark:bg-gray-800 dark:border-gray-700"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Projeler */}
+                        <div className="mt-5">
+                            <div className="flex items-center justify-between">
+                                <label className="text-sm font-medium">Projeler</label>
+                                <button
+                                    onClick={() => setDraft((d) => ({ ...d, proje: [] }))}
+                                    className="text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700"
+                                >
+                                    Temizle
+                                </button>
+                            </div>
+                            <div className="mt-2 max-h-40 overflow-auto border border-gray-200 dark:border-gray-700 rounded">
+                                {projeOptions.map(({ id, name }) => (
+                                    <label key={id} className="flex items-center gap-2 px-3 py-1 text-sm cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={draft.proje.includes(id)}
+                                            onChange={() =>
+                                                setDraft((d) => ({
+                                                    ...d,
+                                                    proje: d.proje.includes(id) ? d.proje.filter((x) => x !== id) : [...d.proje, id]
+                                                }))
+                                            }
+                                        />
+                                        <span>{name}</span>
+                                    </label>
+                                ))}
+                                {projeOptions.length === 0 && (
+                                    <div className="px-3 py-2 text-sm text-gray-500">Seçili tarih aralığında proje yok.</div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Lokasyonlar */}
+                        <div className="mt-5">
+                            <div className="flex items-center justify-between">
+                                <label className="text-sm font-medium">Lokasyonlar</label>
+                                <button
+                                    onClick={() => setDraft((d) => ({ ...d, lokasyon: [] }))}
+                                    className="text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700"
+                                >
+                                    Temizle
+                                </button>
+                            </div>
+                            <div className="mt-2 max-h-40 overflow-auto border border-gray-200 dark:border-gray-700 rounded">
+                                {lokasyonOptions.map(({ id, name }) => (
+                                    <label key={id} className="flex items-center gap-2 px-3 py-1 text-sm cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={draft.lokasyon.includes(id)}
+                                            onChange={() =>
+                                                setDraft((d) => ({
+                                                    ...d,
+                                                    lokasyon: d.lokasyon.includes(id) ? d.lokasyon.filter((x) => x !== id) : [...d.lokasyon, id]
+                                                }))
+                                            }
+                                        />
+                                        <span>{name}</span>
+                                    </label>
+                                ))}
+                                {lokasyonOptions.length === 0 && (
+                                    <div className="px-3 py-2 text-sm text-gray-500">Seçili projelere ait lokasyon yok.</div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Açıklama */}
+                        <div className="mt-5">
+                            <label className="text-sm font-medium">Açıklama</label>
+                            <input
+                                type="text"
+                                list="aciklama-list"
+                                value={draft.aciklama}
+                                onChange={(e) => setDraft({ ...draft, aciklama: e.target.value })}
+                                className="mt-1 w-full px-3 py-2 rounded border border-gray-300 dark:bg-gray-800 dark:border-gray-700"
+                                placeholder="Ara ya da yaz..."
+                            />
+                            <datalist id="aciklama-list">
+                                {aciklamaOptions.map((a, i) => (
+                                    <option key={i} value={a} />
+                                ))}
+                            </datalist>
+                        </div>
+
+                        {/* Sefer No */}
+                        <div className="mt-5">
+                            <label className="text-sm font-medium">Sefer No</label>
+                            <input
+                                type="text"
+                                list="sefer-list"
+                                value={draft.seferno}
+                                onChange={(e) => setDraft({ ...draft, seferno: e.target.value })}
+                                className="mt-1 w-full px-3 py-2 rounded border border-gray-300 dark:bg-gray-800 dark:border-gray-700"
+                                placeholder="Ara ya da yaz..."
+                            />
+                            <datalist id="sefer-list">
+                                {seferOptions.map((s, i) => (
+                                    <option key={i} value={s} />
+                                ))}
+                            </datalist>
+                        </div>
+
+                        {/* Butonlar */}
+                        <div className="mt-6 flex items-center gap-2">
+                            <button
+                                onClick={() => {
+                                    setFilters(initialFilterState);
+                                    setDraft(initialFilterState);
+                                    setShowFilters(false);
+                                }}
+                                className="h-[40px] px-4 rounded-md bg-gray-600 hover:bg-gray-700 text-white"
+                            >
+                                Temizle
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setFilters(draft);
+                                    setShowFilters(false);
+                                }}
+                                className="h-[40px] px-4 rounded-md bg-green-600 hover:bg-green-700 text-white font-semibold"
+                            >
+                                Uygula
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ✅ DETAY CARD (tabloyu büyütmeden) */}
+            {showDetailCard && detailEvrak && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/40" onClick={() => setShowDetailCard(false)} />
+                    <div className="relative bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 w-full max-w-2xl max-h-[85vh] rounded-2xl shadow-2xl p-6 overflow-y-auto">
+                        <button
+                            onClick={() => setShowDetailCard(false)}
+                            className="absolute top-3 right-4 text-2xl leading-none"
+                            aria-label="Kapat"
+                        >
+                            ×
+                        </button>
+
+                        <h3 className="text-lg font-semibold mb-4">
+                            Sefer Detayları — Evrak #{detailEvrak.id}
+                        </h3>
+
+                        {/* Meta */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                            <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
+                                <div className="text-xs opacity-70">Tarih</div>
+                                <div className="font-medium">
+                                    {new Date(detailEvrak.tarih).toLocaleDateString('tr-TR')}
+                                </div>
+                            </div>
+                            <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
+                                <div className="text-xs opacity-70">Lokasyon</div>
+                                <div className="font-medium">{lokasyonlar[detailEvrak.lokasyonid]}</div>
+                            </div>
+                            <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
+                                <div className="text-xs opacity-70">Toplam Sefer</div>
+                                <div className="font-medium">{detailEvrak.sefersayisi || 0}</div>
+                            </div>
+                        </div>
+
+                        {/* Projeler */}
+                        <div className="mb-4">
+                            <div className="text-sm font-semibold mb-2">Projeler</div>
+                            <div className="flex flex-wrap gap-2">
+                                {(detailEvrak.evrakproje || []).map((p, i) => (
+                                    <span
+                                        key={i}
+                                        className="px-3 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 border border-blue-300 dark:border-blue-700"
+                                    >
+                                        {projeler[p.projeid]} — {p.sefersayisi}
+                                    </span>
+                                ))}
+                                {(!detailEvrak.evrakproje || !detailEvrak.evrakproje.length) && (
+                                    <span className="text-xs opacity-70">Proje kaydı yok.</span>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Sefer listesi */}
+                        <div>
+                            <div className="text-sm font-semibold mb-2">Seferler</div>
+                            <div className="space-y-2">
+                                {(detailEvrak.evrakseferler || []).length ? (
+                                    detailEvrak.evrakseferler.map((s, i) => {
+                                        const normalized = (s.aciklama || '').trim().toLocaleUpperCase('tr');
+                                        const badgeClass =
+                                            normalized === 'TARAFIMIZCA DÜZELTİLMİŞTİR'
+                                                ? 'bg-green-600 text-white'
+                                                : normalized === 'TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR'
+                                                    ? 'bg-blue-600 text-white'
+                                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100';
 
                                         return (
                                             <div
-                                                key={lokasyon}
-                                                className="bg-gray-100 dark:bg-gray-700 rounded-xl p-4 shadow-sm flex flex-col gap-2"
+                                                key={i}
+                                                className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex items-start justify-between gap-3"
                                             >
-                                                <h5 className="text-gray-900 dark:text-gray-200 font-semibold text-base mb-2">
-                                                    📍 {lokasyon} - Toplam Sefer: {toplamSefer}
-                                                </h5>
-
-                                                {Object.entries(aciklamalar).map(([aciklama, count]) => {
-                                                    const normalized = aciklama.trim().toLocaleUpperCase('tr');
-                                                    let bgColor = 'bg-gray-300';
-                                                    let textColor = 'text-gray-900';
-
-                                                    if (normalized === 'TARAFIMIZCA DÜZELTİLMİŞTİR') {
-                                                        bgColor = 'bg-green-600';
-                                                        textColor = 'white';
-                                                    } else if (normalized === 'TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR') {
-                                                        bgColor = 'bg-blue-600';
-                                                        textColor = 'white';
-                                                    }
-
-                                                    return (
-                                                        <div
-                                                            key={aciklama}
-                                                            className={`${bgColor} ${textColor} px-3 py-1 rounded-md text-sm font-medium flex justify-between items-center`}
-                                                        >
-                                                            <span>{aciklama}</span>
-                                                            <span className="font-bold">{count}</span>
-                                                        </div>
-                                                    );
-                                                })}
+                                                <div>
+                                                    <div className="text-xs opacity-70">Sefer No</div>
+                                                    <div className="font-medium">{s.seferno || '(Boş)'}</div>
+                                                </div>
+                                                <span className={`px-3 py-1 rounded-full text-xs ${badgeClass}`}>
+                                                    {s.aciklama || '—'}
+                                                </span>
                                             </div>
                                         );
-                                    })}
-                                </div>
+                                    })
+                                ) : (
+                                    <div className="text-sm opacity-70">Sefer kaydı bulunamadı.</div>
+                                )}
                             </div>
-                            {/* Lokasyon Bazlı Toplam Seferler */}
-                            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md dark:shadow-lg p-6 flex flex-col gap-5 mt-8">
-                                <div className="bg-yellow-500 text-white py-3 px-5 rounded-xl font-semibold text-center text-lg shadow-md">
-                                    🗺️ Lokasyon Bazlı Seferler
-                                </div>
-
-                                <div className="grid grid-cols-auto-fill min-w-[160px] gap-4">
-                                    {lokasyonSeferVerileri()
-                                        .sort((a, b) => b.value - a.value)
-                                        .map(item => (
-                                            <div
-                                                key={item.name}
-                                                className="bg-yellow-50 dark:bg-yellow-900 rounded-lg p-3 text-center text-sm text-yellow-900 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-700"
-                                            >
-                                                <div className="font-semibold mb-1">{item.name}</div>
-                                                <div className="text-yellow-700 dark:text-yellow-400">
-                                                    {item.value.toLocaleString()} sefer
-                                                </div>
-                                            </div>
-                                        ))}
-                                </div>
-                            </div>
-
                         </div>
 
+                        {/* Actions */}
+                        <div className="mt-6 flex justify-end gap-2">
+                            <button
+                                onClick={() => exportEvrakToExcel(detailEvrak)}
+                                className="px-4 py-2 rounded bg-green-600 hover:bg-green-700 text-white text-sm"
+                            >
+                                Excel (Satır Raporu)
+                            </button>
+                            <button
+                                onClick={() => setShowDetailCard(false)}
+                                className="px-4 py-2 rounded bg-gray-600 hover:bg-gray-700 text-white text-sm"
+                            >
+                                Kapat
+                            </button>
+                        </div>
                     </div>
                 </div>
-
-
-            </Layout>
-       </>
+            )}
+        </>
     );
 }
-
-const chartTitleStyle = {
-    fontSize: '1.2rem',
-    fontWeight: '600',
-    color: '#374151',
-    textAlign: 'center',
-};
 
 const tableStyle = {
     width: '100%',
@@ -1438,7 +1332,7 @@ const tableStyle = {
     backgroundColor: '#fff',
     boxShadow: '0 0 10px rgba(0,0,0,0.05)',
     borderRadius: '8px',
-    overflow: 'hidden',
+    overflow: 'hidden'
 };
 
 const cellStyle = {
@@ -1446,44 +1340,7 @@ const cellStyle = {
     padding: '12px 16px',
     textAlign: 'left',
     fontSize: '0.95rem',
-    color: '#1f2937',
+    color: '#1f2937'
 };
-
-const rowStyle = {
-    backgroundColor: '#ffffff',
-    color: '#111827',
-    ...(window.matchMedia('(prefers-color-scheme: dark)').matches && {
-        backgroundColor: '#1f2937', // dark mode bg
-        color: '#f9fafb', // text white-ish
-    })
-};
-
-
-const altRowStyle = {
-    backgroundColor: '#f3f4f6',
-    color: '#111827',
-    ...(window.matchMedia('(prefers-color-scheme: dark)').matches && {
-        backgroundColor: '#374151', // dark gray
-        color: '#f9fafb',
-    })
-};
-
-const chartBox = {
-    padding: '1.5rem',
-    backgroundColor: '#ffffff',
-    borderRadius: '1rem',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '1rem',
-};
-const filterInputStyle = {
-    padding: '8px 12px',
-    border: '1px solid #d1d5db',
-    borderRadius: '6px',
-    fontSize: '0.9rem',
-};
-
 
 export default TopluEvraklar;
