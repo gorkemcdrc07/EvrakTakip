@@ -3,6 +3,30 @@
   "WorkspaceRootPath": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\TopluEvraklar.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\TopluEvraklar.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\components\\ModernSummary.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\components\\ModernSummary.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\components\\EditEvrakModal.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\components\\EditEvrakModal.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\Login.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\Login.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\Anasayfa.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\Anasayfa.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\package.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\package.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\hedefKargo.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\hedefKargo.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     }
@@ -14,7 +38,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": 4,
           "Children": [
             {
               "$type": "Bookmark",
@@ -26,13 +50,91 @@
             },
             {
               "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "ModernSummary.js",
+              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\components\\ModernSummary.js",
+              "RelativeDocumentMoniker": "client\\src\\components\\ModernSummary.js",
+              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\components\\ModernSummary.js",
+              "RelativeToolTip": "client\\src\\components\\ModernSummary.js",
+              "ViewState": "AgIAADEAAAAAAAAAAAAUwG0AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-08-27T10:58:53.637Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "EditEvrakModal.js",
+              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\components\\EditEvrakModal.js",
+              "RelativeDocumentMoniker": "client\\src\\components\\EditEvrakModal.js",
+              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\components\\EditEvrakModal.js",
+              "RelativeToolTip": "client\\src\\components\\EditEvrakModal.js",
+              "ViewState": "AgIAAAgCAAAAAAAAAAAgwEQCAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-08-27T10:02:32.073Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
               "DocumentIndex": 0,
+              "Title": "TopluEvraklar.js",
+              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\TopluEvraklar.js",
+              "RelativeDocumentMoniker": "client\\src\\TopluEvraklar.js",
+              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\TopluEvraklar.js",
+              "RelativeToolTip": "client\\src\\TopluEvraklar.js",
+              "ViewState": "AgIAANoDAAAAAAAAAAAgwAAEAAAGAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-08-27T10:00:28.793Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "Anasayfa.js",
+              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\Anasayfa.js",
+              "RelativeDocumentMoniker": "client\\src\\Anasayfa.js",
+              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\Anasayfa.js",
+              "RelativeToolTip": "client\\src\\Anasayfa.js",
+              "ViewState": "AgIAAKwAAAAAAAAAAAAUwOgAAAAYAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-08-26T14:51:29.603Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "package.json",
+              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\package.json",
+              "RelativeDocumentMoniker": "client\\package.json",
+              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\package.json",
+              "RelativeToolTip": "client\\package.json",
+              "ViewState": "AgIAAAUAAAAAAAAAAAAQwEIAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2025-08-26T14:46:34.932Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "Login.js",
+              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\Login.js",
+              "RelativeDocumentMoniker": "client\\src\\Login.js",
+              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\Login.js",
+              "RelativeToolTip": "client\\src\\Login.js",
+              "ViewState": "AgIAAIkAAAAAAAAAAAAgwMUAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-08-26T14:09:42.036Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
               "Title": "hedefKargo.js",
               "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\hedefKargo.js",
               "RelativeDocumentMoniker": "client\\src\\hedefKargo.js",
               "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\hedefKargo.js",
               "RelativeToolTip": "client\\src\\hedefKargo.js",
-              "ViewState": "AgIAADYBAAAAAAAAAAAEwGMBAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAJoCAAAAAAAAAAAgwNYCAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-08-26T12:33:14.823Z",
               "EditorCaption": ""
