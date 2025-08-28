@@ -187,7 +187,10 @@ function EvrakEkle() {
         setForm({ ...form, projeler: updated });
     };
     const handleProjeEkle = () =>
-        setForm({ ...form, projeler: [...form.projeler, { projeid: '', sefersayisi: '' }] });
+        setForm({
+            ...form,
+            projeler: [{ projeid: '', sefersayisi: '' }, ...form.projeler],
+        });
 
     const handleSeferChange = (index, field, value) => {
         const updated = [...form.seferler];
@@ -195,7 +198,10 @@ function EvrakEkle() {
         setForm({ ...form, seferler: updated });
     };
     const handleSeferEkle = () =>
-        setForm({ ...form, seferler: [...form.seferler, { seferno: '', aciklama: '' }] });
+        setForm({
+            ...form,
+            seferler: [{ seferno: '', aciklama: '' }, ...form.seferler],
+        });
 
     const toplamSeferSayisi = form.projeler.reduce(
         (sum, p) => sum + Number(p.sefersayisi || 0),

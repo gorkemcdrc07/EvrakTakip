@@ -54,56 +54,75 @@ function TumKargoBilgileri() {
         return isNaN(date) ? '' : String(date.getFullYear());
     };
 
-    useEffect(() => {
-        const veriGetir = async () => {
-            const pageSize = 1000;  // her seferde kaç kayıt çekilecek
-            let from = 0;
-            let to = pageSize - 1;
-            let hasMore = true;
-            let allData = [];
+    // === YILA GÖRE VERİ GETİR ===
+    const veriGetir = async (year = '2025') => {
+        setLoading(true);
+        const pageSize = 1000;
+        let from = 0;
+        let to = pageSize - 1;
+        let hasMore = true;
+        let allData = [];
 
-            while (hasMore) {
-                const { data, error } = await supabase
-                    .from('kargo_bilgileri')
-                    .select('*')
-                    .order('id', { ascending: false })
-                    .range(from, to);
+        const start = `${year}-01-01`;
+        const end = `${year}-12-31`;
 
-                if (error) {
-                    console.error('Veri çekme hatası:', error);
-                    break;
-                }
+        while (hasMore) {
+            const { data, error } = await supabase
+                .from('kargo_bilgileri')
+                .select('*')
+                .order('id', { ascending: false })
+                .range(from, to)
+                .gte('tarih', start)
+                .lte('tarih', end);
 
-                if (data && data.length > 0) {
-                    allData = allData.concat(data);
-                    from += pageSize;
-                    to += pageSize;
-                    hasMore = data.length === pageSize;  // sayfa doluysa devam et
-                } else {
-                    hasMore = false;
-                }
+            if (error) {
+                console.error('Veri çekme hatası:', error);
+                break;
             }
 
-            setVeriler(allData);
+            if (data && data.length > 0) {
+                allData = allData.concat(data);
+                from += pageSize;
+                to += pageSize;
+                hasMore = data.length === pageSize;
+            } else {
+                hasMore = false;
+            }
+        }
 
-            const yıllar = [...new Set(allData.map((v) => getYil(v.tarih)))]
-                .filter(Boolean)
-                .sort((a, b) => b - a);
-            setYilSecenekleri(yıllar);
+        setVeriler(allData);
+        setFilteredVeriler(allData);
 
-            const irsaliyeSet = [...new Set(allData.map((v) => v.irsaliye_adi).filter(Boolean))];
-            const kargoSet = [...new Set(allData.map((v) => v.kargo_firmasi).filter(Boolean))];
-            const gonderenSet = [...new Set(allData.map((v) => v.gonderen_firma).filter(Boolean))];
+        // Filtre seçenekleri (çekilen yıla göre)
+        const irsaliyeSet = [...new Set(allData.map((v) => v.irsaliye_adi).filter(Boolean))];
+        const kargoSet = [...new Set(allData.map((v) => v.kargo_firmasi).filter(Boolean))];
+        const gonderenSet = [...new Set(allData.map((v) => v.gonderen_firma).filter(Boolean))];
 
-            setIrsaliyeOptions(irsaliyeSet.map((v) => ({ label: v, value: v })));
-            setKargoOptions(kargoSet.map((v) => ({ label: v, value: v })));
-            setGonderenOptions(gonderenSet.map((v) => ({ label: v, value: v })));
+        setIrsaliyeOptions(irsaliyeSet.map((v) => ({ label: v, value: v })));
+        setKargoOptions(kargoSet.map((v) => ({ label: v, value: v })));
+        setGonderenOptions(gonderenSet.map((v) => ({ label: v, value: v })));
 
-            setLoading(false);
-        };
+        setLoading(false);
+    };
 
-        veriGetir();
+    // === İLK AÇILIŞTA SADECE 2025 + YIL LİSTESİ ===
+    useEffect(() => {
+        veriGetir('2025');
+        const current = new Date().getFullYear();
+        const years = [];
+        for (let y = current; y >= 2020; y--) years.push(String(y));
+        setYilSecenekleri(years);
     }, []);
+
+    // === YIL SEÇİLİNCE DB'DEN TEKRAR ÇEK ===
+    useEffect(() => {
+        if (secilenYil) {
+            veriGetir(secilenYil);
+        } else {
+            veriGetir('2025');
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [secilenYil]);
 
     useEffect(() => {
         if (!loading) {
@@ -224,15 +243,26 @@ function TumKargoBilgileri() {
         saveAs(blob, `kargo_bilgileri_${tur}.xlsx`);
     };
 
+    // === TÜMÜNÜ AKTAR: seçili yıl ya da 2025 verileri ===
     const tumVeriyiExceleAktar = async () => {
+        const year = secilenYil || '2025';
         const pageSize = 1000;
         let allData = [];
         let from = 0;
         let to = pageSize - 1;
         let hasMore = true;
 
+        const start = `${year}-01-01`;
+        const end = `${year}-12-31`;
+
         while (hasMore) {
-            const { data, error } = await supabase.from('kargo_bilgileri').select('*').range(from, to);
+            const { data, error } = await supabase
+                .from('kargo_bilgileri')
+                .select('*')
+                .gte('tarih', start)
+                .lte('tarih', end)
+                .range(from, to);
+
             if (error) {
                 console.error('Veri çekme hatası:', error);
                 break;
@@ -247,7 +277,7 @@ function TumKargoBilgileri() {
             }
         }
 
-        excelAktarVeri(allData, 'tum');
+        excelAktarVeri(allData, `yil_${year}`);
         setExcelModalAcik(false);
     };
 
@@ -265,8 +295,8 @@ function TumKargoBilgileri() {
             const yeniVeri = { ...prev, [name]: value };
             const irsaliyeAdet =
                 yeniVeri.irsaliye_no?.split('-').filter((s) => s.trim() !== '').length || 0;
-            const odakAdet = yeniVeri.odak_evrak_no?.split('-').filter((s) => s.trim() !== '')
-                .length || 0;
+            const odakAdet =
+                yeniVeri.odak_evrak_no?.split('-').filter((s) => s.trim() !== '').length || 0;
             const ekstra = parseInt(ekstraEvrakSayisi) || 0;
             yeniVeri.evrak_adedi = irsaliyeAdet + odakAdet + ekstra;
             return yeniVeri;
@@ -286,8 +316,7 @@ function TumKargoBilgileri() {
         } = duzenlenenVeri;
 
         const irsaliyeAdet = irsaliye_no?.split('-').filter((s) => s.trim() !== '').length || 0;
-        const odakAdet =
-            odak_evrak_no?.split('-').filter((s) => s.trim() !== '').length || 0;
+        const odakAdet = odak_evrak_no?.split('-').filter((s) => s.trim() !== '').length || 0;
         const ekstra = parseInt(ekstraEvrakSayisi) || 0;
         const evrak_adedi = irsaliyeAdet + odakAdet + ekstra;
 
@@ -550,10 +579,8 @@ function TumKargoBilgileri() {
                     </div>
                 ) : (
                     <div className="overflow-x-auto rounded-2xl bg-white shadow-md ring-1 ring-gray-100 dark:bg-gray-800 dark:ring-gray-700">
-                        {/* sabit yükseklik + iç scroll */}
                         <div className="max-h-[70vh] overflow-y-auto">
                             <table className="min-w-full text-sm sm:text-base">
-                                {/* başlıklar yapışkan olsun diye class'ı thead'e taşıdık */}
                                 <thead className="sticky top-0 z-10 bg-pink-200 text-gray-900 dark:bg-pink-700 dark:text-white">
                                     <tr>
                                         <th className="px-4 py-3 text-center">Tarih</th>
@@ -689,7 +716,6 @@ function TumKargoBilgileri() {
                         </div>
                     </div>
                 )}
-
 
                 {/* Modal - Düzenleme */}
                 {duzenleModalAcik && duzenlenenVeri && (
