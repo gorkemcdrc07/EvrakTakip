@@ -19,9 +19,8 @@ export default function EditEvrakModal({
     const bodyRef = useRef(null);
     const [showUnsaved, setShowUnsaved] = useState(false);
 
-    // Derin olmayan ama pratik karşılaştırma; senin yapına yeterli
+    // Değişiklik algılama (pratik JSON karşılaştırma)
     const isDirty = useMemo(() => {
-        // id değiştiğinde draft zaten resetleniyor; burada shallow/JSON diff iş görür
         try {
             return JSON.stringify(draft ?? {}) !== JSON.stringify(value ?? {});
         } catch {
@@ -30,11 +29,8 @@ export default function EditEvrakModal({
     }, [draft, value]);
 
     const requestClose = () => {
-        if (isDirty) {
-            setShowUnsaved(true);
-        } else {
-            onClose?.();
-        }
+        if (isDirty) setShowUnsaved(true);
+        else onClose?.();
     };
 
     const discardAndClose = () => {
@@ -44,9 +40,7 @@ export default function EditEvrakModal({
 
     const continueEditing = () => setShowUnsaved(false);
 
-
-
-
+    // Kısayollar
     useEffect(() => {
         function onKey(e) {
             if (e.key === "Escape") {
@@ -59,24 +53,40 @@ export default function EditEvrakModal({
         return () => window.removeEventListener("keydown", onKey);
     }, []);
 
+    // Farklı evrak açılınca draft'ı yenile
     useEffect(() => setDraft(value), [value?.id]);
 
+    // Sayfa kapanırken uyar
     useEffect(() => {
         const handler = (e) => {
             if (!isDirty) return;
             e.preventDefault();
-            // Chrome/Edge yeni mesaj göstermiyor ama returnValue atanmalı
             e.returnValue = "";
         };
         window.addEventListener("beforeunload", handler);
         return () => window.removeEventListener("beforeunload", handler);
     }, [isDirty]);
 
-
+    // ✅ Toplam sefer: proje kalemleri değiştikçe hesapla
     const toplamSefer = useMemo(() => {
-        const t = (draft?.evrakproje || []).reduce((s, p) => s + (parseInt(p.sefersayisi) || 0), 0);
+        const t = (draft?.evrakproje || []).reduce(
+            (s, p) => s + (parseInt(p.sefersayisi, 10) || 0),
+            0
+        );
         return t || 0;
     }, [draft?.evrakproje]);
+
+    // ✅ Toplam güncellenince draft.sefersayisi'ni canlı güncelle ve parent'a bildir
+    useEffect(() => {
+        setDraft((d) => {
+            if (!d) return d;
+            const curr = d.sefersayisi || 0;
+            if (curr === toplamSefer) return d;
+            const next = { ...d, sefersayisi: toplamSefer };
+            onChange?.(next); // parent (TopluEvraklar) tarafını anlık senkronla
+            return next;
+        });
+    }, [toplamSefer]); // toplam değişince tetiklenir
 
     const handleSave = () => {
         const next = { ...draft, sefersayisi: toplamSefer };
@@ -98,37 +108,48 @@ export default function EditEvrakModal({
     );
 
     const updateField = (patch) => setDraft((d) => ({ ...d, ...patch }));
+
+    // ✅ Proje satırı değiştiğinde toplamı yeniden hesapla ve parent'a gönder
     const updateProjeRow = (idx, patch) => {
         setDraft((d) => {
             const arr = [...(d.evrakproje || [])];
             arr[idx] = { ...arr[idx], ...patch };
-            return { ...d, evrakproje: arr };
+            const total = arr.reduce((s, p) => s + (parseInt(p.sefersayisi, 10) || 0), 0) || 0;
+            const next = { ...d, evrakproje: arr, sefersayisi: total };
+            onChange?.(next);
+            return next;
         });
     };
+
     const addProjeRow = () => {
-        setDraft((d) => ({
-            ...d,
-            // yeni satırı BAŞA ekle ve boş bırak
-            evrakproje: [{ projeid: "", sefersayisi: 0 }, ...(d.evrakproje || [])],
-        }));
-        // İsteğe bağlı: otomatik üste kaydır
+        setDraft((d) => {
+            const arr = [{ projeid: "", sefersayisi: 0 }, ...(d.evrakproje || [])];
+            const total = arr.reduce((s, p) => s + (parseInt(p.sefersayisi, 10) || 0), 0) || 0;
+            const next = { ...d, evrakproje: arr, sefersayisi: total };
+            onChange?.(next);
+            return next;
+        });
         setTimeout(() => bodyRef.current?.scrollTo({ top: 0, behavior: "smooth" }), 0);
     };
+
     const removeProjeRow = (idx) => {
         setDraft((d) => {
             const arr = (d.evrakproje || []).filter((_, i) => i !== idx);
-            return { ...d, evrakproje: arr };
+            const total = arr.reduce((s, p) => s + (parseInt(p.sefersayisi, 10) || 0), 0) || 0;
+            const next = { ...d, evrakproje: arr, sefersayisi: total };
+            onChange?.(next);
+            return next;
         });
     };
 
     const addSeferRow = () => {
         setDraft((d) => ({
             ...d,
-            // yeni satırı BAŞA ekle ve tamamen boş bırak
             evrakseferler: [{ seferno: "", aciklama: "" }, ...(d.evrakseferler || [])],
         }));
         setTimeout(() => bodyRef.current?.scrollTo({ top: 0, behavior: "smooth" }), 0);
     };
+
     const updateSeferRow = (idx, patch) => {
         setDraft((d) => {
             const arr = [...(d.evrakseferler || [])];
@@ -136,6 +157,7 @@ export default function EditEvrakModal({
             return { ...d, evrakseferler: arr };
         });
     };
+
     const removeSeferRow = (idx) => {
         setDraft((d) => {
             const arr = (d.evrakseferler || []).filter((_, i) => i !== idx);
@@ -172,10 +194,9 @@ export default function EditEvrakModal({
                     className={cx(
                         "w-full sm:max-w-7xl xl:max-w-[1320px] h-[92vh] sm:h-[90vh] min-h-0",
                         "bg-white/90 dark:bg-gray-900/90 supports-[backdrop-filter]:backdrop-blur-xl",
-                        "rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden overflow-x-hidden", // <- yatay taşıma kapalı
-                        "grid sm:grid-cols-[minmax(0,1fr)_400px] border border-white/20 dark:border-gray-700/60" // <- sağ panel 400px
+                        "rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden overflow-x-hidden",
+                        "grid sm:grid-cols-[minmax(0,1fr)_400px] border border-white/20 dark:border-gray-700/60"
                     )}
-
                     initial={{ y: 40, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: 40, opacity: 0 }}
@@ -270,7 +291,7 @@ export default function EditEvrakModal({
                                     <Field label="Lokasyon">
                                         <select
                                             value={draft?.lokasyonid}
-                                            onChange={(e) => updateField({ lokasyonid: parseInt(e.target.value) })}
+                                            onChange={(e) => updateField({ lokasyonid: parseInt(e.target.value, 10) })}
                                             className="w-full px-3 py-2 rounded-xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-gray-800/80"
                                         >
                                             {lokasyonOptions.map((o) => (
@@ -326,20 +347,25 @@ export default function EditEvrakModal({
                                                     ))}
                                                 </select>
 
-
                                                 <div className="flex items-center gap-2 justify-self-start sm:justify-self-end">
-                                                    <IconBtn onClick={() => updateProjeRow(i, { sefersayisi: Math.max(0, (parseInt(p.sefersayisi) || 0) - 1) })}>−</IconBtn>
+                                                    <IconBtn onClick={() => updateProjeRow(i, { sefersayisi: Math.max(0, (parseInt(p.sefersayisi, 10) || 0) - 1) })}>−</IconBtn>
                                                     <input
                                                         type="number"
                                                         value={p.sefersayisi ?? 0}
-                                                        onChange={(e) => updateProjeRow(i, { sefersayisi: parseInt(e.target.value) || 0 })}
+                                                        onChange={(e) =>
+                                                            updateProjeRow(i, {
+                                                                sefersayisi: Number.isFinite(e.target.valueAsNumber)
+                                                                    ? e.target.valueAsNumber
+                                                                    : Number(e.target.value) || 0
+                                                            })
+                                                        }
                                                         className="w-24 px-3 py-2 rounded-xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-gray-800/80 text-center"
                                                     />
-                                                    <IconBtn onClick={() => updateProjeRow(i, { sefersayisi: (parseInt(p.sefersayisi) || 0) + 1 })}>+</IconBtn>
+                                                    <IconBtn onClick={() => updateProjeRow(i, { sefersayisi: (parseInt(p.sefersayisi, 10) || 0) + 1 })}>+</IconBtn>
                                                 </div>
 
                                                 <div className="text-sm text-gray-500 dark:text-gray-400 sm:justify-self-end">
-                                                    Toplam: <b>{(parseInt(p.sefersayisi) || 0).toLocaleString()}</b>
+                                                    Toplam: <b>{(parseInt(p.sefersayisi, 10) || 0).toLocaleString()}</b>
                                                 </div>
 
                                                 <button
@@ -379,7 +405,7 @@ export default function EditEvrakModal({
                                         </div>
                                     </div>
 
-                                    {/* Rows (scroll zaten tüm body’de) */}
+                                    {/* Rows */}
                                     <div className="grid gap-3">
                                         {filteredSeferler.map((s) => {
                                             const idx = (draft?.evrakseferler || []).indexOf(s);
@@ -439,7 +465,7 @@ export default function EditEvrakModal({
                                             <div className="text-sm text-gray-500 dark:text-gray-400">Eşleşen sefer yok.</div>
                                         )}
                                     </div>
-                                  </div>
+                                </div>
                             )}
                         </div>
 
@@ -500,6 +526,7 @@ export default function EditEvrakModal({
                             </Card>
                         </div>
                     </aside>
+
                     {/* --- Kaydedilmemiş Değişiklik Paneli --- */}
                     <AnimatePresence>
                         {showUnsaved && (
@@ -546,8 +573,7 @@ export default function EditEvrakModal({
                                         <div className="mt-5 sm:mt-6 flex flex-col sm:flex-row sm:justify-end gap-2">
                                             <button
                                                 onClick={continueEditing}
-                                                className="px-4 py-2 rounded-xl border border-black/10 dark:border-white/10
-                         hover:bg-black/5 dark:hover:bg-white/5"
+                                                className="px-4 py-2 rounded-xl border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5"
                                             >
                                                 Düzenlemeye devam et
                                             </button>
@@ -561,7 +587,7 @@ export default function EditEvrakModal({
 
                                             <button
                                                 onClick={() => {
-                                                    const total = (draft?.evrakproje || []).reduce((s, p) => s + (parseInt(p.sefersayisi) || 0), 0) || 0;
+                                                    const total = (draft?.evrakproje || []).reduce((s, p) => s + (parseInt(p.sefersayisi, 10) || 0), 0) || 0;
                                                     const next = { ...draft, sefersayisi: total };
                                                     onChange?.(next);
                                                     onSave?.();
