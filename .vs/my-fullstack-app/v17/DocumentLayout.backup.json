@@ -3,12 +3,12 @@
   "WorkspaceRootPath": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\EvrakRaporlar\u0131.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\EvrakRaporlar\u0131.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\TopluEvraklar.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\TopluEvraklar.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\EvrakRaporlar\u0131.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\EvrakRaporlar\u0131.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\components\\ModernSummary.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
@@ -54,7 +54,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 3,
+          "SelectedChildIndex": 2,
           "Children": [
             {
               "$type": "Bookmark",
@@ -66,26 +66,26 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 0,
               "Title": "TopluEvraklar.js",
               "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\TopluEvraklar.js",
               "RelativeDocumentMoniker": "client\\src\\TopluEvraklar.js",
               "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\TopluEvraklar.js",
               "RelativeToolTip": "client\\src\\TopluEvraklar.js",
-              "ViewState": "AgIAAO0DAAAAAAAAAAAiwBoEAAAcAAAAAAAAAA==",
+              "ViewState": "AgIAAJUCAAAAAAAAAAAiwNECAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-08-27T10:00:28.793Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "EvrakRaporlar\u0131.js",
               "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\EvrakRaporlar\u0131.js",
               "RelativeDocumentMoniker": "client\\src\\EvrakRaporlar\u0131.js",
               "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\EvrakRaporlar\u0131.js",
               "RelativeToolTip": "client\\src\\EvrakRaporlar\u0131.js",
-              "ViewState": "AgIAAA0CAAAAAAAAAAAYwEoCAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAALcBAAAAAAAAAAAiwPQBAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-09-04T08:46:38.272Z",
               "EditorCaption": ""
@@ -100,8 +100,7 @@
               "RelativeToolTip": "client\\src\\App.js",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAACQAAAB0AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-04T08:11:29.575Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-09-04T08:11:29.575Z"
             },
             {
               "$type": "Document",
@@ -113,8 +112,7 @@
               "RelativeToolTip": "client\\src\\TumKargoBilgileri.js",
               "ViewState": "AgIAAEADAAAAAAAAAAAgwHwDAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-08-28T12:32:26.321Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-28T12:32:26.321Z"
             },
             {
               "$type": "Document",
@@ -126,8 +124,7 @@
               "RelativeToolTip": "client\\src\\EvrakEkle.js",
               "ViewState": "AgIAAJ4AAAAAAAAAAAAQwNAAAAAGAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-08-28T12:30:16.014Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-28T12:30:16.014Z"
             },
             {
               "$type": "Document",
@@ -139,8 +136,7 @@
               "RelativeToolTip": "client\\src\\components\\ModernSummary.js",
               "ViewState": "AgIAALMAAAAAAAAAAAAiwPAAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-08-27T10:58:53.637Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-27T10:58:53.637Z"
             },
             {
               "$type": "Document",
@@ -152,8 +148,7 @@
               "RelativeToolTip": "client\\src\\components\\EditEvrakModal.js",
               "ViewState": "AgIAAF4CAAAAAAAAAAAIwKwCAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-08-27T10:02:32.073Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-27T10:02:32.073Z"
             },
             {
               "$type": "Document",
@@ -165,8 +160,7 @@
               "RelativeToolTip": "client\\src\\Anasayfa.js",
               "ViewState": "AgIAAN0BAAAAAAAAAAAYwBoCAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-08-26T14:51:29.603Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-26T14:51:29.603Z"
             },
             {
               "$type": "Document",
@@ -178,8 +172,7 @@
               "RelativeToolTip": "client\\package.json",
               "ViewState": "AgIAAAUAAAAAAAAAAAAQwEIAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2025-08-26T14:46:34.932Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-26T14:46:34.932Z"
             },
             {
               "$type": "Document",
@@ -191,8 +184,7 @@
               "RelativeToolTip": "client\\src\\Login.js",
               "ViewState": "AgIAAIkAAAAAAAAAAAAgwMUAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-08-26T14:09:42.036Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-26T14:09:42.036Z"
             },
             {
               "$type": "Document",
@@ -204,8 +196,7 @@
               "RelativeToolTip": "client\\src\\hedefKargo.js",
               "ViewState": "AgIAAJoCAAAAAAAAAAAgwNYCAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-08-26T12:33:14.823Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-26T12:33:14.823Z"
             }
           ]
         }

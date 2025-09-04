@@ -10,12 +10,54 @@ import {
 
 const COLORS = ["#8b5cf6", "#a78bfa", "#f472b6", "#fb7185", "#38bdf8", "#60a5fa", "#34d399", "#f59e0b"];
 const normalize = (str) => (str || "").trim().toLocaleUpperCase("tr").replace(/\s+/g, " ");
+// güçlü normalize
+const normalizeProject = (str) =>
+    (str || "")
+        .toLocaleUpperCase("tr")
+        .replace(/["“”'`]+/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+// iş kuralları: belli varyasyonları tek isme indir
+function canonicalProjectName(raw) {
+    const n = normalizeProject(raw);
+
+    // HEDEF DIŞ TİCARET / HEDEF DIŞ TEDARİK -> HEDEF
+    if (n === "HEDEF DIŞ TEDARİK" || n.startsWith("HEDEF DIŞ TİCARET")) return "HEDEF DIŞ TEDARİK";
+
+    // LEVENT OFSET (zaten aynı)
+    if (n.startsWith("LEVENT OFSET")) return "LEVENT OFSET";
+
+    // PAPİKS / PAPİKS PLASTİK -> PAPİKS
+    if (n.startsWith("PAPİKS")) return "PAPİKS";
+
+    // PARSİYEL / ODAK PARSİYEL -> PARSİYEL
+    if (n.includes("PARSİYEL")) return "PARSİYEL";
+
+    // PEKER / PEKER TEKSTİL -> PEKER
+    if (n.startsWith("PEKER")) return "PEKER";
+
+    // PETROL OFİSİ (zaten aynı; MICRo DDS vb. varsa burada ayrıca ele alabilirsin)
+    if (n.startsWith("PETROL OFİSİ")) return "PETROL OFİSİ";
+
+    // SARUHAN / SARUHAN/NİLCO -> SARUHAN
+    if (n.startsWith("SARUHAN")) return "SARUHAN";
+
+    // SGS (zaten aynı)
+    if (n === "SGS") return "SGS";
+
+    // diğerleri: normalize edilmiş adı kullan
+    return n;
+}
 const fmt = (n) => Number(n || 0).toLocaleString("tr-TR");
 
 export default function EvrakRaporlari() {
     const [evraklar, setEvraklar] = useState([]);
     const [lokasyonlar, setLokasyonlar] = useState({});
-    const [projeler, setProjeler] = useState({});
+    // Proje tekilleştirme için iki harita:
+    // id -> key   ve   key -> görünen ad
+    const [projeKeyById, setProjeKeyById] = useState({});
+    const [projeNameByKey, setProjeNameByKey] = useState({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
@@ -23,7 +65,7 @@ export default function EvrakRaporlari() {
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
     const [selectedLokasyonId, setSelectedLokasyonId] = useState("");
-    const [selectedProjeId, setSelectedProjeId] = useState("");
+    const [selectedProjeKey, setSelectedProjeKey] = useState("");
 
     // Hover state
     const [activeIndex, setActiveIndex] = useState(null);
@@ -41,20 +83,31 @@ export default function EvrakRaporlari() {
              evrakproje:evrakproje!fk_evrakproje_evrakid ( projeid, sefersayisi )`
                     );
                 if (e1) throw e1;
+
                 const { data: lokasyonData, error: e2 } = await supabase.from("lokasyonlar").select("*");
                 if (e2) throw e2;
+
                 const { data: projeData, error: e3 } = await supabase.from("projeler").select("*");
                 if (e3) throw e3;
 
                 const lokasyonMap = {};
                 lokasyonData?.forEach((l) => (lokasyonMap[l.id] = l.lokasyon));
-                const projeMap = {};
-                projeData?.forEach((p) => (projeMap[p.id] = p.proje));
+
+                // Projeleri tekilleştir (kanonik isimle)
+                const _projeKeyById = {};
+                const _projeNameByKey = {};
+                projeData?.forEach((p) => {
+                    const key = canonicalProjectName(p.proje); // <-- önemli değişiklik
+                    // Görünen adı istersen kanonik de yapabilirsin: _projeNameByKey[key] = key;
+                    if (!_projeNameByKey[key]) _projeNameByKey[key] = (p.proje || "").trim();
+                    _projeKeyById[p.id] = key;
+                });
 
                 const sorted = (evrakData || []).sort((a, b) => new Date(b.tarih) - new Date(a.tarih));
                 setEvraklar(sorted);
                 setLokasyonlar(lokasyonMap);
-                setProjeler(projeMap);
+                setProjeKeyById(_projeKeyById);
+                setProjeNameByKey(_projeNameByKey);
             } catch (e) {
                 console.error(e);
                 setError("Veriler yüklenirken bir sorun oluştu.");
@@ -70,8 +123,11 @@ export default function EvrakRaporlari() {
         [lokasyonlar]
     );
     const projeOptions = useMemo(
-        () => Object.entries(projeler).map(([id, ad]) => ({ id, ad })).sort((a, b) => a.ad.localeCompare(b.ad, "tr")),
-        [projeler]
+        () =>
+            Object.entries(projeNameByKey)
+                .map(([key, ad]) => ({ id: key, ad }))
+                .sort((a, b) => a.ad.localeCompare(b.ad, "tr")),
+        [projeNameByKey]
     );
 
     // Tarih filtresi
@@ -88,12 +144,12 @@ export default function EvrakRaporlari() {
     const scopedEvraklar = useMemo(() => {
         return filteredEvraklar.filter((e) => {
             const lokMatch = selectedLokasyonId ? String(e.lokasyonid) === String(selectedLokasyonId) : true;
-            const projMatch = selectedProjeId
-                ? (e.evrakproje || []).some((p) => String(p.projeid) === String(selectedProjeId))
+            const projMatch = selectedProjeKey
+                ? (e.evrakproje || []).some((p) => projeKeyById[p.projeid] === selectedProjeKey)
                 : true;
             return lokMatch && projMatch;
         });
-    }, [filteredEvraklar, selectedLokasyonId, selectedProjeId]);
+    }, [filteredEvraklar, selectedLokasyonId, selectedProjeKey, projeKeyById]);
 
     // KPI
     const toplamSefer = useMemo(() => scopedEvraklar.reduce((s, e) => s + (e.sefersayisi || 0), 0), [scopedEvraklar]);
@@ -121,16 +177,18 @@ export default function EvrakRaporlari() {
 
     // Seriler
     const projeSeries = useMemo(() => {
-        const cnt = {};
-        scopedEvraklar.forEach((e) =>
+        const cnt = {}; // key -> toplam sefer
+        (scopedEvraklar || []).forEach((e) =>
             e.evrakproje?.forEach((p) => {
-                const ad = projeler[p.projeid];
-                if (!ad) return;
-                cnt[ad] = (cnt[ad] || 0) + (p.sefersayisi || 0);
+                const key = projeKeyById[p.projeid];
+                if (!key) return;
+                cnt[key] = (cnt[key] || 0) + (p.sefersayisi || 0);
             })
         );
-        return Object.entries(cnt).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-    }, [scopedEvraklar, projeler]);
+        return Object.entries(cnt)
+            .map(([key, value]) => ({ name: projeNameByKey[key] || key, value }))
+            .sort((a, b) => b.value - a.value);
+    }, [scopedEvraklar, projeKeyById, projeNameByKey]);
 
     const lokasyonSeries = useMemo(() => {
         const cnt = {};
@@ -161,7 +219,7 @@ export default function EvrakRaporlari() {
         setStartDate("");
         setEndDate("");
         setSelectedLokasyonId("");
-        setSelectedProjeId("");
+        setSelectedProjeKey("");
     };
 
     return (
@@ -211,8 +269,8 @@ export default function EvrakRaporlari() {
                         <span className="text-xs opacity-80">Proje</span>
                         <div className="relative">
                             <select
-                                value={selectedProjeId}
-                                onChange={(e) => setSelectedProjeId(e.target.value)}
+                                value={selectedProjeKey}
+                                onChange={(e) => setSelectedProjeKey(e.target.value)}
                                 className="appearance-none w-[320px] px-3 py-2 rounded-lg bg-[#151523] text-gray-100 border border-gray-700/60 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
                             >
                                 <option value="">Tüm Projeler</option>
@@ -336,7 +394,7 @@ export default function EvrakRaporlari() {
                 {/* Seçilen Proje için Açıklamalar */}
                 <SingleExplain
                     kind="Proje"
-                    explain={buildProjeExplain(scopedEvraklar, selectedProjeId, projeler)}
+                    explain={buildProjeExplain(scopedEvraklar, selectedProjeKey, projeKeyById, projeNameByKey)}
                     emptyText="Proje seçiniz; sadece o projeye ait açıklamalar listelenecektir."
                 />
             </div>
@@ -366,29 +424,30 @@ function buildLokasyonExplain(list, selectedLokasyonId, lokasyonlar) {
     return { group: lokasyonlar[selectedLokasyonId], totalSefer, rows };
 }
 
-function buildProjeExplain(list, selectedProjeId, projeler) {
-    if (!selectedProjeId) return null;
+function buildProjeExplain(list, selectedProjeKey, projeKeyById, projeNameByKey) {
+    if (!selectedProjeKey) return null;
 
+    // Seçilen projenin toplam seferi (tüm evraklarda)
     let totalSefer = 0;
     list.forEach((e) => {
         (e.evrakproje || []).forEach((p) => {
-            if (String(p.projeid) === String(selectedProjeId)) totalSefer += p.sefersayisi || 0;
+            if (projeKeyById[p.projeid] === selectedProjeKey) totalSefer += p.sefersayisi || 0;
         });
     });
 
+    // Açıklama paylarını, evrak içindeki proje paylaşımına göre ağırlıkla
     const counts = {};
     list.forEach((e) => {
         const projelerThis = (e.evrakproje || [])
-            .map((p) => ({ id: p.projeid, sefer: p.sefersayisi || 0 }))
+            .map((p) => ({ key: projeKeyById[p.projeid], sefer: p.sefersayisi || 0 }))
             .filter((x) => x.sefer > 0);
         const toplamSeferEvrak = projelerThis.reduce((s, x) => s + x.sefer, 0);
         if (toplamSeferEvrak <= 0) return;
 
-        const shareForSelected =
-            projelerThis.find((x) => String(x.id) === String(selectedProjeId))?.sefer || 0;
+        const shareForSelected = projelerThis.find((x) => x.key === selectedProjeKey)?.sefer || 0;
         const weight = shareForSelected / toplamSeferEvrak;
-
         if (!weight) return;
+
         (e.evrakseferler || []).forEach((s) => {
             const key = (s.aciklama || "").trim() || "(Boş)";
             counts[key] = (counts[key] || 0) + weight;
@@ -403,7 +462,7 @@ function buildProjeExplain(list, selectedProjeId, projeler) {
         }))
         .sort((a, b) => b.value - a.value);
 
-    return { group: projeler[selectedProjeId], totalSefer, rows };
+    return { group: projeNameByKey[selectedProjeKey] || selectedProjeKey, totalSefer, rows };
 }
 
 /* ---- UI parçaları ---- */
