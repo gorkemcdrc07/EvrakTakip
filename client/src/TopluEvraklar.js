@@ -146,30 +146,48 @@ function TopluEvraklar() {
             setDeletingId(null);
         }
     };
-    const openCardPanel = (aciklamaKey) => {
-        const keyNorm = normalize(aciklamaKey);
-        const rows = [];
+    // "Diğer" gibi birden fazla etiketi de açabilmek için:
+    // arg bir string (tek etiket) ya da { names: [etiket1, etiket2, ...] } olabilir.
+    const openCardPanel = (arg) => {
+        // normalize yardımcıları
+        const norm = (v) => (v || '').trim().toLocaleUpperCase('tr');
+        const labelOf = (v) => (norm(v) || '(BOŞ)'); // boş açıklamalar "(BOŞ)" etiketiyle eşleşsin
 
+        // hedef etiket(ler)
+        let targetLabels = [];
+        if (typeof arg === 'string') {
+            targetLabels = [labelOf(arg)];
+        } else if (arg && Array.isArray(arg.names)) {
+            targetLabels = arg.names.map(labelOf);
+        } else {
+            return;
+        }
+
+        const rows = [];
         evraklar.forEach((e) => {
             const lok = lokasyonlar[e.lokasyonid] || '';
             (e.evrakseferler || []).forEach((s) => {
-                if (normalize(s.aciklama) === keyNorm) {
+                const lbl = labelOf(s.aciklama);
+                if (targetLabels.includes(lbl)) {
                     rows.push({
                         evrakId: e.id,
                         tarih: e.tarih,
                         lokasyon: lok,
-                        seferno: s.seferno || '(Boş)',
+                        seferno: (s.seferno || '').trim() || '(Boş)',
                         aciklama: s.aciklama || '',
                     });
                 }
             });
         });
 
-        // tarih DESC
         rows.sort((a, b) => new Date(b.tarih) - new Date(a.tarih));
 
+        // Panel başlığı: tek etiketse onu yaz, çokluysa "Diğer"
+        const title =
+            targetLabels.length === 1 ? (arg?.name || arg || 'Detay') : 'Diğer';
+
         setPanelRows(rows);
-        setPanelTitle(aciklamaKey);
+        setPanelTitle(title);
         setPanelOpen(true);
     };
 
@@ -1045,3 +1063,4 @@ const cellStyle = {
 };
 
 export default TopluEvraklar;
+

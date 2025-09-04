@@ -3,13 +3,8 @@
     "",
     "\\client",
     "\\client\\src",
-    "\\client\\src\\assets",
-    "\\client\\src\\components",
-    "\\client\\src\\hooks",
-    "\\client\\src\\ımages",
-    "\\server",
-    "\\tms-backend"
+    "\\client\\src\\components"
   ],
-  "SelectedNode": "\\client\\src\\components\\EditEvrakModal.js",
+  "SelectedNode": "\\client\\src\\components\\ModernSummary.js",
   "PreviewInSolutionExplorer": false
 }
