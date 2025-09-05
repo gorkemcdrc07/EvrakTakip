@@ -5,7 +5,7 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
 } from "recharts";
 import {
-    FiRefreshCw, FiCalendar, FiTrendingUp, FiPackage, FiFileText,
+    FiRefreshCw, FiCalendar, FiTrendingUp, FiPackage,
 } from "react-icons/fi";
 
 const COLORS = ["#8b5cf6", "#a78bfa", "#f472b6", "#fb7185", "#38bdf8", "#60a5fa", "#34d399", "#f59e0b"];
@@ -153,7 +153,6 @@ export default function EvrakRaporlari() {
 
     // KPI
     const toplamSefer = useMemo(() => scopedEvraklar.reduce((s, e) => s + (e.sefersayisi || 0), 0), [scopedEvraklar]);
-    const toplamEvrak = scopedEvraklar.length;
     const duzeltilmis = useMemo(
         () =>
             scopedEvraklar.reduce(
@@ -328,8 +327,7 @@ export default function EvrakRaporlari() {
                 )}
 
                 {/* KPI’lar */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                    <KpiCard icon={<FiFileText />} title="Toplam Evrak" value={fmt(toplamEvrak)} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
                     <KpiCard icon={<FiTrendingUp />} title="Toplam Sefer" value={fmt(toplamSefer)} />
                     <KpiCard icon={<FiPackage />} title="Düzeltilmiş" value={fmt(duzeltilmis)} subtitle="TARAFIMIZCA DÜZELTİLMİŞTİR" />
                     <KpiCard icon={<FiPackage />} title="Orijinale Çekilmiş" value={fmt(orjinaleCekilmis)} subtitle="TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR" />
