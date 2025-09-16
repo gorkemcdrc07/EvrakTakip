@@ -157,6 +157,7 @@ function KonfetiSideBurst({ run = false }) {
 function EvrakEkle() {
     const [lokasyonlar, setLokasyonlar] = useState([]);
     const [projeler, setProjeler] = useState([]);
+    // ...
     const [mesaj, setMesaj] = useState('');
     const [showSuccess, setShowSuccess] = useState(false);
 
@@ -167,10 +168,61 @@ function EvrakEkle() {
         seferler: [{ seferno: '', aciklama: '' }],
     });
 
+    /* 🔒 Kaydedilmemiş değişiklik takibi (snapshot + kirli bayrağı) */
+    const [initialSnapshot, setInitialSnapshot] = useState(() =>
+        JSON.stringify({
+            tarih: '',
+            lokasyonid: '',
+            projeler: [{ projeid: '', sefersayisi: '' }],
+            seferler: [{ seferno: '', aciklama: '' }],
+        })
+    );
+    const isDirty = useMemo(() => {
+        try {
+            return JSON.stringify(form) !== initialSnapshot;
+        } catch {
+            // her ihtimale karşı basit kontrol
+            return !!(form.tarih || form.lokasyonid || form.projeler?.length > 1 || form.seferler?.length > 1);
+        }
+    }, [form, initialSnapshot]);
+
     useEffect(() => {
         document.title = 'Evrak Ekle';
         verileriYukle();
     }, []);
+
+    useEffect(() => {
+        const onBeforeUnload = (e) => {
+            if (!isDirty) return;
+            e.preventDefault();
+            e.returnValue = ''; // tarayıcının yerleşik uyarısını tetikler
+        };
+
+        if (isDirty) window.addEventListener('beforeunload', onBeforeUnload);
+        return () => window.removeEventListener('beforeunload', onBeforeUnload);
+    }, [isDirty]);
+
+    useEffect(() => {
+        const onAnchorClick = (e) => {
+            if (!isDirty) return;
+            const a = e.target.closest('a');
+            if (!a) return;
+
+            // Aynı origin ve _blank değilse, gezinti öncesi sor
+            if (a.origin === window.location.origin && a.target !== '_blank') {
+                const ok = window.confirm('Kaydedilmemiş değişiklikler var. Sayfadan ayrılmak istiyor musunuz?');
+                if (!ok) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            }
+        };
+
+        if (isDirty) document.addEventListener('click', onAnchorClick, true);
+        return () => document.removeEventListener('click', onAnchorClick, true);
+    }, [isDirty]);
+
+
 
     const verileriYukle = async () => {
         const { data: lokasyonData } = await supabase.from('lokasyonlar').select('*');
@@ -299,17 +351,24 @@ function EvrakEkle() {
         if (seferError1 || seferError2) {
             setMesaj('❌ Sefer veya proje kayıtları eklenemedi.');
         } else {
+            // ...
             setMesaj('✅ Başarıyla eklendi.');
-            setForm({
+            const cleared = {
                 tarih: '',
                 lokasyonid: '',
                 projeler: [{ projeid: '', sefersayisi: '' }],
                 seferler: [{ seferno: '', aciklama: '' }],
-            });
+            };
+            setForm(cleared);
 
-            // ✅ Başarı kartı + saçılan konfeti
+            /* ✅ Kayıt tamamlandıktan sonra snapshot'ı güncelle
+               (böylece isDirty -> false olur ve uyarılar kapanır) */
+            setInitialSnapshot(JSON.stringify(cleared));
+
+            // ✅ Başarı kartı + konfeti
             setShowSuccess(true);
             setTimeout(() => setShowSuccess(false), 2200);
+            // ...
         }
 
         setTimeout(() => setMesaj(''), 3000);

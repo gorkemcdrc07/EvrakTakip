@@ -54,7 +54,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 3,
+          "SelectedChildIndex": 2,
           "Children": [
             {
               "$type": "Bookmark",
@@ -66,6 +66,19 @@
             },
             {
               "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "EvrakRaporlar\u0131.js",
+              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\EvrakRaporlar\u0131.js",
+              "RelativeDocumentMoniker": "client\\src\\EvrakRaporlar\u0131.js",
+              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\EvrakRaporlar\u0131.js",
+              "RelativeToolTip": "client\\src\\EvrakRaporlar\u0131.js",
+              "ViewState": "AgIAAPABAAAAAAAAAAAiwC0CAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-09-04T08:46:38.272Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
               "DocumentIndex": 1,
               "Title": "TopluEvraklar.js",
               "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\TopluEvraklar.js",
@@ -74,21 +87,7 @@
               "RelativeToolTip": "client\\src\\TopluEvraklar.js",
               "ViewState": "AgIAAJUCAAAAAAAAAAAiwNECAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-08-27T10:00:28.793Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "EvrakRaporlar\u0131.js",
-              "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\EvrakRaporlar\u0131.js",
-              "RelativeDocumentMoniker": "client\\src\\EvrakRaporlar\u0131.js",
-              "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\EvrakRaporlar\u0131.js",
-              "RelativeToolTip": "client\\src\\EvrakRaporlar\u0131.js",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAiwCIAAAAoAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-04T08:46:38.272Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-27T10:00:28.793Z"
             },
             {
               "$type": "Document",

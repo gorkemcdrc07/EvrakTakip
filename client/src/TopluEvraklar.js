@@ -44,6 +44,15 @@ function TopluEvraklar() {
 
     const [selectedEvrak, setSelectedEvrak] = useState(null);
     const [showEditModal, setShowEditModal] = useState(false);
+
+    // --- KAYDEDİLMEMİŞ DEĞİŞİKLİK KORUMASI ---
+    const [originalEvrak, setOriginalEvrak] = useState(null);
+    const deepClone = (x) => JSON.parse(JSON.stringify(x));
+    const hasUnsavedEdit = useMemo(() => {
+        if (!showEditModal || !selectedEvrak || !originalEvrak) return false;
+        try { return JSON.stringify(selectedEvrak) !== JSON.stringify(originalEvrak); }
+        catch { return true; }
+    }, [showEditModal, selectedEvrak, originalEvrak]);
     const [deletingId, setDeletingId] = useState(null);
     const [acikProjeId, setAcikProjeId] = useState(null);
 
@@ -79,6 +88,38 @@ function TopluEvraklar() {
         fetchVeriler();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // Modal açılınca orijinali yakala, kapanınca sıfırla
+    useEffect(() => {
+        if (showEditModal && selectedEvrak) setOriginalEvrak(deepClone(selectedEvrak));
+        else setOriginalEvrak(null);
+    }, [showEditModal, selectedEvrak?.id]);
+
+    // Sekme kapanışı / sayfadan ayrılma (F5, tab kapatma vs.) uyarısı
+    useEffect(() => {
+        const handler = (e) => {
+            if (!hasUnsavedEdit) return;
+            e.preventDefault();
+            e.returnValue = ''; // uyarıyı tetikler
+        };
+        if (hasUnsavedEdit) window.addEventListener('beforeunload', handler);
+        return () => window.removeEventListener('beforeunload', handler);
+    }, [hasUnsavedEdit]);
+
+    // SPA içinde anchor/Link tıklamalarını engelle (aynı origin, _blank değilse)
+    useEffect(() => {
+        const onAnchorClick = (e) => {
+            if (!hasUnsavedEdit) return;
+            const a = e.target.closest('a');
+            if (!a) return;
+            if (a.origin === window.location.origin && a.target !== '_blank') {
+                const ok = window.confirm('Kaydedilmemiş değişiklikler var. Sayfadan ayrılmak istiyor musunuz?');
+                if (!ok) { e.preventDefault(); e.stopPropagation(); }
+            }
+        };
+        if (hasUnsavedEdit) document.addEventListener('click', onAnchorClick, true);
+        return () => document.removeEventListener('click', onAnchorClick, true);
+    }, [hasUnsavedEdit]);
 
     const fetchVeriler = async () => {
         const { data: evrakData, error } = await supabase
@@ -123,6 +164,17 @@ function TopluEvraklar() {
         setProjeler(projeMap);
         setLoading(false);
     };
+
+    const handleCloseEditModal = () => {
+        if (hasUnsavedEdit) {
+            const ok = window.confirm('Kaydedilmemiş değişiklikler var. Kapatmak istiyor musunuz?');
+            if (!ok) return;
+        }
+        setShowEditModal(false);
+        setSelectedEvrak(null);
+        setOriginalEvrak(null);
+    };
+
 
     const handleEvrakSil = async (evrak) => {
         const onay = window.confirm(
@@ -236,6 +288,7 @@ function TopluEvraklar() {
             }
 
             await fetchVeriler();
+            setOriginalEvrak(selectedEvrak ? deepClone(selectedEvrak) : null);
             setShowEditModal(false);
             setSelectedEvrak(null);
         } catch (error) {
@@ -534,7 +587,7 @@ function TopluEvraklar() {
                     lokasyonlar={lokasyonlar}
                     projeler={projeler}
                     onChange={setSelectedEvrak}
-                    onClose={() => setShowEditModal(false)}
+                    onClose={handleCloseEditModal}
                     onSave={handleEvrakGuncelle}
                 />
             )}

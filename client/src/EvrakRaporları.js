@@ -68,7 +68,25 @@ export default function EvrakRaporlari() {
     const [selectedProjeKey, setSelectedProjeKey] = useState("");
 
     // Hover state
+    // ...
     const [activeIndex, setActiveIndex] = useState(null);
+
+    // --- KAYDEDİLMEMİŞ DEĞİŞİKLİK KORUMASI (sayfadan ayrılma/yeniden yükleme uyarısı) ---
+    const [originalFilters] = useState({
+        startDate: "",
+        endDate: "",
+        selectedLokasyonId: "",
+        selectedProjeKey: "",
+    });
+    const hasDirtyFilters = useMemo(() => {
+        const now = { startDate, endDate, selectedLokasyonId, selectedProjeKey };
+        try {
+            return JSON.stringify(now) !== JSON.stringify(originalFilters);
+        } catch {
+            // JSON stringify bir sebeple patlarsa, basit kontrol:
+            return !!(startDate || endDate || selectedLokasyonId || selectedProjeKey);
+        }
+    }, [startDate, endDate, selectedLokasyonId, selectedProjeKey, originalFilters]);
 
     useEffect(() => {
         (async () => {
@@ -116,6 +134,39 @@ export default function EvrakRaporlari() {
             }
         })();
     }, []);
+
+    useEffect(() => {
+        const handler = (e) => {
+            if (!hasDirtyFilters) return;
+            e.preventDefault();
+            e.returnValue = ""; // Chrome/Safari/Edge için gerekli — varsayılan uyarıyı gösterir
+        };
+        if (hasDirtyFilters) window.addEventListener("beforeunload", handler);
+        return () => window.removeEventListener("beforeunload", handler);
+    }, [hasDirtyFilters]);
+
+    useEffect(() => {
+        const onAnchorClick = (e) => {
+            if (!hasDirtyFilters) return;
+            const a = e.target.closest("a");
+            if (!a) return;
+
+            // Aynı origin ve _blank değilse SPA içi gezinme olarak kabul edip soralım
+            if (a.origin === window.location.origin && a.target !== "_blank") {
+                const ok = window.confirm(
+                    "Kaydedilmemiş değişiklikler var. Sayfadan ayrılmak istiyor musunuz?"
+                );
+                if (!ok) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            }
+        };
+
+        if (hasDirtyFilters) document.addEventListener("click", onAnchorClick, true);
+        return () => document.removeEventListener("click", onAnchorClick, true);
+    }, [hasDirtyFilters]);
+
 
     // Seçenek listeleri
     const lokasyonOptions = useMemo(
@@ -219,6 +270,8 @@ export default function EvrakRaporlari() {
         setEndDate("");
         setSelectedLokasyonId("");
         setSelectedProjeKey("");
+        // Not: originalFilters başlangıç boş değerlerdi. ResetAll aynı hâle döndürdüğü için
+        // hasDirtyFilters otomatik olarak false olacaktır.
     };
 
     return (
