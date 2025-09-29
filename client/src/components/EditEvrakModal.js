@@ -91,7 +91,7 @@ export default function EditEvrakModal({
     const handleSave = () => {
         const next = { ...draft, sefersayisi: toplamSefer };
         onChange?.(next);
-        onSave?.();
+        onSave?.(next); // güncel taslağı payload olarak gönder
     };
 
     const onOverlayClick = (e) => {
@@ -143,10 +143,12 @@ export default function EditEvrakModal({
     };
 
     const addSeferRow = () => {
-        setDraft((d) => ({
-            ...d,
-            evrakseferler: [{ seferno: "", aciklama: "" }, ...(d.evrakseferler || [])],
-        }));
+        setDraft((d) => {
+            const arr = [{ seferno: "", aciklama: "" }, ...(d.evrakseferler || [])];
+            const next = { ...d, evrakseferler: arr };
+            onChange?.(next); // parent'a anlık gönder
+            return next;
+        });
         setTimeout(() => bodyRef.current?.scrollTo({ top: 0, behavior: "smooth" }), 0);
     };
 
@@ -154,14 +156,18 @@ export default function EditEvrakModal({
         setDraft((d) => {
             const arr = [...(d.evrakseferler || [])];
             arr[idx] = { ...arr[idx], ...patch };
-            return { ...d, evrakseferler: arr };
+            const next = { ...d, evrakseferler: arr };
+            onChange?.(next); // parent'a anlık gönder
+            return next;
         });
     };
 
     const removeSeferRow = (idx) => {
         setDraft((d) => {
             const arr = (d.evrakseferler || []).filter((_, i) => i !== idx);
-            return { ...d, evrakseferler: arr };
+            const next = { ...d, evrakseferler: arr };
+            onChange?.(next); // parent'a anlık gönder
+            return next;
         });
     };
 
@@ -590,7 +596,7 @@ export default function EditEvrakModal({
                                                     const total = (draft?.evrakproje || []).reduce((s, p) => s + (parseInt(p.sefersayisi, 10) || 0), 0) || 0;
                                                     const next = { ...draft, sefersayisi: total };
                                                     onChange?.(next);
-                                                    onSave?.();
+                                                    onSave?.(next); // payload ver
                                                     setShowUnsaved(false);
                                                     onClose?.();
                                                 }}
