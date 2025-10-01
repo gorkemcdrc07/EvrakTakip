@@ -84,7 +84,7 @@ const Raporlar = () => {
                     DriverId: 0,
                     TMSDespatchId: 0,
                     VehicleId: 0,
-                    DocumentPrint: "0",
+                    DocumentPrint: "",
                     WorkingTypesId: [],
                 };
 
