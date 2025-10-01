@@ -63,16 +63,36 @@ const Raporlar = () => {
     };
 
     const fetchData = async () => {
-        setLoading(true); setHata(null);
+        setLoading(true);
+        setHata(null);
+
         try {
+            // Tarihleri parçalayıp (aynı mantık) her parça için yeni parametre seti ile istek atıyoruz
             const ranges = chunkDateRanges(startDate, endDate, 2);
             const all = [];
+
             for (const { start, end } of ranges) {
-                const resp = await api.post('/tmsdespatches/getall', {
-                    startDate: start.toISOString(), endDate: end.toISOString(), userId: 1,
-                });
+                const body = {
+                    // mevcut alanlar
+                    startDate: start.toISOString(),
+                    endDate: end.toISOString(),
+                    userId: 1,
+
+                    // yeni eklenen alanlar (backend istediği adlarla ve defaultlar ile)
+                    CustomerId: 0,
+                    SupplierId: 0,
+                    DriverId: 0,
+                    TMSDespatchId: 0,
+                    VehicleId: 0,
+                    DocumentPrint: "0",
+                    WorkingTypesId: [],
+                };
+
+                const resp = await api.post('/tmsdespatches/getall', body);
                 all.push(...(resp?.data?.Data || []));
             }
+
+            // mevcut filtreleme mantığını koruyoruz
             const filtreliData = all.filter((item) => {
                 const projeEngellenenler = ['HASAR İADE', 'AKTÜL', 'KARGO HİZMETLERİ', 'HGS-YAKIT FATURA İŞLEME'];
                 const firmaEngellenenler = [
@@ -81,6 +101,7 @@ const Raporlar = () => {
                     'MOKS MOBİLYA KURULUM SERVİS LOJİSTİK PETROL İTHALAT İHRACAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ',
                     'ODAK TEDARİK ZİNCİRİ VE LOJİSTİK ANONİM ŞİRKETİ',
                 ];
+
                 return (
                     item.VehicleWorkingTypeName === 'SPOT' &&
                     item.SpecialGroupName === 'SPOT' &&
@@ -91,13 +112,15 @@ const Raporlar = () => {
                     !firmaEngellenenler.includes(item.SupplierCurrentAccountFullTitle)
                 );
             });
+
             setVeriler(filtreliData);
         } catch (e) {
             console.error(e);
             setHata('Veri alınamadı. Lütfen tekrar deneyin.');
-        } finally { setLoading(false); }
+        } finally {
+            setLoading(false);
+        }
     };
-
     const excelExportEt = () => {
         const data = uniqBy(filtrelenmisVeri.filter(isBaseAllowed), x => x.DocumentNo);
         if (data.length === 0) return alert('Aktarılacak veri bulunamadı.');
