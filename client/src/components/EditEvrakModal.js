@@ -7,9 +7,8 @@ export default function EditEvrakModal({
     value,
     lokasyonlar,
     projeler,
-    onChange,
     onClose,
-    onSave,
+    onSave,   // yalnızca Kaydet'te parent'a yazacağız
 }) {
     const [tab, setTab] = useState("genel"); // genel | projeler | seferler
     const [draft, setDraft] = useState(value);
@@ -76,22 +75,12 @@ export default function EditEvrakModal({
         return t || 0;
     }, [draft?.evrakproje]);
 
-    // ✅ Toplam güncellenince draft.sefersayisi'ni canlı güncelle ve parent'a bildir
-    useEffect(() => {
-        setDraft((d) => {
-            if (!d) return d;
-            const curr = d.sefersayisi || 0;
-            if (curr === toplamSefer) return d;
-            const next = { ...d, sefersayisi: toplamSefer };
-            onChange?.(next); // parent (TopluEvraklar) tarafını anlık senkronla
-            return next;
-        });
-    }, [toplamSefer]); // toplam değişince tetiklenir
+    // ❗ Parent'a otomatik yazma YOK. Sadece local draft güncellenir.
+    // (React uyarısını doğuran durum buydu.)
 
     const handleSave = () => {
         const next = { ...draft, sefersayisi: toplamSefer };
-        onChange?.(next);
-        onSave?.(next); // güncel taslağı payload olarak gönder
+        onSave?.(next); // parent burada supabase'e yazar
     };
 
     const onOverlayClick = (e) => {
@@ -109,15 +98,13 @@ export default function EditEvrakModal({
 
     const updateField = (patch) => setDraft((d) => ({ ...d, ...patch }));
 
-    // ✅ Proje satırı değiştiğinde toplamı yeniden hesapla ve parent'a gönder
+    // Proje satırı değiştiğinde sadece local draft güncelliyoruz
     const updateProjeRow = (idx, patch) => {
         setDraft((d) => {
             const arr = [...(d.evrakproje || [])];
             arr[idx] = { ...arr[idx], ...patch };
             const total = arr.reduce((s, p) => s + (parseInt(p.sefersayisi, 10) || 0), 0) || 0;
-            const next = { ...d, evrakproje: arr, sefersayisi: total };
-            onChange?.(next);
-            return next;
+            return { ...d, evrakproje: arr, sefersayisi: total };
         });
     };
 
@@ -125,9 +112,7 @@ export default function EditEvrakModal({
         setDraft((d) => {
             const arr = [{ projeid: "", sefersayisi: 0 }, ...(d.evrakproje || [])];
             const total = arr.reduce((s, p) => s + (parseInt(p.sefersayisi, 10) || 0), 0) || 0;
-            const next = { ...d, evrakproje: arr, sefersayisi: total };
-            onChange?.(next);
-            return next;
+            return { ...d, evrakproje: arr, sefersayisi: total };
         });
         setTimeout(() => bodyRef.current?.scrollTo({ top: 0, behavior: "smooth" }), 0);
     };
@@ -136,18 +121,14 @@ export default function EditEvrakModal({
         setDraft((d) => {
             const arr = (d.evrakproje || []).filter((_, i) => i !== idx);
             const total = arr.reduce((s, p) => s + (parseInt(p.sefersayisi, 10) || 0), 0) || 0;
-            const next = { ...d, evrakproje: arr, sefersayisi: total };
-            onChange?.(next);
-            return next;
+            return { ...d, evrakproje: arr, sefersayisi: total };
         });
     };
 
     const addSeferRow = () => {
         setDraft((d) => {
             const arr = [{ seferno: "", aciklama: "" }, ...(d.evrakseferler || [])];
-            const next = { ...d, evrakseferler: arr };
-            onChange?.(next); // parent'a anlık gönder
-            return next;
+            return { ...d, evrakseferler: arr };
         });
         setTimeout(() => bodyRef.current?.scrollTo({ top: 0, behavior: "smooth" }), 0);
     };
@@ -156,18 +137,14 @@ export default function EditEvrakModal({
         setDraft((d) => {
             const arr = [...(d.evrakseferler || [])];
             arr[idx] = { ...arr[idx], ...patch };
-            const next = { ...d, evrakseferler: arr };
-            onChange?.(next); // parent'a anlık gönder
-            return next;
+            return { ...d, evrakseferler: arr };
         });
     };
 
     const removeSeferRow = (idx) => {
         setDraft((d) => {
             const arr = (d.evrakseferler || []).filter((_, i) => i !== idx);
-            const next = { ...d, evrakseferler: arr };
-            onChange?.(next); // parent'a anlık gönder
-            return next;
+            return { ...d, evrakseferler: arr };
         });
     };
 
@@ -216,7 +193,7 @@ export default function EditEvrakModal({
                                 <div>
                                     <h2 className="text-lg font-semibold tracking-tight">Evrak Düzenle</h2>
                                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                                        #{draft?.id} • {new Date(draft?.tarih).toLocaleDateString("tr-TR")}
+                                        #{draft?.id} • {draft?.tarih ? new Date(draft?.tarih).toLocaleDateString("tr-TR") : "—"}
                                     </p>
                                 </div>
                                 <button
@@ -296,10 +273,14 @@ export default function EditEvrakModal({
 
                                     <Field label="Lokasyon">
                                         <select
-                                            value={draft?.lokasyonid}
-                                            onChange={(e) => updateField({ lokasyonid: parseInt(e.target.value, 10) })}
+                                            value={draft?.lokasyonid ?? ""}
+                                            onChange={(e) => {
+                                                const v = e.target.value;
+                                                updateField({ lokasyonid: v === "" ? "" : parseInt(v, 10) });
+                                            }}
                                             className="w-full px-3 py-2 rounded-xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-gray-800/80"
                                         >
+                                            <option value="">— Seçin —</option>
                                             {lokasyonOptions.map((o) => (
                                                 <option key={o.id} value={o.id}>{o.name}</option>
                                             ))}
@@ -336,7 +317,7 @@ export default function EditEvrakModal({
                                                     "rounded-2xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-gray-800/70",
                                                     "shadow-sm hover:shadow transition",
                                                     "grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-3 items-center px-4",
-                                                    rowPad
+                                                    density === "compact" ? "py-2" : "py-3"
                                                 )}
                                             >
                                                 <select
@@ -429,7 +410,7 @@ export default function EditEvrakModal({
                                                     className={cx(
                                                         "rounded-2xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-gray-800/70",
                                                         "shadow-sm hover:shadow transition px-4",
-                                                        rowPad,
+                                                        density === "compact" ? "py-2" : "py-3",
                                                         "grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3"
                                                     )}
                                                 >
@@ -561,7 +542,6 @@ export default function EditEvrakModal({
                                 >
                                     <div className="p-5 sm:p-6">
                                         <div className="flex items-start gap-3">
-                                            {/* ikon */}
                                             <div className="shrink-0 h-10 w-10 rounded-xl bg-amber-100 text-amber-800 grid place-items-center">
                                                 ⚠️
                                             </div>
@@ -595,7 +575,6 @@ export default function EditEvrakModal({
                                                 onClick={() => {
                                                     const total = (draft?.evrakproje || []).reduce((s, p) => s + (parseInt(p.sefersayisi, 10) || 0), 0) || 0;
                                                     const next = { ...draft, sefersayisi: total };
-                                                    onChange?.(next);
                                                     onSave?.(next); // payload ver
                                                     setShowUnsaved(false);
                                                     onClose?.();

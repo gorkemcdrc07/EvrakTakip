@@ -1,24 +1,21 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from './supabaseClient';
-import { PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { FiFile } from 'react-icons/fi';
 import Layout from './components/Layout';
 import * as XLSX from 'xlsx';
 import EditEvrakModal from './components/EditEvrakModal';
 import ModernSummary from "./components/ModernSummary";
 
-const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'];
-
 function TopluEvraklar() {
     const [evraklar, setEvraklar] = useState([]);
     const [lokasyonlar, setLokasyonlar] = useState({});
     const [projeler, setProjeler] = useState({});
     const [loading, setLoading] = useState(true);
+
     // kart -> panel
     const [panelOpen, setPanelOpen] = useState(false);
     const [panelTitle, setPanelTitle] = useState('');
     const [panelRows, setPanelRows] = useState([]);
-
 
     // filtre state'leri
     const initialFilterState = {
@@ -53,6 +50,7 @@ function TopluEvraklar() {
         try { return JSON.stringify(selectedEvrak) !== JSON.stringify(originalEvrak); }
         catch { return true; }
     }, [showEditModal, selectedEvrak, originalEvrak]);
+
     const [deletingId, setDeletingId] = useState(null);
     const [acikProjeId, setAcikProjeId] = useState(null);
 
@@ -84,10 +82,7 @@ function TopluEvraklar() {
 
     const oran = (value) => (toplamSefer ? ((value / toplamSefer) * 100).toFixed(1) : '0.0');
 
-    useEffect(() => {
-        fetchVeriler();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    useEffect(() => { fetchVeriler(); }, []);
 
     // Modal açılınca orijinali yakala, kapanınca sıfırla
     useEffect(() => {
@@ -175,7 +170,6 @@ function TopluEvraklar() {
         setOriginalEvrak(null);
     };
 
-
     const handleEvrakSil = async (evrak) => {
         const onay = window.confirm(
             `#${evrak.id} numaralı evrağı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`
@@ -198,14 +192,12 @@ function TopluEvraklar() {
             setDeletingId(null);
         }
     };
-    // "Diğer" gibi birden fazla etiketi de açabilmek için:
-    // arg bir string (tek etiket) ya da { names: [etiket1, etiket2, ...] } olabilir.
-    const openCardPanel = (arg) => {
-        // normalize yardımcıları
-        const norm = (v) => (v || '').trim().toLocaleUpperCase('tr');
-        const labelOf = (v) => (norm(v) || '(BOŞ)'); // boş açıklamalar "(BOŞ)" etiketiyle eşleşsin
 
-        // hedef etiket(ler)
+    // "Diğer" gibi birden fazla etiketi de açabilmek için:
+    const openCardPanel = (arg) => {
+        const norm = (v) => (v || '').trim().toLocaleUpperCase('tr');
+        const labelOf = (v) => (norm(v) || '(BOŞ)');
+
         let targetLabels = [];
         if (typeof arg === 'string') {
             targetLabels = [labelOf(arg)];
@@ -233,62 +225,91 @@ function TopluEvraklar() {
         });
 
         rows.sort((a, b) => new Date(b.tarih) - new Date(a.tarih));
-
-        // Panel başlığı: tek etiketse onu yaz, çokluysa "Diğer"
-        const title =
-            targetLabels.length === 1 ? (arg?.name || arg || 'Detay') : 'Diğer';
+        const title = targetLabels.length === 1 ? (arg?.name || arg || 'Detay') : 'Diğer';
 
         setPanelRows(rows);
         setPanelTitle(title);
         setPanelOpen(true);
     };
 
+    // 🔧 GÜNCELLEME: payload opsiyonel, yoksa selectedEvrak kullan
+    const handleEvrakGuncelle = async (payload) => {
+        const evrakObj = payload || selectedEvrak;
+        if (!evrakObj) return;
 
-    const handleEvrakGuncelle = async () => {
-        const evrakId = selectedEvrak.id;
-        const tarih = selectedEvrak.tarih;
-        const lokasyonid = selectedEvrak.lokasyonid;
+        const evrakId = evrakObj.id;
+        const tarih = evrakObj.tarih;
+        const lokasyonid = evrakObj.lokasyonid;
 
-        const evrakproje = Array.isArray(selectedEvrak.evrakproje)
-            ? selectedEvrak.evrakproje.filter((p) => p.projeid && !isNaN(p.projeid))
+        const evrakproje = Array.isArray(evrakObj.evrakproje)
+            ? evrakObj.evrakproje.filter((p) => p.projeid && !isNaN(p.projeid))
             : [];
 
         const toplamSefer = evrakproje.reduce((sum, p) => sum + Number(p.sefersayisi || 0), 0);
 
-        const evrakseferler = Array.isArray(selectedEvrak.evrakseferler)
-            ? selectedEvrak.evrakseferler.filter((s) => s.seferno && s.aciklama)
+        const evrakseferler = Array.isArray(evrakObj.evrakseferler)
+            ? evrakObj.evrakseferler.filter((s) => s.seferno && s.aciklama)
             : [];
 
+        // ✅ seferno bazlı dedup — isterseniz anahtarınızı `${seferno}__${aciklama}` yapabilirsiniz
+        const seen = new Set();
+        const uniqueSeferler = [];
+        for (const s of evrakseferler) {
+            const key = String(s.seferno).trim();
+            if (!seen.has(key)) {
+                seen.add(key);
+                uniqueSeferler.push({ ...s, seferno: key });
+            }
+        }
+
         try {
-            await supabase
+            // ana evrak
+            const { error: errEvrak } = await supabase
                 .from('evraklar')
                 .update({ tarih, lokasyonid, sefersayisi: toplamSefer })
                 .eq('id', evrakId);
+            if (errEvrak) throw errEvrak;
 
-            await supabase.from('evrakproje').delete().eq('evrakid', evrakId);
+            // projeler: sil -> ekle
+            const { error: errProjDel } = await supabase.from('evrakproje').delete().eq('evrakid', evrakId);
+            if (errProjDel) throw errProjDel;
+
             if (evrakproje.length > 0) {
-                await supabase.from('evrakproje').insert(
+                const { error: errProjIns } = await supabase.from('evrakproje').insert(
                     evrakproje.map((p) => ({
                         evrakid: evrakId,
                         projeid: Number(p.projeid),
                         sefersayisi: Number(p.sefersayisi || 0)
                     }))
                 );
+                if (errProjIns) throw errProjIns;
             }
 
-            await supabase.from('evrakseferler').delete().eq('evrakid', evrakId);
-            if (evrakseferler.length > 0) {
-                await supabase.from('evrakseferler').insert(
-                    evrakseferler.map((s) => ({
+            // seferler: sil -> dedup edilmiş şekilde ekle
+            const { error: errSeferDel } = await supabase.from('evrakseferler').delete().eq('evrakid', evrakId);
+            if (errSeferDel) throw errSeferDel;
+
+            if (uniqueSeferler.length > 0) {
+                const { error: errSeferIns } = await supabase.from('evrakseferler').insert(
+                    uniqueSeferler.map((s) => ({
                         evrakid: evrakId,
                         seferno: s.seferno,
                         aciklama: s.aciklama
                     }))
                 );
+                if (errSeferIns) {
+                    console.error('Insert error (evrakseferler):', {
+                        message: errSeferIns.message,
+                        details: errSeferIns.details,
+                        hint: errSeferIns.hint,
+                        code: errSeferIns.code,
+                    });
+                    throw errSeferIns;
+                }
             }
 
             await fetchVeriler();
-            setOriginalEvrak(selectedEvrak ? deepClone(selectedEvrak) : null);
+            setOriginalEvrak(evrakObj ? deepClone(evrakObj) : null);
             setShowEditModal(false);
             setSelectedEvrak(null);
         } catch (error) {
@@ -306,7 +327,6 @@ function TopluEvraklar() {
         });
         return Object.entries(counts).map(([name, value]) => ({ name, value }));
     };
-
 
     const lokasyonBazliAciklamaVerileri = () => {
         const sonuc = {};
@@ -586,9 +606,8 @@ function TopluEvraklar() {
                     value={selectedEvrak}
                     lokasyonlar={lokasyonlar}
                     projeler={projeler}
-                    onChange={setSelectedEvrak}
                     onClose={handleCloseEditModal}
-                    onSave={handleEvrakGuncelle}
+                    onSave={handleEvrakGuncelle} // ✅ payload alır
                 />
             )}
 
@@ -1013,7 +1032,7 @@ function TopluEvraklar() {
                 </div>
             )}
 
-            {/* 👉 Sağdan kayan PANEL: kart tıklanınca açılır (DETAY CARD'ın DIŞINDA) */}
+            {/* 👉 Sağdan kayan PANEL */}
             {panelOpen && (
                 <div className="fixed inset-0 z-50">
                     <div className="absolute inset-0 bg-black/40" onClick={() => setPanelOpen(false)} />
@@ -1061,24 +1080,4 @@ function TopluEvraklar() {
     );
 }
 
-
-
-const tableStyle = {
-    width: '100%',
-    borderCollapse: 'collapse',
-    backgroundColor: '#fff',
-    boxShadow: '0 0 10px rgba(0,0,0,0.05)',
-    borderRadius: '8px',
-    overflow: 'hidden'
-};
-
-const cellStyle = {
-    border: '1px solid #e5e7eb',
-    padding: '12px 16px',
-    textAlign: 'left',
-    fontSize: '0.95rem',
-    color: '#1f2937'
-};
-
 export default TopluEvraklar;
-
