@@ -3,13 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
 import Layout from "./components/Layout";
 
-// 💡 Notlar
-// - Backend mantığını değiştirmedim (tablodan kontrol). Supabase Auth kullanmak istiyorsan alta bak:
-//   const { data: authUser, error: authError } = await supabase.auth.signInWithPassword({
-//     email: kullaniciAdi, // eğer email ise
-//     password: sifre,
-//   });
-// - Aşağıdaki UI tamamen Tailwind ile. Harici kütüphane gerektirmez.
+// 💡 Not: İş mantığı (state'ler ve handleSubmit) tamamen aynı kalmıştır.
+// 💡 Not: Kullanılan tüm stiller Tailwind CSS'tir.
 
 export default function Login() {
     const [kullaniciAdi, setKullaniciAdi] = useState("");
@@ -57,36 +52,40 @@ export default function Login() {
     return (
         <Layout>
             <div className="relative min-h-screen overflow-hidden">
-                {/* Arka plan */}
+                {/* Arka plan: Daha sofistike bir gradyan ve merkezde hafif parlama (radial gradient) */}
                 <div className="pointer-events-none absolute inset-0 -z-10">
-                    <div className="absolute -top-40 -left-40 h-80 w-80 rounded-full bg-pink-500/20 blur-3xl" />
-                    <div className="absolute -bottom-40 -right-40 h-80 w-80 rounded-full bg-indigo-500/20 blur-3xl" />
-                    <div className="absolute inset-0 bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-950" />
+                    {/* Arka plan ışık noktaları - daha hafif tonlar */}
+                    <div className="absolute top-0 left-0 h-96 w-96 rounded-full bg-cyan-400/10 blur-[100px]" />
+                    <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-fuchsia-400/10 blur-[100px]" />
+                    {/* Sayfayı kaplayan arka plan gradyanı */}
+                    <div className="absolute inset-0 bg-gray-50 dark:bg-gray-950/95" />
+                    {/* Merkezi radial gradyan - sayfaya derinlik katmak için */}
+                    <div className="absolute inset-0 bg-radial-at-t from-gray-50/20 to-transparent dark:from-gray-950/20" />
                 </div>
 
                 {/* Sayfa içeriği */}
                 <div className="mx-auto flex min-h-screen max-w-7xl items-center justify-center px-4 py-16">
-                    <div className="w-full max-w-md">
-                        {/* Kart */}
-                        <div className="rounded-2xl border border-gray-200/60 bg-white/70 p-6 shadow-xl backdrop-blur dark:border-gray-700/60 dark:bg-gray-900/60 sm:p-8">
-                            <div className="mb-6 flex items-center justify-center">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-pink-600 text-white shadow-md">
+                    <div className="w-full max-w-sm">
+                        {/* Kart: Daha yuvarlak hatlar, daha güçlü gölge ve daha az şeffaflık */}
+                        <div className="rounded-3xl border border-gray-200/50 bg-white/80 p-8 shadow-2xl backdrop-blur-md dark:border-gray-800/50 dark:bg-gray-900/80 sm:p-10">
+                            <div className="mb-8 flex flex-col items-center">
+                                {/* Kilit İkonu: Daha canlı bir renk ve dolgun gölge */}
+                                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-fuchsia-600 to-indigo-600 text-white shadow-lg shadow-fuchsia-500/50 dark:shadow-indigo-500/50">
                                     {/* kilit ikonu */}
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6">
-                                        <path d="M12 1a5 5 0 00-5 5v3H6a3 3 0 00-3 3v6a3 3 0 003 3h12a3 3 0 003-3v-6a3 3 0 00-3-3h-1V6a5 5 0 00-5-5zm-3 8V6a3 3 0 016 0v3H9z" />
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-7 w-7">
+                                        <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6a3 3 0 003 3h10.5a3 3 0 003-3v-6a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3 8.25V6.75a3 3 0 10-6 0v3h6z" clipRule="evenodd" />
                                     </svg>
                                 </div>
+                                <h1 className="text-center text-3xl font-extrabold text-gray-900 dark:text-gray-100">Hoş Geldin!</h1>
+                                <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
+                                    Hesabına erişmek için bilgilerinle giriş yap.
+                                </p>
                             </div>
-
-                            <h1 className="mb-2 text-center text-2xl font-semibold text-gray-900 dark:text-gray-100">🔐 Giriş Yap</h1>
-                            <p className="mb-8 text-center text-sm text-gray-600 dark:text-gray-400">
-                                Hoş geldin! Devam etmek için bilgilerini gir.
-                            </p>
 
                             <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
                                 {/* Kullanıcı Adı */}
                                 <div className="group relative">
-                                    <label htmlFor="username" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    <label htmlFor="username" className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">
                                         Kullanıcı Adı
                                     </label>
                                     <div className="relative">
@@ -98,12 +97,13 @@ export default function Login() {
                                             onChange={(e) => setKullaniciAdi(e.target.value)}
                                             placeholder="kullanici_adin"
                                             required
-                                            className="peer w-full rounded-xl border border-gray-300/80 bg-white px-4 py-3 text-gray-900 outline-none transition focus:border-pink-500 focus:ring-4 focus:ring-pink-200 dark:border-gray-700/80 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-pink-500 dark:focus:ring-pink-900/40"
+                                            // Yeni Stil: Daha belirgin focus halkası ve modern kenarlık
+                                            className="peer w-full rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 outline-none transition duration-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-200/50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-indigo-500 dark:focus:ring-indigo-900/40"
                                         />
-                                        <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400 peer-focus:text-pink-500">
+                                        <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400 peer-focus:text-indigo-500">
                                             {/* user icon */}
                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
-                                                <path d="M12 12a5 5 0 100-10 5 5 0 000 10zm-9 9a9 9 0 1118 0H3z" />
+                                                <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" clipRule="evenodd" />
                                             </svg>
                                         </div>
                                     </div>
@@ -112,7 +112,7 @@ export default function Login() {
 
                                 {/* Şifre */}
                                 <div className="group relative">
-                                    <label htmlFor="password" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    <label htmlFor="password" className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">
                                         Şifre
                                     </label>
                                     <div className="relative">
@@ -124,55 +124,57 @@ export default function Login() {
                                             onChange={(e) => setSifre(e.target.value)}
                                             placeholder="••••••••"
                                             required
-                                            className="peer w-full rounded-xl border border-gray-300/80 bg-white px-4 py-3 text-gray-900 outline-none transition focus:border-pink-500 focus:ring-4 focus:ring-pink-200 dark:border-gray-700/80 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-pink-500 dark:focus:ring-pink-900/40"
+                                            // Yeni Stil: Daha belirgin focus halkası ve modern kenarlık
+                                            className="peer w-full rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 outline-none transition duration-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-200/50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-indigo-500 dark:focus:ring-indigo-900/40"
                                         />
                                         <button
                                             type="button"
                                             onClick={() => setType((t) => (t === "password" ? "text" : "password"))}
                                             aria-label={type === "password" ? "Şifreyi göster" : "Şifreyi gizle"}
-                                            className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600 focus:text-gray-600 dark:hover:text-gray-200"
+                                            className="absolute inset-y-0 right-3 flex items-center text-gray-400 transition hover:text-indigo-600 focus:text-indigo-600 dark:hover:text-gray-200"
                                         >
                                             {/* eye icon */}
                                             {type === "password" ? (
                                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
-                                                    <path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 110-10 5 5 0 010 10z" />
+                                                    <path fillRule="evenodd" d="M12 5.25c-4.72 0-9 4.39-9 7.75s4.28 7.75 9 7.75 9-4.39 9-7.75-4.28-7.75-9-7.75zM12 17a4.5 4.5 0 100-9 4.5 4.5 0 000 9z" clipRule="evenodd" />
                                                 </svg>
                                             ) : (
                                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
-                                                    <path d="M2.3 1.3l20.4 20.4-1.4 1.4-3.1-3.1A13.7 13.7 0 0112 19c-7 0-10-7-10-7a20.5 20.5 0 014.8-5.9L.9 2.7 2.3 1.3zM12 7a5 5 0 013.9 8.1L8 7.3A4.9 4.9 0 0112 7z" />
+                                                    <path fillRule="evenodd" d="M2.308 1.488a.75.75 0 10-1.06 1.06L4.5 5.71a10.884 10.884 0 00-3.328 6.04c0 3.36 4.28 7.75 9 7.75 2.193 0 4.26-.554 6.04-1.503l3.208 3.208a.75.75 0 101.06-1.06L3.368 1.488a.75.75 0 00-1.06 0zM6.92 11.25a.75.75 0 011.06 0l1.838 1.839a.75.75 0 01-.782 1.31L8.51 13.5l-.265-.133a.75.75 0 01-.325-.794zM12 17a4.5 4.5 0 01-3.6-7.228l.582.583a4.502 4.502 0 005.106-5.105l.582-.582A4.5 4.5 0 0112 17z" clipRule="evenodd" />
                                                 </svg>
                                             )}
                                         </button>
                                     </div>
                                     <div className="mt-2 flex items-center justify-between">
                                         <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                                            <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500 dark:border-gray-600" />
+                                            <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-600" />
                                             Beni hatırla
                                         </label>
-                                        <a href="#" className="text-sm font-medium text-pink-600 hover:underline">Şifremi unuttum</a>
+                                        <a href="#" className="text-sm font-semibold text-indigo-600 hover:text-indigo-500 hover:underline">Şifremi unuttum</a>
                                     </div>
                                 </div>
 
                                 {/* Hata / bilgi mesajı */}
                                 {mesaj && (
-                                    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300">
+                                    <div className="rounded-xl border border-red-300 bg-red-100 px-4 py-3 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300 shadow-sm transition">
                                         {mesaj}
                                     </div>
                                 )}
 
-                                {/* Buton */}
+                                {/* Buton: Daha canlı gradyan, yumuşak geçiş ve gölge */}
                                 <button
                                     type="submit"
                                     disabled={!canSubmit}
-                                    className="relative inline-flex w-full items-center justify-center gap-2 rounded-xl bg-pink-600 px-4 py-3 font-semibold text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 hover:bg-pink-700 focus:outline-none focus:ring-4 focus:ring-pink-300 dark:focus:ring-pink-900/50"
+                                    className="relative inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-indigo-600 px-4 py-3 font-bold text-white shadow-lg shadow-indigo-500/40 transition duration-300 ease-in-out disabled:cursor-not-allowed disabled:opacity-50 hover:from-fuchsia-700 hover:to-indigo-700 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-indigo-300 dark:focus:ring-indigo-900/50"
                                 >
-                                    {loading && (
+                                    {loading ? (
                                         <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                                         </svg>
+                                    ) : (
+                                        "Giriş Yap"
                                     )}
-                                    {loading ? "Giriş yapılıyor..." : "Giriş"}
                                 </button>
 
                                 {/* Alt bilgi */}
@@ -183,10 +185,10 @@ export default function Login() {
                         </div>
 
                         {/* Footer */}
-                        <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
+                        <p className="mt-8 text-center text-base text-gray-600 dark:text-gray-400">
                             Hesabın yok mu? {" "}
-                            <a href="#" className="font-semibold text-pink-600 hover:underline">
-                                Kaydol
+                            <a href="#" className="font-bold text-indigo-600 transition hover:text-indigo-500 hover:underline">
+                                Hemen Kaydol
                             </a>
                         </p>
                     </div>

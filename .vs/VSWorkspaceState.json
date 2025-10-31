@@ -2,10 +2,7 @@
   "ExpandedNodes": [
     "",
     "\\client",
-    "\\client\\src",
-    "\\client\\src\\components",
-    "\\client\\src\\hooks"
+    "\\client\\src"
   ],
-  "SelectedNode": "\\client\\src\\TopluEvraklar.js",
   "PreviewInSolutionExplorer": false
 }
