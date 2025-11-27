@@ -77,17 +77,11 @@ Sayın Taşıyıcı Muhatap; ${firma_}, ${tarih} tarihinde ${seferNo} nolu sefer
         paragraphs.forEach((el, idx) => {
             const txt = el.textContent;
 
-            if (
-                txt.startsWith('Sayın Taşıyıcı Muhatap') &&
-                txt.includes('teslim edildiğini beyan edilmiştir')
-            ) {
+            if (txt.startsWith('Sayın Taşıyıcı Muhatap') && txt.includes('teslim edildiğini beyan edilmiştir')) {
                 el.style.fontSize = '10pt';
             }
 
-            if (
-                txt.includes('teslim edilmemesi nedeni') ||
-                txt.includes('KDV ödemeleri')
-            ) {
+            if (txt.includes('teslim edilmemesi nedeni') || txt.includes('KDV ödemeleri')) {
                 el.style.fontSize = '11pt';
             }
 
@@ -99,25 +93,16 @@ Sayın Taşıyıcı Muhatap; ${firma_}, ${tarih} tarihinde ${seferNo} nolu sefer
             }
         });
 
-        const finalInnerHTML = content.innerHTML.replace(/Tarih: (.*?)\nBeyan eden;\n(.*?)\n\nKaşe \/ İmza/g, (match, tarih, firma) => {
-            return `
-        <p style="font-size:11pt; font-family:'Times New Roman', serif;">
-            Tarih: ${tarih}<br />
-            Beyan eden; ${firma}<br /><br />
-            Kaşe / İmza
-        </p>
-    `;
-        });
+        const finalInnerHTML = content.innerHTML;
 
         const html = `
 <html>
-    <head><meta charset="utf-8"></head>
-    <body style="font-family: 'Times New Roman', serif;">
-        ${finalInnerHTML}
-    </body>
+<head><meta charset="utf-8"></head>
+<body style="font-family: 'Times New Roman', serif;">
+${finalInnerHTML}
+</body>
 </html>
 `;
-
 
         const docxBlob = htmlDocx.asBlob(html);
         saveAs(docxBlob, 'tutanak.docx');
@@ -153,11 +138,31 @@ Sayın Taşıyıcı Muhatap; ${firma_}, ${tarih} tarihinde ${seferNo} nolu sefer
 
     return (
         <div className="p-10 max-w-5xl mx-auto text-black bg-white rounded shadow">
+
+            {/* EXCEL PASTE */}
             <textarea
                 placeholder="Excel'den tek satır kopyalayın ve buraya yapıştırın"
                 onChange={handlePaste}
                 className="w-full p-4 border border-gray-300 rounded mb-6"
                 rows={4}
+            />
+
+            {/* AÇIKLAMA DÜZENLEME TEXTAREA */}
+            <textarea
+                value={aciklama}
+                onChange={(e) => setAciklama(e.target.value)}
+                className="w-full p-4 border border-gray-300 rounded mb-6"
+                rows={6}
+                placeholder="Açıklama metnini burada düzenleyebilirsiniz"
+            />
+
+            {/* SORUMLULUK DÜZENLEME TEXTAREA */}
+            <textarea
+                value={sorumluluk}
+                onChange={(e) => setSorumluluk(e.target.value)}
+                className="w-full p-4 border border-gray-300 rounded mb-6"
+                rows={5}
+                placeholder="Sorumluluk metnini burada düzenleyebilirsiniz"
             />
 
             <div className="flex gap-4 mb-6 flex-wrap">
@@ -167,7 +172,9 @@ Sayın Taşıyıcı Muhatap; ${firma_}, ${tarih} tarihinde ${seferNo} nolu sefer
                 <button onClick={handlePrint} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">🖨️ Yazdır</button>
             </div>
 
+            {/* GÖRÜNEN FORM (DEĞİŞMEYEN BÖLÜM) */}
             <div ref={contentRef} className="bg-white p-8 shadow print:shadow-none print:p-0 print:bg-white">
+
                 <h1 className="text-xl font-bold text-center mb-6">NAKLİYE SEFERİ BİLGİLENDİRME FORMU</h1>
 
                 <p><strong>İŞVEREN</strong>: ODAK TEDARİK ZİNCİRİ VE LOJİSTİK A.Ş.<br />
