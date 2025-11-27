@@ -160,6 +160,45 @@ export default function ExcelDonusum() {
     const printRef = useRef();
 
     // ==========================
+    // 📌 EXCEL'DEN YAPIŞTIRMA (CTRL + V)
+    // ==========================
+    React.useEffect(() => {
+        const handlePaste = (e) => {
+            let text = e.clipboardData.getData("text/plain");
+            if (!text) return;
+
+            // Excel satır-sütun ayrımı (TSV)
+            const parsed = text
+                .trim()
+                .split("\n")
+                .map((row) => row.split("\t"));
+
+            if (parsed.length === 0) return;
+
+            // İlk satır → başlık
+            const headerRow = parsed[0];
+
+            const newCols = headerRow.map((h, i) => ({
+                id: `col-${i}`,
+                name: h || `Sütun ${i + 1}`,
+                visible: true,
+            }));
+
+            // Diğer satırlar → data
+            const rowData = parsed.slice(1);
+
+            setColumns(newCols);
+            setRows(rowData);
+
+            alert("Excel'den veriler başarıyla yapıştırıldı.");
+        };
+
+        window.addEventListener("paste", handlePaste);
+        return () => window.removeEventListener("paste", handlePaste);
+    }, [setColumns, setRows]);
+
+
+    // ==========================
     // 📌 EXCEL YÜKLE
     // ==========================
     const handleFileUpload = (e) => {
@@ -205,6 +244,8 @@ export default function ExcelDonusum() {
             return arrayMove(cols, oldIndex, newIndex);
         });
     };
+
+
 
 
     // ==========================
