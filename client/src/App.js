@@ -14,6 +14,8 @@ import Tutanak from './Tutanak';
 import Raporlar from './Raporlar';
 import HedefKargo from './hedefKargo'; // ✅ BURAYA EKLENDİ
 import EvrakRaporlari from './EvrakRaporları';
+import ExcelDonusum from './ExcelDonusum';
+
 
 function App() {
     const [darkMode, toggleDarkMode] = useDarkMode();
@@ -35,6 +37,7 @@ function App() {
                     <Route path="/raporlar" element={<Raporlar />} />
                     <Route path="/hedef-kargo" element={<HedefKargo />} /> {/* ✅ HEDEF KARGO EKLENDİ */}
                     <Route path="/evrak-raporlari" element={<EvrakRaporlari />} /> {/* ✅ EVRAK RAPORLARI EKLENDİ */}
+                    <Route path="/ExcelDonusum" element={<ExcelDonusum />} /> 
                 </Routes>
             </Router>
         </div>

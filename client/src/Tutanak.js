@@ -197,13 +197,14 @@ ${finalInnerHTML}
 
                 <div className="mt-10 whitespace-pre-wrap" style={{ fontSize: '11pt', fontFamily: 'Times New Roman, serif' }}>
                     <p>
-                        Tarih: {today}{'\n'}
-                        Beyan eden;{'\n'}
-                        {firma || '---'}{'\n\n'}
+                        Tarih: {today}<br />
+                        Beyan eden;<br />
+                        {firma || '---'}<br /><br />
                         Kaşe / İmza
                     </p>
                 </div>
             </div>
+
         </div>
     );
 };

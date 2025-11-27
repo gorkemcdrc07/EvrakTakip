@@ -308,7 +308,7 @@ function Anasayfa() {
                                                 <div className="grid gap-2">
                                                     <Button onClick={() => window.open("/evrak-ekle", "_blank")} className="justify-start hover:text-indigo-600">📝 Evrak Ekle</Button>
                                                     <Button onClick={() => window.open("/toplu-evraklar", "_blank")} className="justify-start hover:text-indigo-600">📄 Tüm Evraklar</Button>
-                                                    <Button onClick={() => window.open("/tum-kargo-bilgileri", "_blank")} className="justify-start hover:text-indigo-600">📋 Tüm Kargo Bilgileri</Button>
+                                                    <Button onClick={() => window.open("/tum-kargo-bilgileri", "_blank")} className="justify-start hover:text-indigo-600">📋 Tüm Kargo Bilgileri</Button>        
                                                 </div>
                                             </SectionCard>
 
@@ -325,6 +325,10 @@ function Anasayfa() {
                                                 <div className="grid gap-2">
                                                     <Button onClick={() => window.open("/hedef-kargo", "_blank")} className="justify-start hover:text-indigo-600">🎯 Hedef Kargo</Button>
                                                     <Button onClick={() => window.open("/tutanak", "_blank")} className="justify-start hover:text-indigo-600">📝 Tutanak</Button>
+                                                    {/* ⭐ YENİ EKLENEN BUTON ⭐ */}
+                                                    <Button onClick={() => window.open("/ExcelDonusum", "_blank")} className="justify-start hover:text-indigo-600">
+                                                        📑 Excel & Word
+                                                    </Button>
                                                 </div>
                                             </SectionCard>
                                         </>
