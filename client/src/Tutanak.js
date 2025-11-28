@@ -188,27 +188,77 @@ ${finalInnerHTML}
             {/* GÖRÜNEN FORM (DEĞİŞMEYEN BÖLÜM) */}
             <div ref={contentRef} className="bg-white p-8 shadow print:shadow-none print:p-0 print:bg-white">
 
-                <h1 className="text-xl font-bold text-center mb-6">NAKLİYE SEFERİ BİLGİLENDİRME FORMU</h1>
+                <h1 className="text-xl font-bold text-center mb-6">
+                    NAKLİYE SEFERİ BİLGİLENDİRME FORMU
+                </h1>
 
-                <p><strong>İŞVEREN</strong>: ODAK TEDARİK ZİNCİRİ VE LOJİSTİK A.Ş.<br />
-                    Vergi Dairesi: ALEMDAĞ<br />
-                    Vergi No: 6340954050</p>
+                {/* İŞVEREN ve ŞİRKET BİLGİLERİ — YAN YANA */}
+                <div className="flex items-start gap-4 mb-2">
 
-                <p className="mt-4"><strong>TAŞIYICI</strong>: {firma || '---'}</p>
+                    {/* İŞVEREN + ALT ÇİZGİ (KELİME UZUNLUĞU KADAR) */}
+                    <div className="inline-block">
+                        <strong>İŞVEREN : </strong>
+                        <div className="border-b border-black w-full mt-[2px]"></div>
+                    </div>
 
-                <h2 className="mt-6 font-semibold text-lg">AÇIKLAMALAR</h2>
+                    {/* ŞİRKET BİLGİLERİ */}
+                    <p className="leading-tight">
+                        ODAK TEDARİK ZİNCİRİ VE LOJİSTİK A.Ş.<br />
+                        Vergi Dairesi: ALEMDAĞ<br />
+                        Vergi No: 6340954050
+                    </p>
+                </div>
+
+                <div className="mt-4 flex items-start gap-4">
+
+                    {/* TAŞIYICI + ALT ÇİZGİ */}
+                    <div className="inline-block">
+                        <strong>TAŞIYICI</strong>
+                        <div className="border-b border-black w-full mt-[2px]"></div>
+                    </div>
+
+                    {/* FİRMA ADI – KALIN + ALT ÇİZGİ */}
+                    <div className="inline-block">
+                        <strong>{firma || '---'}</strong>
+                        <div className="border-b border-black w-full mt-[2px]"></div>
+                    </div>
+
+                </div>
+
+
+                <div className="mt-6 inline-block">
+                    <h2 className="font-semibold text-lg inline-block">AÇIKLAMALAR  :</h2>
+                    <div className="border-b border-black w-full mt-[2px]"></div>
+                </div>
+
                 <p className="mt-2 whitespace-pre-wrap">{aciklama}</p>
 
                 <p className="mt-6 whitespace-pre-wrap">
-                    Karayolları Trafik Kanunu ve teamüller uyarınca; ‘’basiretli bir tacir olan taşıyan, verilen yük muhteviyatını, boşaltma/teslim adresine sağlam, eksiksiz ve sözleşmede belirlenen süre içerisinde teslim etmekle ve her bir sevkiyat için Taşıtan'ın irsaliye ofislerinden taşıma irsaliyesini almakla yükümlüdür. Yükleme tamamlandıktan sonra bu irsaliyenin bir nüshası kesilecek olan nakliye faturasına eklenir ve Taşıtan yetkililerine teslim edilir. Teslimat esnasında, Taşıtan'ın müşterisine ait “sevk irsaliyelerinin alt nüshaları yükün tam ve eksiksiz teslim alındığına dair kaşe ve imza yaptırılmak zorundadır. Kaşe imza eksik olan seferlerin, Taşıtanının müşterisine ait sevk irsaliyesi veya Taşıtan'a ait taşıma irsaliyesi eksik olan seferlerin bakiyesi ödenmez.’’
-
-                    İşbu nedenle, tarafınızca taşıması yapılan yukarıda sefer bilgisi verilen taşımaya ilişkin teslim evraklarının tarafımıza teslim edilmemesi nedeni ile KDV ödemeleriniz yapılamamaktadır. Teslim evraklarının 3 (üç) gün içerisinde tarafımıza teslimi ya da evrakların temin edilememesi/kaybolması durumunda oluşabilecek zararlarla ilgili sorumluluğun kendinizde olduğuna ilişkin ekteki tutanağın imzalanarak tarafımıza teslimi durumunda KDV ödemeleri tarafımızca yapılacaktır.
+                    Karayolları Trafik Kanunu ve teamüller uyarınca; ‘’basiretli bir tacir olan taşıyan,
+                    verilen yük muhteviyatını, boşaltma/teslim adresine sağlam, eksiksiz ve sözleşmede belirlenen
+                    süre içerisinde teslim etmekle ve her bir sevkiyat için Taşıtan'ın irsaliye ofislerinden
+                    taşıma irsaliyesini almakla yükümlüdür. Yükleme tamamlandıktan sonra bu irsaliyenin bir
+                    nüshası kesilecek olan nakliye faturasına eklenir ve Taşıtan yetkililerine teslim edilir.
+                    Teslimat esnasında, Taşıtan'ın müşterisine ait “sevk irsaliyelerinin alt nüshaları yükün tam
+                    ve eksiksiz teslim alındığına dair kaşe ve imza yaptırılmak zorundadır. Kaşe imza eksik olan
+                    seferlerin, Taşıtanının müşterisine ait sevk irsaliyesi veya Taşıtan'a ait taşıma irsaliyesi
+                    eksik olan seferlerin bakiyesi ödenmez.’’
+                    <br /><br />
+                    İşbu nedenle, tarafınızca taşıması yapılan yukarıda sefer bilgisi verilen taşımaya ilişkin
+                    teslim evraklarının tarafımıza teslim edilmemesi nedeni ile KDV ödemeleriniz yapılamamaktadır.
+                    Teslim evraklarının 3 (üç) gün içerisinde tarafımıza teslimi ya da evrakların
+                    temin edilememesi/kaybolması durumunda oluşabilecek zararlarla ilgili sorumluluğun kendinizde
+                    olduğuna ilişkin ekteki tutanağın imzalanarak tarafımıza teslimi durumunda KDV ödemeleri
+                    tarafımızca yapılacaktır.
                 </p>
 
                 <h2 className="mt-8 font-semibold text-lg">SORUMLULUK BEYANI</h2>
                 <p className="mt-2 whitespace-pre-wrap">{sorumluluk}</p>
 
-                <div className="mt-10 whitespace-pre-wrap" style={{ fontSize: '11pt', fontFamily: 'Times New Roman, serif' }}>
+                <div
+                    className="mt-10 whitespace-pre-wrap"
+                    style={{ fontSize: '11pt', fontFamily: 'Times New Roman, serif' }}
+                >
                     <p>
                         Tarih: {today}<br />
                         Beyan eden;<br />
@@ -217,6 +267,7 @@ ${finalInnerHTML}
                     </p>
                 </div>
             </div>
+
 
         </div>
     );
