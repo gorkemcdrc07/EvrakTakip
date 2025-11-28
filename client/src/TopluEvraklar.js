@@ -431,6 +431,102 @@ function TopluEvraklar() {
         XLSX.writeFile(wb, 'Toplu_Evraklar_Rapor.xlsx');
     };
 
+    const exportFilteredExcel = () => {
+        // 1) Tüm açıklama türlerini topla
+        const allAciklamalar = new Set();
+        filteredEvraklar.forEach((evrak) => {
+            evrak.evrakseferler?.forEach((s) => {
+                if (s.aciklama && s.aciklama.trim()) {
+                    allAciklamalar.add(s.aciklama.trim());
+                }
+            });
+        });
+
+        const aciklamaListesi = [...allAciklamalar];
+
+        // Başlıklar
+        const headers = ["TARİH", "LOKASYON", "TOPLAM SEFER", ...aciklamaListesi];
+        const sheetData = [headers];
+
+        // 2) Verileri toplu şekilde ekle
+        filteredEvraklar.forEach((evrak) => {
+            const tarih = new Date(evrak.tarih).toLocaleDateString("tr-TR");
+            const lokasyon = lokasyonlar[evrak.lokasyonid] || "—";
+            const toplamSefer = evrak.sefersayisi || 0;
+
+            const counter = {};
+            aciklamaListesi.forEach((a) => (counter[a] = 0));
+
+            evrak.evrakseferler?.forEach((s) => {
+                const a = (s.aciklama || "").trim();
+                if (counter[a] !== undefined) counter[a]++;
+            });
+
+            sheetData.push([
+                tarih,
+                lokasyon,
+                toplamSefer,
+                ...aciklamaListesi.map((a) => counter[a]),
+            ]);
+        });
+
+        // 3) Çalışma sayfasını oluştur
+        const ws = XLSX.utils.aoa_to_sheet(sheetData);
+
+        // KOLON GENİŞLİKLERİ (daha güzel görünüm için)
+        ws["!cols"] = headers.map((h) => ({ wch: Math.max(20, h.length + 5) }));
+
+        // TASARIM STİLLERİ
+        const border = {
+            top: { style: "thin", color: { rgb: "999999" } },
+            bottom: { style: "thin", color: { rgb: "999999" } },
+            left: { style: "thin", color: { rgb: "999999" } },
+            right: { style: "thin", color: { rgb: "999999" } },
+        };
+
+        const headerStyle = {
+            font: { bold: true, color: { rgb: "ffffff" } },
+            fill: { fgColor: { rgb: "1E3A8A" } }, // koyu lacivert
+            alignment: { horizontal: "center", vertical: "center" },
+            border,
+        };
+
+        const rowLight = {
+            fill: { fgColor: { rgb: "F3F4F6" } },
+            border,
+        };
+
+        const rowDark = {
+            fill: { fgColor: { rgb: "E5E7EB" } },
+            border,
+        };
+
+        // TÜM HÜCRELERE STİL UYGULA
+        const range = XLSX.utils.decode_range(ws["!ref"]);
+        for (let R = range.s.r; R <= range.e.r; R++) {
+            for (let C = range.s.c; C <= range.e.c; C++) {
+                const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+                const cell = ws[cellRef];
+                if (!cell) continue;
+
+                // Header satırı
+                if (R === 0) {
+                    cell.s = headerStyle;
+                } else {
+                    // Zebra görünüm
+                    cell.s = R % 2 === 0 ? rowDark : rowLight;
+                }
+            }
+        }
+
+        // 4) Çalışma kitabı oluştur
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Detay Rapor");
+
+        XLSX.writeFile(wb, "Detay_Rapor.xlsx");
+    };
+
+
     const exportEvrakToExcel = (evrak) => {
         const tarih = new Date(evrak.tarih).toLocaleDateString('tr-TR');
         const lokasyon = lokasyonlar[evrak.lokasyonid] || 'Bilinmeyen Lokasyon';
@@ -649,6 +745,13 @@ function TopluEvraklar() {
                             <FiFile size={18} />
                             Excel'e Aktar
                         </button>
+                        <button
+                            onClick={exportFilteredExcel}
+                            className="flex items-center gap-2 h-[40px] px-4 rounded-md bg-purple-600 hover:bg-purple-700 text-white font-semibold"
+                        >
+                            📄 Detay Excel
+                        </button>
+
                     </div>
 
                     {/* Ana içerik */}
