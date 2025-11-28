@@ -23,35 +23,48 @@ const Tutanak = () => {
     const handlePaste = (e) => {
         const raw = e.target.value.trim();
         const delimiter = raw.includes('\t') ? '\t' : ';';
-        const cells = raw.split(delimiter);
+        const lines = raw.split("\n");
 
-        if (cells.length < 66) {
-            alert('Yapıştırılan veri eksik gibi görünüyor.');
+        if (lines.length < 2) {
+            alert("Lütfen başlık satırı + veri satırını birlikte yapıştırın.");
             return;
         }
 
-        const firma_ = cells[0]?.trim();
-        const tarih = cells[4]?.trim();
-        const seferNo = cells[7]?.trim();
-        const musteriAdi = cells[11]?.trim();
-        const yuklemeYeri = cells[65]?.trim();
-        const aliciFirma = cells[3]?.trim();
-        const teslimIlce = cells[18]?.trim();
-        const plaka1 = cells[16]?.trim();
-        const plaka2 = cells[31]?.trim();
-        const tckn = cells[26]?.trim();
-        const surucuAd = cells[27]?.trim();
-        const irsaliye = cells[6]?.trim();
+        // 1. satır = Başlıklar
+        const headers = lines[0].split(delimiter).map(h => h.trim());
+
+        // 2. satır = Veriler
+        const values = lines[1].split(delimiter).map(v => v.trim());
+
+        // Başlık → Değer eşleşmesi
+        const row = {};
+        headers.forEach((h, i) => {
+            row[h] = values[i] || "";
+        });
+
+        // Burada artık BAŞLIKLARA GÖRE çekiyorsun
+        const firma_ = row["Tedarikçi Firma"];
+        const aliciFirma = row["Teslim Alan Firma"];
+        const tarih = row["Sefer Tarihi"];
+        const irsaliye = row["İrsaliye No"];
+        const seferNo = row["Sefer No"];
+        const musteriAdi = row["Müşteri Adı"];
+        const plaka1 = row["Plaka"];
+        const plaka2 = row["Treyler"];
+        const teslimIlce = row["Teslim Yeri"];
+        const tckn = row["Sürücü TCKN"];
+        const surucuAd = row["Sürücü Ad Soyad"];
+        const yuklemeYeri = row["Yükleme Yeri"];
 
         const aciklamaMetni = `
 Sayın Taşıyıcı Muhatap; ${firma_}, ${tarih} tarihinde ${seferNo} nolu sefer numaralı ${musteriAdi}, ${yuklemeYeri}’dan yükleyip ${aliciFirma}, ${teslimIlce}’ya ulaştırılması amacıyla ${plaka1}/${plaka2} Plakalı araç sürücüsü ${surucuAd} (TCKN: ${tckn}) Tedarikçi firma ${firma_}, ${irsaliye} nolu irsaliyeli fatura ile taşınan ürünlerin teslim edildiğini beyan edilmiştir. Ancak teslime ilişkin evraklar bugüne kadar tarafımıza ibraz edilmemiştir.
-        `.trim();
+`.trim();
 
         const sorumlulukMetni = `
 ODAK TEDARİK ZİNCİRİ VE LOJİSTİK A.Ş.’ne
 
 Sayın Taşıyıcı Muhatap; ${firma_}, ${tarih} tarihinde ${seferNo} nolu sefer numaralı ${musteriAdi}, ${yuklemeYeri}’dan yükleyip ${aliciFirma}, ${teslimIlce}’ya ulaştırılması amacıyla ${plaka1}/${plaka2} Plakalı araç sürücüsü ${surucuAd} (TCKN: ${tckn}) Tedarikçi firma ${firma_}, ${irsaliye} irsaliyeli fatura ile teslim edilmiştir.
-        `.trim();
+`.trim();
 
         setFirma(firma_);
         setAciklama(aciklamaMetni);
