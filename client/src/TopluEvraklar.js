@@ -318,15 +318,6 @@ function TopluEvraklar() {
         }
     };
 
-    const aciklamaVerileri = () => {
-        const counts = {};
-        evraklar.forEach((evrak) => {
-            evrak.evrakseferler?.forEach((sefer) => {
-                counts[sefer.aciklama] = (counts[sefer.aciklama] || 0) + 1;
-            });
-        });
-        return Object.entries(counts).map(([name, value]) => ({ name, value }));
-    };
 
     const lokasyonBazliAciklamaVerileri = () => {
         const sonuc = {};
@@ -548,6 +539,23 @@ function TopluEvraklar() {
 
         return tarihMatch && lokasyonMatch && projeMatch && aciklamaMatch && seferNoMatch;
     });
+    // FILTRELENMIŞ AÇIKLAMALAR
+    const filteredAciklamaVerileri = () => {
+        const counts = {};
+        filteredEvraklar.forEach((evrak) => {
+            evrak.evrakseferler?.forEach((sefer) => {
+                const key = sefer.aciklama || '(Boş)';
+                counts[key] = (counts[key] || 0) + 1;
+            });
+        });
+        return Object.entries(counts).map(([name, value]) => ({ name, value }));
+    };
+
+    // FILTRELENMIŞ TOPLAM SEFER
+    const filteredToplamSefer = filteredEvraklar.reduce(
+        (sum, evrak) => sum + (evrak.sefersayisi || 0),
+        0
+    );
 
     // panel için bağımlı seçenekler
     const candidateEvraklar = useMemo(() => {
@@ -649,8 +657,8 @@ function TopluEvraklar() {
                         {!showFilters && (
                             <ModernSummary
                                 title="Açıklama Dağılımı"
-                                data={aciklamaVerileri()}
-                                total={toplamSefer}
+                                data={filteredAciklamaVerileri()}
+                                total={filteredToplamSefer}
                                 onCardClick={openCardPanel}
                             />
                         )}

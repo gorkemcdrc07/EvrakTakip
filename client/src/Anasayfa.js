@@ -17,13 +17,14 @@ import {
 } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
 
-// UI Yardımcı Bileşenler (Değişmedi)
+// --- UI YARDIMCI BİLEŞENLER (İyileştirilmiş) ---
+
 const Button = ({ children, className = "", primary = false, ...props }) => {
     const baseStyle =
-        "px-4 py-2 rounded-xl font-medium shadow-sm hover:shadow-md transition-all duration-200 border border-black/5 dark:border-white/10 text-sm";
+        "px-4 py-2 rounded-xl font-medium shadow-sm hover:shadow-lg transition-all duration-200 border border-black/5 dark:border-white/10 text-sm";
     const defaultStyle = "bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-700";
     const primaryStyle =
-        "bg-gradient-to-r from-indigo-500 to-cyan-500 text-white shadow-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/40 border-transparent";
+        "bg-gradient-to-r from-indigo-500 to-cyan-500 text-white shadow-indigo-500/40 hover:shadow-xl hover:shadow-indigo-500/50 border-transparent";
 
     return (
         <button
@@ -35,9 +36,10 @@ const Button = ({ children, className = "", primary = false, ...props }) => {
     );
 };
 
+// Card Bileşeni: Daha belirgin bir gölge ve blur
 const Card = ({ children, className = "" }) => (
     <div
-        className={`rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-white/70 dark:bg-gray-900/50 shadow-xl backdrop-blur-md p-6 ${className}`}
+        className={`rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-white/70 dark:bg-gray-900/50 shadow-2xl dark:shadow-black/50 backdrop-blur-md p-6 ${className}`}
     >
         {children}
     </div>
@@ -57,7 +59,6 @@ const Select = ({ value, onChange, options, className = "" }) => (
     </select>
 );
 
-// Küçük “section” başlığı
 const SectionTitle = ({ icon, children }) => (
     <div className="flex items-center gap-2 mb-3 text-xs uppercase font-bold text-indigo-500 dark:text-cyan-400 tracking-wider">
         <span className="text-base">{icon}</span>
@@ -65,13 +66,13 @@ const SectionTitle = ({ icon, children }) => (
     </div>
 );
 
-// Bölüm kartı (yan menü grupları için)
 const SectionCard = ({ children }) => (
     <div className="rounded-xl border border-black/5 dark:border-white/10 bg-white/70 dark:bg-gray-900/60 shadow-sm p-4">
         {children}
     </div>
 );
 
+// --- ANA BİLEŞEN ---
 
 function Anasayfa() {
     const navigate = useNavigate();
@@ -91,13 +92,11 @@ function Anasayfa() {
     const [firmalar, setFirmalar] = useState(["Hepsi"]);
     const [selectedFirma, setSelectedFirma] = useState("Hepsi");
 
-    // --- ROL TANIMLARI GÜNCELLENDİ ---
+    // --- ROL TANIMLARI ---
     const isRefika = username === "refika";
-
-    // yaren, ozge VE mehmet yöneticidir/aynı ekranları görür.
     const isAdminOrManager = username === "yaren" || username === "ozge" || username === "mehmet";
 
-    // --- THEME & LOGOUT (Değişmedi) ---
+    // --- THEME & LOGOUT ---
     useEffect(() => {
         document.documentElement.classList.toggle("dark", darkMode);
     }, [darkMode]);
@@ -113,7 +112,7 @@ function Anasayfa() {
         navigate("/login");
     };
 
-    // --- DATA FETCHING (Değişmedi) ---
+    // --- DATA FETCHING (Firmalar) ---
     useEffect(() => {
         (async () => {
             try {
@@ -136,6 +135,7 @@ function Anasayfa() {
         })();
     }, []);
 
+    // --- DATA FETCHING (Günlük Veri) ---
     useEffect(() => {
         (async () => {
             setLoading(true);
@@ -170,19 +170,14 @@ function Anasayfa() {
                     .lte("tarih", today.toISOString().split("T")[0]);
 
                 if (selectedFirma !== "Hepsi") {
+                    // Supabase'de case-insensitive arama için 'ilike' kullanıyoruz.
                     query = query.ilike("kargo_firmasi", selectedFirma);
                 }
 
                 const { data, error } = await query;
                 if (error) throw error;
 
-                (data ?? []).forEach(({ tarih, evrak_adedi, kargo_firmasi }) => {
-                    if (
-                        selectedFirma !== "Hepsi" &&
-                        (kargo_firmasi ?? "").toUpperCase() !== selectedFirma.toUpperCase()
-                    ) {
-                        return;
-                    }
+                (data ?? []).forEach(({ tarih, evrak_adedi }) => {
                     if (dayMap[tarih]) {
                         if (metric === "kargo") dayMap[tarih].count += 1;
                         else dayMap[tarih].count += evrak_adedi || 0;
@@ -203,7 +198,9 @@ function Anasayfa() {
         [dailyData]
     );
 
-    // Recharts Chart Bileşeni (Değişmedi)
+    const metricLabel = metric === "kargo" ? "Kargo" : "Evrak";
+
+    // --- Recharts Chart Bileşeni ---
     const Chart = () => {
         const ChartComp =
             chartType === "bar" ? BarChart : chartType === "line" ? LineChart : AreaChart;
@@ -212,7 +209,6 @@ function Anasayfa() {
                 <ChartComp data={dailyData} margin={{ top: 10, right: 24, bottom: 0, left: 0 }}>
                     <defs>
                         <linearGradient id="mainGrad" x1="0" y1="0" x2="0" y2="1">
-                            {/* Ana gradyan: İndigo'dan Cyan'a */}
                             <stop offset="0%" stopColor="#6366f1" stopOpacity={0.9} />
                             <stop offset="100%" stopColor="#06b6d4" stopOpacity={0.6} />
                         </linearGradient>
@@ -222,13 +218,13 @@ function Anasayfa() {
                     <YAxis allowDecimals={false} tick={{ fill: darkMode ? "#9ca3af" : "#6b7280", fontSize: 12 }} />
                     <Tooltip
                         contentStyle={{
-                            background: darkMode ? "rgba(31, 41, 55, 0.9)" : "rgba(255, 255, 255, 0.9)", // Dark mode'da daha şık bir arka plan
+                            background: darkMode ? "rgba(31, 41, 55, 0.9)" : "rgba(255, 255, 255, 0.9)",
                             border: `1px solid ${darkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"}`,
                             borderRadius: 12,
                             backdropFilter: "blur(8px)",
                         }}
                         labelStyle={{ color: darkMode ? "#f3f4f6" : "#1f2937", fontWeight: "bold" }}
-                        itemStyle={{ color: "#06b6d4" }} // Grafiğin rengini yansıt
+                        formatter={(value) => [`${value} ${metricLabel}`, "Toplam"]}
                     />
                     {chartType === "bar" && (
                         <Bar dataKey="count" fill="url(#mainGrad)" radius={[8, 8, 0, 0]} />
@@ -248,7 +244,7 @@ function Anasayfa() {
         <Layout>
             <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-indigo-50/70 via-white/80 to-cyan-100/70 dark:from-gray-950 dark:via-gray-900 dark:to-gray-800 text-gray-900 dark:text-gray-100">
 
-                {/* TOP BAR (Değişmedi) */}
+                {/* TOP BAR */}
                 <div className="sticky top-0 z-40 backdrop-blur-md bg-white/80 dark:bg-gray-900/70 border-b border-black/5 dark:border-white/10 shadow-lg shadow-black/5 dark:shadow-black/20">
                     <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -273,87 +269,97 @@ function Anasayfa() {
                     </div>
                 </div>
 
-                {/* SIDE DRAWER */}
+                {/* SIDE DRAWER (Menu) */}
                 <AnimatePresence>
                     {menuOpen && (
-                        <motion.aside
-                            initial={{ x: -320, opacity: 0 }}
-                            animate={{ x: 0, opacity: 1 }}
-                            exit={{ x: -320, opacity: 0 }}
-                            transition={{ type: "spring", stiffness: 120, damping: 18 }}
-                            className="fixed top-0 left-0 h-full w-80 p-4 z-50 pt-[70px]"
-                        >
-                            <div className="rounded-2xl h-full p-5 border border-black/5 dark:border-white/10 bg-white/90 dark:bg-gray-900/90 shadow-2xl backdrop-blur-lg flex flex-col">
-                                <div className="flex items-center justify-between mb-5">
-                                    <div className="text-lg font-bold text-gray-700 dark:text-gray-200">Menü</div>
-                                    <Button onClick={() => setMenuOpen(false)} className="text-lg w-8 h-8 flex items-center justify-center">
-                                        ✖
-                                    </Button>
+                        <>
+                            {/* Overlay/Perde */}
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => setMenuOpen(false)}
+                                className="fixed inset-0 bg-black/50 z-40 lg:hidden cursor-pointer"
+                            />
+
+                            <motion.aside
+                                initial={{ x: -320, opacity: 0 }}
+                                animate={{ x: 0, opacity: 1 }}
+                                exit={{ x: -320, opacity: 0 }}
+                                transition={{ type: "spring", stiffness: 120, damping: 18 }}
+                                className="fixed top-0 left-0 h-full w-80 p-4 z-50 pt-[70px]"
+                            >
+                                <div className="rounded-2xl h-full p-5 border border-black/5 dark:border-white/10 bg-white/90 dark:bg-gray-900/90 shadow-2xl backdrop-blur-lg flex flex-col">
+                                    <div className="flex items-center justify-between mb-5">
+                                        <div className="text-lg font-bold text-gray-700 dark:text-gray-200">Menü</div>
+                                        <Button onClick={() => setMenuOpen(false)} className="text-lg w-8 h-8 flex items-center justify-center">
+                                            ✖
+                                        </Button>
+                                    </div>
+
+                                    {/* Menü grupları: YÖNETİCİ/ADMİN GRUPLARI */}
+                                    <div className="flex-1 overflow-y-auto pr-2 space-y-5">
+                                        {isAdminOrManager && (
+                                            <>
+                                                <SectionCard>
+                                                    <SectionTitle icon="🗂️">Navigasyon</SectionTitle>
+                                                    <div className="grid gap-2">
+                                                        <Button onClick={() => window.open("/lokasyonlar", "_blank")} className="justify-start hover:text-indigo-600">📍 Lokasyonlar</Button>
+                                                        <Button onClick={() => window.open("/projeler", "_blank")} className="justify-start hover:text-indigo-600">📁 Projeler</Button>
+                                                    </div>
+                                                </SectionCard>
+
+                                                <SectionCard>
+                                                    <SectionTitle icon="📄">Evrak İşlemleri</SectionTitle>
+                                                    <div className="grid gap-2">
+                                                        <Button onClick={() => window.open("/evrak-ekle", "_blank")} className="justify-start hover:text-indigo-600">📝 Evrak Ekle</Button>
+                                                        <Button onClick={() => window.open("/toplu-evraklar", "_blank")} className="justify-start hover:text-indigo-600">📄 Tüm Evraklar</Button>
+                                                        <Button onClick={() => window.open("/tum-kargo-bilgileri", "_blank")} className="justify-start hover:text-indigo-600">📋 Tüm Kargo Bilgileri</Button>
+                                                    </div>
+                                                </SectionCard>
+
+                                                <SectionCard>
+                                                    <SectionTitle icon="📊">Raporlama</SectionTitle>
+                                                    <div className="grid gap-2">
+                                                        <Button onClick={() => window.open("/evrak-raporlari", "_blank")} className="justify-start hover:text-indigo-600">📑 Evrak Raporları</Button>
+                                                        <Button onClick={() => window.open("/raporlar", "_blank")} className="justify-start hover:text-indigo-600">📈 Reel Raporları</Button>
+                                                    </div>
+                                                </SectionCard>
+
+                                                <SectionCard>
+                                                    <SectionTitle icon="🧩">Diğer</SectionTitle>
+                                                    <div className="grid gap-2">
+                                                        <Button onClick={() => window.open("/hedef-kargo", "_blank")} className="justify-start hover:text-indigo-600">🎯 Hedef Kargo</Button>
+                                                        <Button onClick={() => window.open("/tutanak", "_blank")} className="justify-start hover:text-indigo-600">📝 Tutanak</Button>
+                                                        <Button onClick={() => window.open("/ExcelDonusum", "_blank")} className="justify-start hover:text-indigo-600">
+                                                            📑 Excel & Word
+                                                        </Button>
+                                                    </div>
+                                                </SectionCard>
+                                            </>
+                                        )}
+
+                                        {/* REFİKA GRUPLARI */}
+                                        {isRefika && (
+                                            <SectionCard>
+                                                <SectionTitle icon="📦">Kargo</SectionTitle>
+                                                <div className="grid gap-2">
+                                                    <Button onClick={() => window.open("/kargo-bilgisi-ekle", "_blank")} className="justify-start hover:text-indigo-600">📦 Kargo Bilgisi Ekle</Button>
+                                                    <Button onClick={() => window.open("/tum-kargo-bilgileri", "_blank")} className="justify-start hover:text-indigo-600">📋 Tüm Kargo Bilgileri</Button>
+                                                </div>
+                                            </SectionCard>
+                                        )}
+                                    </div>
+                                    <div className="mt-4 text-xs text-gray-500 dark:text-gray-400 border-t pt-3 border-gray-200 dark:border-gray-700">
+                                        Giriş Kullanıcısı: <span className="font-medium text-gray-700 dark:text-gray-300">{username || "-"}</span>
+                                    </div>
                                 </div>
-
-                                {/* Menü grupları: YÖNETİCİ/ADMİN GRUPLARI GÜNCELLENDİ (isAdminOrManager) */}
-                                <div className="flex-1 overflow-y-auto pr-2 space-y-5">
-                                    {isAdminOrManager && (
-                                        <>
-                                            <SectionCard>
-                                                <SectionTitle icon="🗂️">Navigasyon</SectionTitle>
-                                                <div className="grid gap-2">
-                                                    <Button onClick={() => window.open("/lokasyonlar", "_blank")} className="justify-start hover:text-indigo-600">📍 Lokasyonlar</Button>
-                                                    <Button onClick={() => window.open("/projeler", "_blank")} className="justify-start hover:text-indigo-600">📁 Projeler</Button>
-                                                </div>
-                                            </SectionCard>
-
-                                            <SectionCard>
-                                                <SectionTitle icon="📄">Evrak İşlemleri</SectionTitle>
-                                                <div className="grid gap-2">
-                                                    <Button onClick={() => window.open("/evrak-ekle", "_blank")} className="justify-start hover:text-indigo-600">📝 Evrak Ekle</Button>
-                                                    <Button onClick={() => window.open("/toplu-evraklar", "_blank")} className="justify-start hover:text-indigo-600">📄 Tüm Evraklar</Button>
-                                                    <Button onClick={() => window.open("/tum-kargo-bilgileri", "_blank")} className="justify-start hover:text-indigo-600">📋 Tüm Kargo Bilgileri</Button>        
-                                                </div>
-                                            </SectionCard>
-
-                                            <SectionCard>
-                                                <SectionTitle icon="📊">Raporlama</SectionTitle>
-                                                <div className="grid gap-2">
-                                                    <Button onClick={() => window.open("/evrak-raporlari", "_blank")} className="justify-start hover:text-indigo-600">📑 Evrak Raporları</Button>
-                                                    <Button onClick={() => window.open("/raporlar", "_blank")} className="justify-start hover:text-indigo-600">📈 Reel Raporları</Button>
-                                                </div>
-                                            </SectionCard>
-
-                                            <SectionCard>
-                                                <SectionTitle icon="🧩">Diğer</SectionTitle>
-                                                <div className="grid gap-2">
-                                                    <Button onClick={() => window.open("/hedef-kargo", "_blank")} className="justify-start hover:text-indigo-600">🎯 Hedef Kargo</Button>
-                                                    <Button onClick={() => window.open("/tutanak", "_blank")} className="justify-start hover:text-indigo-600">📝 Tutanak</Button>
-                                                    {/* ⭐ YENİ EKLENEN BUTON ⭐ */}
-                                                    <Button onClick={() => window.open("/ExcelDonusum", "_blank")} className="justify-start hover:text-indigo-600">
-                                                        📑 Excel & Word
-                                                    </Button>
-                                                </div>
-                                            </SectionCard>
-                                        </>
-                                    )}
-
-                                    {/* REFİKA GRUPLARI (Değişmedi) */}
-                                    {isRefika && (
-                                        <SectionCard>
-                                            <SectionTitle icon="📦">Kargo</SectionTitle>
-                                            <div className="grid gap-2">
-                                                <Button onClick={() => window.open("/kargo-bilgisi-ekle", "_blank")} className="justify-start hover:text-indigo-600">📦 Kargo Bilgisi Ekle</Button>
-                                                <Button onClick={() => window.open("/tum-kargo-bilgileri", "_blank")} className="justify-start hover:text-indigo-600">📋 Tüm Kargo Bilgileri</Button>
-                                            </div>
-                                        </SectionCard>
-                                    )}
-                                </div>
-                                <div className="mt-4 text-xs text-gray-500 dark:text-gray-400 border-t pt-3 border-gray-200 dark:border-gray-700">
-                                    Giriş Kullanıcısı: <span className="font-medium text-gray-700 dark:text-gray-300">{username || "-"}</span>
-                                </div>
-                            </div>
-                        </motion.aside>
+                            </motion.aside>
+                        </>
                     )}
                 </AnimatePresence>
 
-                {/* CONTENT: Ana içerik gösterimi GÜNCELLENDİ (refika VEYA yönetici ise göster) */}
+                {/* CONTENT: Ana içerik gösterimi */}
                 <main className="mx-auto max-w-7xl px-4 py-6">
                     {(isRefika || isAdminOrManager) && (
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
@@ -366,42 +372,48 @@ function Anasayfa() {
                                 </p>
                             </Card>
 
-                            {/* Stats Cards */}
+                            {/* Stats Cards (Animasyon Eklendi) */}
                             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mt-6">
                                 {/* İstatistik Kart 1 */}
-                                <Card className="border-l-4 border-cyan-500 hover:shadow-cyan-500/20 transition-shadow">
-                                    <div className="text-sm uppercase tracking-wider font-semibold text-gray-500 dark:text-gray-400">
-                                        Bugünkü Kargo (Örnek)
-                                    </div>
-                                    <div className="mt-2 flex items-center gap-3 text-3xl font-extrabold text-cyan-600 dark:text-cyan-400">
-                                        <span className="text-4xl">📦</span> 12
-                                    </div>
-                                </Card>
+                                <motion.div whileHover={{ scale: 1.02 }} transition={{ type: "spring", stiffness: 300 }}>
+                                    <Card className="border-l-4 border-cyan-500 hover:shadow-cyan-500/20 transition-shadow">
+                                        <div className="text-sm uppercase tracking-wider font-semibold text-gray-500 dark:text-gray-400">
+                                            Bugünkü Kargo (Örnek)
+                                        </div>
+                                        <div className="mt-2 flex items-center gap-3 text-3xl font-extrabold text-cyan-600 dark:text-cyan-400">
+                                            <span className="text-4xl">📦</span> 12
+                                        </div>
+                                    </Card>
+                                </motion.div>
 
                                 {/* İstatistik Kart 2 */}
-                                <Card className="border-l-4 border-indigo-500 hover:shadow-indigo-500/20 transition-shadow">
-                                    <div className="text-sm uppercase tracking-wider font-semibold text-gray-500 dark:text-gray-400">
-                                        Toplam Firma
-                                    </div>
-                                    <div className="mt-2 flex items-center gap-3 text-3xl font-extrabold text-indigo-600 dark:text-indigo-400">
-                                        <span className="text-4xl">🏢</span> {Math.max(0, firmalar.length - 1)}
-                                    </div>
-                                </Card>
+                                <motion.div whileHover={{ scale: 1.02 }} transition={{ type: "spring", stiffness: 300 }}>
+                                    <Card className="border-l-4 border-indigo-500 hover:shadow-indigo-500/20 transition-shadow">
+                                        <div className="text-sm uppercase tracking-wider font-semibold text-gray-500 dark:text-gray-400">
+                                            Toplam Firma
+                                        </div>
+                                        <div className="mt-2 flex items-center gap-3 text-3xl font-extrabold text-indigo-600 dark:text-indigo-400">
+                                            <span className="text-4xl">🏢</span> {Math.max(0, firmalar.length - 1)}
+                                        </div>
+                                    </Card>
+                                </motion.div>
 
                                 {/* İstatistik Kart 3 */}
-                                <Card className="border-l-4 border-purple-500 hover:shadow-purple-500/20 transition-shadow">
-                                    <div className="text-sm uppercase tracking-wider font-semibold text-gray-500 dark:text-gray-400">
-                                        Kullanıcı Rolü
-                                    </div>
-                                    <div className="mt-2 flex items-center gap-3 text-3xl font-extrabold text-purple-600 dark:text-purple-400">
-                                        <span className="text-4xl">👤</span> {adSoyad}
-                                    </div>
-                                </Card>
+                                <motion.div whileHover={{ scale: 1.02 }} transition={{ type: "spring", stiffness: 300 }}>
+                                    <Card className="border-l-4 border-purple-500 hover:shadow-purple-500/20 transition-shadow">
+                                        <div className="text-sm uppercase tracking-wider font-semibold text-gray-500 dark:text-gray-400">
+                                            Kullanıcı Rolü
+                                        </div>
+                                        <div className="mt-2 flex items-center gap-3 text-3xl font-extrabold text-purple-600 dark:text-purple-400">
+                                            <span className="text-4xl">👤</span> {adSoyad}
+                                        </div>
+                                    </Card>
+                                </motion.div>
                             </div>
 
                             {/* Controls */}
                             <div className="mt-6 flex flex-col gap-4">
-                                <Card className="p-4 flex flex-wrap items-center gap-4">
+                                <Card className="p-4 flex flex-wrap items-center justify-between gap-4">
                                     <h3 className="text-lg font-bold text-gray-700 dark:text-gray-200 min-w-[80px]">Filtreler:</h3>
 
                                     <div className="flex items-center gap-2">
@@ -414,7 +426,7 @@ function Anasayfa() {
                                         <Select value={selectedFirma} onChange={setSelectedFirma} options={firmalar} />
                                     </div>
 
-                                    <div className="ml-auto flex gap-2">
+                                    <div className="flex gap-2 ml-auto">
                                         <Button
                                             onClick={() => setChartType("bar")}
                                             className={chartType === "bar" ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300" : ""}
@@ -455,13 +467,15 @@ function Anasayfa() {
                                                 initial={{ opacity: 0 }}
                                                 animate={{ opacity: 1 }}
                                                 exit={{ opacity: 0 }}
-                                                className="absolute inset-0 h-full w-full rounded-xl p-4 bg-gray-100/50 dark:bg-gray-800/50 flex items-center justify-center"
+                                                className="absolute inset-0 h-full w-full rounded-xl p-4 bg-gray-100/50 dark:bg-gray-800/50 flex flex-col items-center justify-center"
                                             >
                                                 <svg className="h-10 w-10 animate-spin text-indigo-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                                 </svg>
-                                                <span className="ml-3 text-lg font-medium text-gray-600 dark:text-gray-300">Veriler Yükleniyor...</span>
+                                                <span className="mt-3 text-lg font-medium text-gray-600 dark:text-gray-300">
+                                                    {metricLabel} Verileri Yükleniyor...
+                                                </span>
                                             </motion.div>
                                         ) : (
                                             <motion.div
@@ -478,18 +492,18 @@ function Anasayfa() {
                                 </div>
                             </Card>
 
-                            {/* Day Cards */}
+                            {/* Day Cards (Daha Belirgin Hover Efekti) */}
                             <div className="mt-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
                                 {dailyData.map((item) => (
                                     <motion.div
                                         whileHover={{ scale: 1.05, boxShadow: "0 10px 15px -3px rgba(99, 102, 241, 0.3), 0 4px 6px -2px rgba(99, 102, 241, 0.05)" }}
                                         key={item.date}
-                                        className="p-4 rounded-2xl border bg-white dark:bg-gray-800 shadow-lg transition-all duration-200 border-l-4 border-indigo-500 cursor-pointer"
+                                        className="p-4 rounded-2xl border bg-white dark:bg-gray-800 shadow-xl transition-all duration-200 border-l-4 border-indigo-500 cursor-pointer"
                                     >
                                         <div className="text-base font-semibold text-gray-700 dark:text-gray-300 mb-1">📅 {item.label}</div>
-                                        <div className="text-indigo-600 dark:text-cyan-400 font-bold text-2xl">
+                                        <div className="text-indigo-600 dark:text-cyan-400 font-bold text-3xl">
                                             {item.count}
-                                            <span className="text-sm text-gray-500 dark:text-gray-400 font-medium ml-1">{metric === "kargo" ? "kargo" : "evrak"}</span>
+                                            <span className="text-sm text-gray-500 dark:text-gray-400 font-medium ml-1">{metricLabel.toLowerCase()}</span>
                                         </div>
                                     </motion.div>
                                 ))}
