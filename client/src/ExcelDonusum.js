@@ -26,16 +26,13 @@ import {
     FileText
 } from "lucide-react";
 
-// WORD EXPORT
+// WORD EXPORT (RESİM)
+import html2canvas from "html2canvas";
 import {
     Document,
     Packer,
     Paragraph,
-    Table,
-    TableRow,
-    TableCell,
-    WidthType,
-    TextRun
+    ImageRun
 } from "docx";
 import { saveAs } from "file-saver";
 
@@ -160,22 +157,20 @@ export default function ExcelDonusum() {
     const printRef = useRef();
 
     // ==========================
-    // 📌 EXCEL'DEN YAPIŞTIRMA (CTRL + V)
+    // 📌 EXCEL'DEN YAPIŞTIRMA
     // ==========================
     React.useEffect(() => {
         const handlePaste = (e) => {
             let text = e.clipboardData.getData("text/plain");
             if (!text) return;
 
-            // Excel satır-sütun ayrımı (TSV)
             const parsed = text
                 .trim()
                 .split("\n")
                 .map((row) => row.split("\t"));
 
-            if (parsed.length === 0) return;
+            if (!parsed.length) return;
 
-            // İlk satır → başlık
             const headerRow = parsed[0];
 
             const newCols = headerRow.map((h, i) => ({
@@ -184,22 +179,19 @@ export default function ExcelDonusum() {
                 visible: true,
             }));
 
-            // Diğer satırlar → data
-            const rowData = parsed.slice(1);
-
             setColumns(newCols);
-            setRows(rowData);
+            setRows(parsed.slice(1));
 
             alert("Excel'den veriler başarıyla yapıştırıldı.");
         };
 
         window.addEventListener("paste", handlePaste);
         return () => window.removeEventListener("paste", handlePaste);
-    }, [setColumns, setRows]);
+    }, []);
 
 
     // ==========================
-    // 📌 EXCEL YÜKLE
+    // 📌 EXCEL YÜKLEME
     // ==========================
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
@@ -246,10 +238,8 @@ export default function ExcelDonusum() {
     };
 
 
-
-
     // ==========================
-    // 📌 SÜTUN GÖSTER / GİZLE
+    // 📌 SÜTUN GÖSTER/GİZLE
     // ==========================
     const toggleColumn = (id) =>
         setColumns((cols) =>
@@ -270,15 +260,17 @@ export default function ExcelDonusum() {
     // ==========================
     const handleDownloadExcel = () => {
         const visible = columns.filter((c) => c.visible);
-        const header = visible.map((c) => c.name);
 
+        const header = visible.map((c) => c.name);
         const data = [header];
+
         rows.forEach((row) =>
             data.push(visible.map((c) => row[parseInt(c.id.split("-")[1])] || "—"))
         );
 
         const ws = XLSX.utils.aoa_to_sheet(data);
         const wb = XLSX.utils.book_new();
+
         XLSX.utils.book_append_sheet(wb, ws, "Veri");
         XLSX.writeFile(wb, `duzenlenmis_${fileName}`);
     };
@@ -286,61 +278,119 @@ export default function ExcelDonusum() {
 
 
     // ==========================
-    // 📌 WORD EXPORT (DÜZELTİLMİŞ)
+    // 📌 WORD EXPORT (TABLOYU PNG OLARAK — ZEBRA + RENKLİ BAŞLIK)
     // ==========================
     const handleDownloadWord = async () => {
         const visible = columns.filter((c) => c.visible);
 
-        const headerCells = visible.map((col) =>
-            new TableCell({
-                children: [
-                    new Paragraph({
-                        children: [new TextRun({ text: col.name, bold: true, size: 18 })],
-                    }),
-                ],
-                width: { size: 100 / visible.length, type: WidthType.PERCENTAGE }
-            })
-        );
+        // ---- 1) TABLOYU GEÇİCİ DOM'DA OLUŞTUR ----
+        const tempDiv = document.createElement("div");
+        tempDiv.style.position = "absolute";
+        tempDiv.style.top = "0";
+        tempDiv.style.left = "0";
+        tempDiv.style.zIndex = "-9999";
+        tempDiv.style.background = "white";
+        tempDiv.style.padding = "20px";
+        tempDiv.style.fontSize = "13px";
 
-        const bodyRows = rows.map((row) =>
-            new TableRow({
-                children: visible.map((col) =>
-                    new TableCell({
-                        children: [
-                            new Paragraph({
-                                children: [
-                                    new TextRun({
-                                        text: String(row[parseInt(col.id.split("-")[1])] || "—"),
-                                        size: 18
-                                    })
-                                ]
-                            })
-                        ],
-                        width: { size: 100 / visible.length, type: WidthType.PERCENTAGE }
-                    })
-                )
-            })
-        );
+        // -----------------------
+        // 🎨 ŞIK TASARIMLI TABLO
+        // -----------------------
+        let html = `
+        <table style="
+            border-collapse: collapse;
+            width: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        ">
+            <thead>
+                <tr style="
+                    background:#4F46E5;
+                    color:white;
+                    font-weight:bold;
+                    text-transform:uppercase;
+                    letter-spacing:0.5px;
+                ">
+        `;
 
-        const table = new Table({
-            rows: [
-                new TableRow({ children: headerCells }),
-                ...bodyRows
-            ],
-            width: { size: 100, type: WidthType.PERCENTAGE }
+        // Başlık hücreleri
+        visible.forEach((c) => {
+            html += `
+                <th style="
+                    padding:10px;
+                    border:1px solid #3D3ACF;
+                    text-align:left;
+                ">
+                    ${c.name}
+                </th>`;
         });
 
+        html += `
+                </tr>
+            </thead>
+            <tbody>
+        `;
+
+        // Satırlar (Zebra)
+        rows.forEach((row, i) => {
+            const bg = i % 2 === 0 ? "#F9FAFB" : "#EEF2FF";
+
+            html += `<tr style="background:${bg};">`;
+
+            visible.forEach((c) => {
+                const val = row[parseInt(c.id.split("-")[1])] || "—";
+
+                html += `
+                    <td style="
+                        padding:8px 10px;
+                        border:1px solid #DDD;
+                        font-size:13px;
+                    ">
+                        ${val}
+                    </td>
+                `;
+            });
+
+            html += "</tr>";
+        });
+
+        html += `
+            </tbody>
+        </table>
+        `;
+
+        tempDiv.innerHTML = html;
+        document.body.appendChild(tempDiv);
+
+        // ---- 2) PNG OLUŞTUR ----
+        const canvas = await html2canvas(tempDiv, { scale: 2 });
+        document.body.removeChild(tempDiv);
+
+        const dataUrl = canvas.toDataURL("image/png");
+        const imgData = await fetch(dataUrl).then((r) => r.arrayBuffer());
+
+        // ---- 3) WORD DOSYASI ----
         const doc = new Document({
             sections: [
                 {
                     properties: {
-                        page: {
-                            size: {
-                                orientation: "landscape" // ← 📌 YATAY SAYFA
-                            }
-                        }
+                        page: { size: { orientation: "landscape" } }
                     },
-                    children: [table]
+                    children: [
+                        new Paragraph({
+                            children: [
+                                new ImageRun({
+                                    data: imgData,
+                                    transformation: {
+                                        width: 1000,
+                                        height: Math.floor((canvas.height / canvas.width) * 1000)
+                                    }
+                                })
+                            ]
+                        })
+                    ]
                 }
             ]
         });
@@ -488,3 +538,4 @@ export default function ExcelDonusum() {
         </div>
     );
 }
+
