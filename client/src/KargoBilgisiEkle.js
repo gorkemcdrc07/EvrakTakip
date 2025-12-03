@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
 import Layout from './components/Layout';
 import { supabase } from './supabaseClient';
+import QrScanner from 'react-qr-scanner';
 
 function KargoBilgisiEkle() {
     const [formData, setFormData] = useState({
@@ -21,6 +22,8 @@ function KargoBilgisiEkle() {
     const [kargoList, setKargoList] = useState([]);
     const [gonderenList, setGonderenList] = useState([]);
     const [irsaliyeList, setIrsaliyeList] = useState([]);
+
+    const [qrAcik, setQrAcik] = useState(false);
 
     useEffect(() => {
         const today = new Date().toISOString().split('T')[0];
@@ -54,10 +57,26 @@ function KargoBilgisiEkle() {
         setFormData(updatedForm);
     };
 
+    const handleQrOkuma = (sonuc) => {
+        if (!sonuc) return;
+
+        const eslesenler = sonuc
+            .split(/[\s\n]+/)
+            .filter(k => k.toLowerCase().startsWith("no"));
+
+        if (eslesenler.length > 0) {
+            setFormData(prev => ({
+                ...prev,
+                irsaliyeNo: eslesenler.join("\n")
+            }));
+        }
+
+        setQrAcik(false);
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        // Ekstra evrak sorulmadıysa önce soruyu göster
         if (!ekstraEvrakEklendi && !ekstraEvrakSoruAcik) {
             setEkstraEvrakSoruAcik(true);
             return;
@@ -122,6 +141,7 @@ function KargoBilgisiEkle() {
                     </h1>
 
                     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+
                         <div>
                             <label className="block mb-1 font-medium">Tarih</label>
                             <input
@@ -149,6 +169,39 @@ function KargoBilgisiEkle() {
 
                         {autocompleteInput('gonderenFirma', 'Gönderen Firma', gonderenList)}
                         {autocompleteInput('irsaliyeAdi', 'İrsaliye Adı', irsaliyeList)}
+
+                        {/* QR OKUT BUTONU */}
+                        <button
+                            type="button"
+                            onClick={() => setQrAcik(true)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+                        >
+                            📷 İrsaliye Okut
+                        </button>
+
+                        {/* QR OKUYUCU */}
+                        {qrAcik && (
+                            <div className="p-3 border rounded bg-gray-100 dark:bg-gray-700">
+                                <p className="font-semibold mb-2">Karekod Okutun</p>
+
+                                <QrScanner
+                                    delay={300}
+                                    onError={(err) => console.error(err)}
+                                    onScan={(value) => {
+                                        if (value) handleQrOkuma(value);
+                                    }}
+                                    style={{ width: '100%' }}
+                                />
+
+                                <button
+                                    type="button"
+                                    onClick={() => setQrAcik(false)}
+                                    className="mt-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+                                >
+                                    Kapat
+                                </button>
+                            </div>
+                        )}
 
                         <div>
                             <label className="block mb-1 font-medium">İrsaliye No</label>
@@ -184,30 +237,28 @@ function KargoBilgisiEkle() {
                             />
                         </div>
 
-                        {/* Ekstra Evrak Sorusu */}
-                       {ekstraEvrakSoruAcik && !ekstraEvrakEklendi && (
-                        <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 p-4 rounded-lg mt-4">
-                            <p className="mb-2 font-semibold">Ekstra evrak eklemek istiyor musunuz?</p>
-                            <div className="flex gap-4">
-                                <button
-                                    type="submit"
-                                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
-                                >
-                                    Hayır
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setEkstraEvrakEklendi(true)}
-                                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
-                                >
-                                    Evet
-                                </button>
+                        {/* Ekstra Evrak Soruları */}
+                        {ekstraEvrakSoruAcik && !ekstraEvrakEklendi && (
+                            <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 p-4 rounded-lg mt-4">
+                                <p className="mb-2 font-semibold">Ekstra evrak eklemek istiyor musunuz?</p>
+                                <div className="flex gap-4">
+                                    <button
+                                        type="submit"
+                                        className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+                                    >
+                                        Hayır
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setEkstraEvrakEklendi(true)}
+                                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                                    >
+                                        Evet
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
 
-
-                        {/* Ekstra Evrak Girişi */}
                         {ekstraEvrakEklendi && (
                             <div className="mt-4">
                                 <label className="block mb-1 font-medium">Ekstra Evrak Sayısı</label>
