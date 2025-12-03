@@ -128,7 +128,9 @@ function KargoBilgisiEkle() {
                 required
                 className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white"
             />
-            <datalist id={`${name}-list`}>{list.map((item, idx) => <option key={idx} value={item} />)}</datalist>
+            <datalist id={`${name}-list`}>
+                {list.map((item, idx) => <option key={idx} value={item} />)}
+            </datalist>
         </div>
     );
 
@@ -189,6 +191,10 @@ function KargoBilgisiEkle() {
                                     onError={(err) => console.error(err)}
                                     onScan={(value) => {
                                         if (value) handleQrOkuma(value);
+                                    }}
+                                    /* 📌 ARKA KAMERA İÇİN GEREKLİ KISIM */
+                                    constraints={{
+                                        video: { facingMode: { exact: "environment" } }
                                     }}
                                     style={{ width: '100%' }}
                                 />
