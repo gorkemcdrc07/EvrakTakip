@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
 import Layout from './components/Layout';
 import { supabase } from './supabaseClient';
-import QrScanner from 'react-qr-scanner';
+import QrOkuyucu from "./components/QrOkuyucu"; // 📌 YENİ QR KOMPONENTİ
 
 function KargoBilgisiEkle() {
     const [formData, setFormData] = useState({
@@ -186,18 +186,7 @@ function KargoBilgisiEkle() {
                             <div className="p-3 border rounded bg-gray-100 dark:bg-gray-700">
                                 <p className="font-semibold mb-2">Karekod Okutun</p>
 
-                                <QrScanner
-                                    delay={300}
-                                    onError={(err) => console.error(err)}
-                                    onScan={(value) => {
-                                        if (value) handleQrOkuma(value);
-                                    }}
-                                    /* 📌 ARKA KAMERA İÇİN GEREKLİ KISIM */
-                                    constraints={{
-                                        video: { facingMode: { exact: "environment" } }
-                                    }}
-                                    style={{ width: '100%' }}
-                                />
+                                <QrOkuyucu onScanSuccess={(text) => handleQrOkuma(text)} />
 
                                 <button
                                     type="button"

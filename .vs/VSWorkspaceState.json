@@ -2,7 +2,9 @@
   "ExpandedNodes": [
     "",
     "\\client",
-    "\\client\\src"
+    "\\client\\src",
+    "\\client\\src\\components"
   ],
+  "SelectedNode": "\\client\\src\\components\\QrOkuyucu.js",
   "PreviewInSolutionExplorer": false
 }
