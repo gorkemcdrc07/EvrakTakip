@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 
 export default function QrOkuyucu({ onScan }) {
     const scannerRef = useRef(null);
-    const runningRef = useRef(false); // ✅ scanner aktif mi takip eden flag
+    const runningRef = useRef(false);
     const lastScanRef = useRef("");
 
     useEffect(() => {
@@ -11,45 +11,30 @@ export default function QrOkuyucu({ onScan }) {
         scannerRef.current = scanner;
 
         const config = { fps: 10, qrbox: 250 };
+        const backCamera = { video: { facingMode: { ideal: "environment" } } };
+        const anyCamera = { video: true };
 
-        const constraints1 = { video: { facingMode: { ideal: "environment" } } };
-        const constraints2 = { video: true };
-
-        const handleDecode = (decodedText) => {
-            if (decodedText === lastScanRef.current) return;
-            lastScanRef.current = decodedText;
-
-            onScan(decodedText);
-
-            setTimeout(() => {
-                lastScanRef.current = "";
-            }, 800);
-
-            if (navigator.vibrate) navigator.vibrate(70);
+        const decode = (text) => {
+            if (text === lastScanRef.current) return;
+            lastScanRef.current = text;
+            onScan(text);
+            setTimeout(() => (lastScanRef.current = ""), 800);
         };
 
-        const startCamera = async () => {
+        const start = async () => {
             try {
-                // 🔥 İlk deneme: arka kamera
-                await scanner.start(constraints1, config, handleDecode, () => { });
+                await scanner.start(backCamera, config, decode);
                 runningRef.current = true;
-            } catch (err1) {
-                console.warn("Arka kamera açılamadı, fallback deneniyor");
-
+            } catch (_) {
                 try {
-                    // 🔥 İkinci deneme: herhangi kamera
-                    await scanner.start(constraints2, config, handleDecode, () => { });
+                    await scanner.start(anyCamera, config, decode);
                     runningRef.current = true;
-                } catch (err2) {
-                    console.error("Kamera açılamadı:", err2);
-
+                } catch (e) {
                     const el = document.getElementById("qr-reader");
                     if (el) {
                         el.innerHTML = `
-                            <div style="padding:10px;color:red;font-weight:bold;">
-                                Kamera açılamadı!<br><br>
-                                • Kamera izni vermeniz gerekiyor.<br>
-                                • Ayarlardan izin verip sayfayı yenileyin.
+                            <div style="color:red;font-weight:bold;padding:10px;">
+                                Kamera açılamadı. Lütfen kamera izni verip sayfayı yenileyin.
                             </div>
                         `;
                     }
@@ -57,22 +42,14 @@ export default function QrOkuyucu({ onScan }) {
             }
         };
 
-        startCamera();
+        start();
 
         return () => {
-            // 🔥 stop() sadece gerçekten başlatılmışsa çalıştırılır
             if (runningRef.current && scannerRef.current) {
-                scannerRef.current.stop()
-                    .then(() => {
-                        runningRef.current = false;
-                    })
-                    .catch(() => { })
-                    .finally(() => {
-                        scannerRef.current = null;
-                    });
+                scannerRef.current.stop().catch(() => { });
             }
         };
     }, []);
 
-    return <div id="qr-reader" style={{ width: "100%", height: 250 }}></div>;
+    return <div id="qr-reader" style={{ width: "100%", height: 250 }} />;
 }
