@@ -57,7 +57,7 @@ function KargoBilgisiEkle() {
         setFormData(updatedForm);
     };
 
-    // ✔ QR OKUMA FONKSİYONU → ARTIK BİRLEŞTİRİYOR
+    // QR OKUMA → KODLARI "-" İLE BİRLEŞTİRİR
     const handleQrOkuma = (sonuc) => {
         if (!sonuc) return;
 
@@ -65,11 +65,9 @@ function KargoBilgisiEkle() {
 
         setFormData(prev => {
             const mevcut = prev.irsaliyeNo.trim();
-
             if (!mevcut) {
                 return { ...prev, irsaliyeNo: temiz };
             }
-
             return { ...prev, irsaliyeNo: `${mevcut}-${temiz}` };
         });
     };
@@ -228,7 +226,7 @@ function KargoBilgisiEkle() {
                                 value={formData.evrakAdedi}
                                 onChange={handleChange}
                                 className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white"
-                                required
+                            required
                             />
                         </div>
 
