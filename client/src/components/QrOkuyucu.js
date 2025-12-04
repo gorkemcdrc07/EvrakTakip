@@ -1,27 +1,35 @@
-﻿import { Html5QrcodeScanner } from "html5-qrcode";
-import { useEffect } from "react";
+﻿import { Html5Qrcode } from "html5-qrcode";
+import { useEffect, useRef } from "react";
 
-export default function QrOkuyucu({ onScanSuccess }) {
+export default function QrOkuyucu({ onScan }) {
+    const lastScanRef = useRef("");
+    const scannerRef = useRef(null);
+
     useEffect(() => {
-        const scanner = new Html5QrcodeScanner(
-            "qr-reader",
-            {
-                fps: 10,
-                qrbox: 250,
-                videoConstraints: {
-                    facingMode: "environment" // 📌 ARKA KAMERA
-                }
-            },
-            false
-        );
+        const html5QrCode = new Html5Qrcode("qr-reader");
+        scannerRef.current = html5QrCode;
 
-        scanner.render(
-            (decodedText) => onScanSuccess(decodedText),
-            (err) => console.warn(err)
+        const config = { fps: 10, qrbox: 250 };
+        const constraints = { video: { facingMode: "environment" } };
+
+        html5QrCode.start(
+            constraints,
+            config,
+            decodedText => {
+                // Aynı kod saniyede 20 kez okunmasın diye 
+                if (decodedText === lastScanRef.current) return;
+                lastScanRef.current = decodedText;
+
+                onScan(decodedText);
+
+                // 1 saniye bekle sonra aynı kod tekrar okunabilir hale gelsin
+                setTimeout(() => { lastScanRef.current = ""; }, 1000);
+            },
+            err => console.warn(err)
         );
 
         return () => {
-            scanner.clear().catch((err) => console.error("Temizleme hatası:", err));
+            html5QrCode.stop().catch(err => console.error("Kapatma hatası:", err));
         };
     }, []);
 

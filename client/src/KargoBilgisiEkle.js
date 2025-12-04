@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
 import Layout from './components/Layout';
 import { supabase } from './supabaseClient';
-import QrOkuyucu from "./components/QrOkuyucu"; // 📌 YENİ QR KOMPONENTİ
+import QrOkuyucu from "./components/QrOkuyucu";
 
 function KargoBilgisiEkle() {
     const [formData, setFormData] = useState({
@@ -57,21 +57,21 @@ function KargoBilgisiEkle() {
         setFormData(updatedForm);
     };
 
+    // ✔ QR OKUMA FONKSİYONU → ARTIK BİRLEŞTİRİYOR
     const handleQrOkuma = (sonuc) => {
         if (!sonuc) return;
 
-        const eslesenler = sonuc
-            .split(/[\s\n]+/)
-            .filter(k => k.toLowerCase().startsWith("no"));
+        const temiz = sonuc.trim();
 
-        if (eslesenler.length > 0) {
-            setFormData(prev => ({
-                ...prev,
-                irsaliyeNo: eslesenler.join("\n")
-            }));
-        }
+        setFormData(prev => {
+            const mevcut = prev.irsaliyeNo.trim();
 
-        setQrAcik(false);
+            if (!mevcut) {
+                return { ...prev, irsaliyeNo: temiz };
+            }
+
+            return { ...prev, irsaliyeNo: `${mevcut}-${temiz}` };
+        });
     };
 
     const handleSubmit = (e) => {
@@ -186,7 +186,7 @@ function KargoBilgisiEkle() {
                             <div className="p-3 border rounded bg-gray-100 dark:bg-gray-700">
                                 <p className="font-semibold mb-2">Karekod Okutun</p>
 
-                                <QrOkuyucu onScanSuccess={(text) => handleQrOkuma(text)} />
+                                <QrOkuyucu onScan={(text) => handleQrOkuma(text)} />
 
                                 <button
                                     type="button"
