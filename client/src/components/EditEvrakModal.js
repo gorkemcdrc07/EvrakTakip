@@ -431,6 +431,7 @@ export default function EditEvrakModal({
                                                         <option value="EKSİK TARAMA">EKSİK TARAMA</option>
                                                         <option value="HASARLI TARAMA">HASARLI TARAMA</option>
                                                         <option value="GÖRÜNTÜ TARAMA">GÖRÜNTÜ TARAMA</option>
+                                                        <option value="MAİL ATILDI DÖNÜŞ BEKLENİYOR">MAİL ATILDI DÖNÜŞ BEKLENİYOR</option>
                                                     </select>
 
                                                     <div className="flex items-center justify-between gap-2">
