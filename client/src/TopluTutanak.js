@@ -176,7 +176,7 @@ const TopluTutanak = () => {
                 ilişkin teslim evraklarının tarafımıza teslim edilmemesi nedeni ile KDV ödemeleriniz
                 yapılamamaktadır. Teslim evraklarının 3 (üç) gün içerisinde tarafımıza teslimi ya da
                 evrakların temin edilememesi/kaybolması durumunda oluşabilecek zararlarla ilgili
-                责任in kendinizde olduğuna ilişkin ekteki tutanağın imzalanarak tarafımıza
+                sorumluluğun kendinizde olduğuna ilişkin ekteki tutanağın imzalanarak tarafımıza
                 teslimi durumunda KDV ödemeleri tarafımızca yapılacaktır.
             </p>
 
