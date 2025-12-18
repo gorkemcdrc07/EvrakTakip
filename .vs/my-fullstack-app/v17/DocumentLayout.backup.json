@@ -3,6 +3,10 @@
   "WorkspaceRootPath": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\components\\EditEvrakModal.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\components\\EditEvrakModal.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\TopluTutanak.js||{8B382828-6202-11D1-8870-0000F87579D2}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\TopluTutanak.js||{8B382828-6202-11D1-8870-0000F87579D2}"
     },
@@ -21,10 +25,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\index.css||{A5401142-F49D-43DB-90B1-F57BA349E55C}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\index.css||{A5401142-F49D-43DB-90B1-F57BA349E55C}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\components\\EditEvrakModal.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:client\\src\\components\\EditEvrakModal.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\EvrakEkle.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
@@ -70,7 +70,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 3,
+          "SelectedChildIndex": 5,
           "Children": [
             {
               "$type": "Bookmark",
@@ -86,20 +86,19 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "TopluTutanak.js",
               "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\TopluTutanak.js",
               "RelativeDocumentMoniker": "client\\src\\TopluTutanak.js",
               "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\TopluTutanak.js",
               "RelativeToolTip": "client\\src\\TopluTutanak.js",
-              "ViewState": "AgIAAEUBAAAAAAAAAAAgwHMBAAAcAAAAAAAAAA==",
+              "ViewState": "AgIAAI0AAAAAAAAAAAAQwKoAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-12-17T10:24:21.94Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-12-17T10:24:21.94Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 3,
               "Title": "Raporlar.js",
               "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\Raporlar.js",
               "RelativeDocumentMoniker": "client\\src\\Raporlar.js",
@@ -107,25 +106,24 @@
               "RelativeToolTip": "client\\src\\Raporlar.js",
               "ViewState": "AgIAAHcBAAAAAAAAAAAAAKMBAABIAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-12-17T10:09:56.336Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-12-17T10:09:56.336Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 0,
               "Title": "EditEvrakModal.js",
               "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\components\\EditEvrakModal.js",
               "RelativeDocumentMoniker": "client\\src\\components\\EditEvrakModal.js",
               "ToolTip": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\components\\EditEvrakModal.js",
               "RelativeToolTip": "client\\src\\components\\EditEvrakModal.js",
-              "ViewState": "AgIAAH4BAAAAAAAAAAAAALEBAACKAAAAAAAAAA==",
+              "ViewState": "AgIAAHACAAAAAAAAAAAgwJ4CAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-12-12T07:32:36.422Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 5,
               "Title": "index.css",
               "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\index.css",
               "RelativeDocumentMoniker": "client\\src\\index.css",
@@ -133,8 +131,7 @@
               "RelativeToolTip": "client\\src\\index.css",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003000|",
-              "WhenOpened": "2025-11-27T12:10:50.034Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-27T12:10:50.034Z"
             },
             {
               "$type": "Document",
@@ -146,8 +143,7 @@
               "RelativeToolTip": "client\\src\\index.js",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-11-27T09:29:40.112Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-27T09:29:40.112Z"
             },
             {
               "$type": "Document",
@@ -159,8 +155,7 @@
               "RelativeToolTip": "client\\src\\hooks\\useDarkMode.js",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-11-27T09:29:31.858Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-27T09:29:31.858Z"
             },
             {
               "$type": "Document",
@@ -172,8 +167,7 @@
               "RelativeToolTip": "client\\src\\components\\ModernSummary.js",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-11-27T09:29:28.346Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-27T09:29:28.346Z"
             },
             {
               "$type": "Document",
@@ -185,12 +179,11 @@
               "RelativeToolTip": "client\\src\\components\\Layout.js",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-11-27T09:29:26.604Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-27T09:29:26.604Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 4,
               "Title": "App.js",
               "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\App.js",
               "RelativeDocumentMoniker": "client\\src\\App.js",
@@ -198,12 +191,11 @@
               "RelativeToolTip": "client\\src\\App.js",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAADAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-11-27T09:28:56.175Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-27T09:28:56.175Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 2,
               "Title": "Tutanak.js",
               "DocumentMoniker": "C:\\Users\\Gorkem.Cadirci\\my-fullstack-app\\client\\src\\Tutanak.js",
               "RelativeDocumentMoniker": "client\\src\\Tutanak.js",
@@ -211,8 +203,7 @@
               "RelativeToolTip": "client\\src\\Tutanak.js",
               "ViewState": "AgIAAOYAAAAAAAAAAAAYwBQBAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-11-27T08:09:47.836Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-27T08:09:47.836Z"
             },
             {
               "$type": "Document",
@@ -224,8 +215,7 @@
               "RelativeToolTip": "client\\src\\ExcelDonusum.js",
               "ViewState": "AgIAAN8BAAAAAAAAAAAwwBoCAAAGAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-11-27T09:31:39.039Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-27T09:31:39.039Z"
             },
             {
               "$type": "Document",
@@ -237,8 +227,7 @@
               "RelativeToolTip": "client\\package.json",
               "ViewState": "AgIAABQAAAAAAAAAAAAAwDYAAAAOAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2025-11-27T11:36:47.538Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-27T11:36:47.538Z"
             },
             {
               "$type": "Document",
@@ -250,8 +239,7 @@
               "RelativeToolTip": "client\\src\\EvrakEkle.js",
               "ViewState": "AgIAACoCAAAAAAAAAIBJwFACAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-11-25T11:23:35.36Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-25T11:23:35.36Z"
             },
             {
               "$type": "Document",
@@ -263,8 +251,7 @@
               "RelativeToolTip": "client\\src\\KargoBilgisiEkle.js",
               "ViewState": "AgIAAMsAAAAAAAAAAAAQwOQAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-12-03T14:17:24.571Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-12-03T14:17:24.571Z"
             },
             {
               "$type": "Document",
@@ -276,8 +263,7 @@
               "RelativeToolTip": "client\\src\\Lokasyonlar.js",
               "ViewState": "AgIAAGIBAAAAAAAAAAAIwJYBAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-11-25T11:17:04.172Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-25T11:17:04.172Z"
             }
           ]
         }

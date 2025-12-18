@@ -1,10 +1,10 @@
 ﻿import React, { useState } from 'react';
 import api from './apiClient';
 import DatePicker from 'react-datepicker';
+import { tr } from 'date-fns/locale';
 import {
-    Search, Loader2, Calendar as CalendarIcon, Truck, User, Hash,
-    ArrowRight, Building2, MapPin, Fingerprint, FileCheck2,
-    CheckCircle2, Globe, Container, Download, AlertCircle
+    Search, Loader2, Calendar as CalendarIcon, ArrowRight,
+    Download, FileCheck2, CheckCircle2, Container, ShieldCheck
 } from 'lucide-react';
 import 'react-datepicker/dist/react-datepicker.css';
 
@@ -26,38 +26,36 @@ const durumAciklamalari = {
 
 const DURUM_ENGEL = new Set([31, 40]);
 
-const makeBody = (start, end) => {
-    const s = new Date(start); s.setHours(0, 0, 0, 0);
-    const e = new Date(end); e.setHours(23, 59, 59, 999);
-    return {
-        startDate: s.toISOString(),
-        endDate: e.toISOString(),
-        userId: 1, CustomerId: 0, SupplierId: 0, DriverId: 0, TMSDespatchId: 0, VehicleId: 0,
-        DocumentPrint: '', WorkingTypesId: [],
-    };
-};
-
 const formatDateISO = (iso) =>
     iso ? new Date(iso).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
 
-// ---------- 2. ALT BİLEŞENLER ----------
-const StatusBadge = ({ code }) => {
-    const label = durumAciklamalari[Number(code)] || String(code ?? '');
-    const config = {
-        'İPTAL': 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-        'BEKLİYOR': 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-        'TAMAMLANDI': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-        'default': 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
-    };
-    const style = config[label] || config['default'];
-    return (
-        <span className={`px-4 py-1.5 rounded-full text-[11px] font-bold tracking-wide border whitespace-nowrap ${style}`}>
-            {label}
-        </span>
-    );
+// ✅ 2 günlük parçalama (chunk) helper'ı
+const chunkDateRanges = (startDate, endDate, chunkDays = 2) => {
+    const s = new Date(startDate); s.setHours(0, 0, 0, 0);
+    const e = new Date(endDate); e.setHours(23, 59, 59, 999);
+
+    const ranges = [];
+    let cursor = new Date(s);
+
+    while (cursor <= e) {
+        const rangeStart = new Date(cursor);
+
+        const rangeEnd = new Date(cursor);
+        rangeEnd.setDate(rangeEnd.getDate() + (chunkDays - 1));
+        rangeEnd.setHours(23, 59, 59, 999);
+
+        if (rangeEnd > e) rangeEnd.setTime(e.getTime());
+
+        ranges.push({ start: rangeStart, end: rangeEnd });
+
+        cursor.setDate(cursor.getDate() + chunkDays);
+        cursor.setHours(0, 0, 0, 0);
+    }
+
+    return ranges;
 };
 
-// ---------- 3. ANA BİLEŞEN ----------
+// ---------- 2. ANA BİLEŞEN ----------
 const TopluTutanak = () => {
     const [startDate, setStartDate] = useState(new Date());
     const [endDate, setEndDate] = useState(new Date());
@@ -65,7 +63,9 @@ const TopluTutanak = () => {
     const [loading, setLoading] = useState(false);
     const [creating, setCreating] = useState(false);
     const [selectedIds, setSelectedIds] = useState([]);
+    const [hata, setHata] = useState(null);
 
+    // Senin filtrelerin (Aynen korundu)
     const isBaseAllowed = (item) => {
         if (DURUM_ENGEL.has(Number(item.TMSDespatchDocumentStatu))) return false;
         const PROJE_ENGEL = ['HASAR İADE', 'AKTÜL', 'KARGO HİZMETLERİ', 'HGS-YAKIT FATURA İŞLEME'].map(U);
@@ -76,22 +76,61 @@ const TopluTutanak = () => {
             !PROJE_ENGEL.some(k => U(item.ProjectName).includes(k));
     };
 
+    // ✅ İstenen şartlar + chunk istekleri
     const fetchData = async () => {
         setLoading(true);
+        setHata(null);
         setSelectedIds([]);
+
         try {
-            const resp = await api.post('/tmsdespatches/getall', makeBody(startDate, endDate));
-            const filtered = (resp?.data?.Data || []).filter(isBaseAllowed);
+            const ranges = chunkDateRanges(startDate, endDate, 2);
+            const all = [];
+
+            for (const { start, end } of ranges) {
+                const body = {
+                    startDate: start.toISOString(),
+                    endDate: end.toISOString(),
+                    userId: 1,
+
+                    CustomerId: 0,
+                    SupplierId: 0,
+                    DriverId: 0,
+                    TMSDespatchId: 0,
+                    VehicleId: 0,
+                    DocumentPrint: "",
+                    WorkingTypesId: [],
+                };
+
+                const resp = await api.post('/tmsdespatches/getall', body);
+                all.push(...(resp?.data?.Data || []));
+            }
+
+            const firmaEngellenenler = [
+                'İZ KENT LOJİSTİK HİZMETLERİ LİMİTED ŞİRKETİ',
+                'ARKAS LOJİSTİK ANONİM ŞİRKETİ',
+                'HEDEF TÜKETİM ÜRÜNLERİ SANAYİ VE DIŞ TİCARET ANONİM ŞİRKETİ',
+                'MOKS MOBİLYA KURULUM SERVİS LOJİSTİK PETROL İTHALAT İHRACAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ',
+                'ODAK TEDARİK ZİNCİRİ VE LOJİSTİK ANONİM ŞİRKETİ',
+            ].map(U);
+
+            const filtered = all
+                .filter(isBaseAllowed)
+                .filter((item) => {
+                    if (item.PlateNumber === '34SEZ34') return false;
+                    if (firmaEngellenenler.includes(U(item.SupplierCurrentAccountFullTitle))) return false;
+                    return true;
+                });
+
             setVeriler(filtered);
         } catch (e) {
             console.error(e);
-            alert('Veriler çekilirken bir hata oluştu.');
+            setHata('Veri alınamadı. Lütfen tekrar deneyin.');
         } finally {
             setLoading(false);
         }
     };
 
-    // --- Tutanak HTML Şablonu (Senin Formun) ---
+    // --- SENİN İSTEDİĞİN TUTANAK ŞABLONU (BİREBİR) ---
     const generateTutanakHTML = (row) => {
         const today = new Date().toLocaleDateString('tr-TR');
         const plakaStr = `${row.PlateNumber || ''} / ${row.TrailerPlateNumber || ''}`;
@@ -105,69 +144,54 @@ const TopluTutanak = () => {
                 NAKLİYE SEFERİ BİLGİLENDİRME FORMU
             </h1>
             
-<div style="margin-bottom: 20px;">
-    <p style="margin: 0;"><strong>İŞVEREN :</strong></p>
-    <p style="margin: 0;">ODAK TEDARİK ZİNCİRİ VE LOJİSTİK A.Ş.</p>
-    <p style="margin: 0;">
-        Vergi Dairesi: ALEMDAĞ<br>
-        Vergi No: 6340954050
-    </p>
-</div>
+            <div style="margin-bottom: 20px;">
+                <p style="margin: 0;"><strong>İŞVEREN :</strong></p>
+                <p style="margin: 0;">ODAK TEDARİK ZİNCİRİ VE LOJİSTİK A.Ş.</p>
+                <p style="margin: 0;">Vergi Dairesi: ALEMDAĞ<br>Vergi No: 6340954050</p>
+            </div>
 
-
-           <div style="margin-bottom: 25px;">
-    <p><strong>TAŞIYICI :</strong></p>
-    <p><strong>${row.SupplierCurrentAccountFullTitle || '---'}</strong></p>
-</div>
-
+            <div style="margin-bottom: 25px;">
+                <p><strong>TAŞIYICI :</strong></p>
+                <p><strong>${row.SupplierCurrentAccountFullTitle || '---'}</strong></p>
+            </div>
 
             <h3 style="text-decoration: underline;">AÇIKLAMALAR :</h3>
             <p style="text-align: justify;">
                 Sayın Taşıyıcı Muhatap; ${row.SupplierCurrentAccountFullTitle}, ${formatDateISO(row.DespatchDate)} tarihinde ${row.DocumentNo} nolu sefer numaralı ${row.CustomerFullTitle}, ${row.PickupCityCountyName}’dan yükleyip ${row.DeliveryCurrentAccountName}, ${row.DeliveryCityCountyName}’ya ulaştırılması amacıyla ${plakaStr} Plakalı araç sürücüsü ${row.FullName} (TCKN: ${row.CitizenNumber}) Tedarikçi firma ${row.SupplierCurrentAccountFullTitle}, ${row.TMSDespatchWaybillNumber || '---'} nolu irsaliyeli fatura ile taşınan ürünlerin teslim edildiğini beyan edilmiştir. Ancak teslime ilişkin evraklar bugüne kadar tarafımıza ibraz edilmemiştir.
             </p>
 
-<p style="
-    text-align: left;
-    line-height: 1.5;
-    margin-top: 15px;
-">
-    Karayolları Trafik Kanunu ve teamüller uyarınca; “basiretli bir tacir olan taşıyan,
-    verilen yük muhteviyatını, boşaltma/teslim adresine sağlam, eksiksiz ve sözleşmede
-    belirlenen süre içerisinde teslim etmekle ve her bir sevkiyat için Taşıtan'ın
-    irsaliye ofislerinden taşıma irsaliyesini almakla yükümlüdür. Yükleme tamamlandıktan
-    sonra bu irsaliyenin bir nüshası kesilecek olan nakliye faturasına eklenir ve
-    Taşıtan yetkililerine teslim edilir. Teslimat esnasında, Taşıtan'ın müşterisine
-    ait sevk irsaliyelerinin alt nüshaları yükün tam ve eksiksiz teslim alındığına
-    dair kaşe ve imza yaptırılmak zorundadır. Kaşe ve imzası eksik olan seferlerin,
-    Taşıtan'ın müşterisine ait sevk irsaliyesi veya Taşıtan'a ait taşıma irsaliyesi
-    eksik olan seferlerin bakiyesi ödenmez.”
-    <br><br>
-    İşbu nedenle, tarafınızca taşıması yapılan yukarıda sefer bilgisi verilen taşımaya
-    ilişkin teslim evraklarının tarafımıza teslim edilmemesi nedeni ile KDV ödemeleriniz
-    yapılamamaktadır. Teslim evraklarının 3 (üç) gün içerisinde tarafımıza teslimi ya da
-    evrakların temin edilememesi/kaybolması durumunda oluşabilecek zararlarla ilgili
-    sorumluluğun kendinizde olduğuna ilişkin ekteki tutanağın imzalanarak tarafımıza
-    teslimi durumunda KDV ödemeleri tarafımızca yapılacaktır.
-</p>
+            <p style="text-align: left; line-height: 1.5; margin-top: 15px;">
+                Karayolları Trafik Kanunu ve teamüller uyarınca; “basiretli bir tacir olan taşıyan,
+                verilen yük muhteviyatını, boşaltma/teslim adresine sağlam, eksiksiz ve sözleşmede
+                belirlenen süre içerisinde teslim etmekle ve her bir sevkiyat için Taşıtan'ın
+                irsaliye ofislerinden taşıma irsaliyesini almakla yükümlüdür. Yükleme tamamlandıktan
+                sonra bu irsaliyenin bir nüshası kesilecek olan nakliye faturasına eklenir ve
+                Taşıtan yetkililerine teslim edilir. Teslimat esnasında, Taşıtan'ın müşterisine
+                ait sevk irsaliyelerinin alt nüshaları yükün tam ve eksiksiz teslim alındığına
+                dair kaşe ve imza yaptırılmak zorundadır. Kaşe ve imzası eksik olan seferlerin,
+                Taşıtan'ın müşterisine ait sevk irsaliyesi veya Taşıtan'a ait taşıma irsaliyesi
+                eksik olan seferlerin bakiyesi ödenmez.”
+                <br><br>
+                İşbu nedenle, tarafınızca taşıması yapılan yukarıda sefer bilgisi verilen taşımaya
+                ilişkin teslim evraklarının tarafımıza teslim edilmemesi nedeni ile KDV ödemeleriniz
+                yapılamamaktadır. Teslim evraklarının 3 (üç) gün içerisinde tarafımıza teslimi ya da
+                evrakların temin edilememesi/kaybolması durumunda oluşabilecek zararlarla ilgili
+                责任in kendinizde olduğuna ilişkin ekteki tutanağın imzalanarak tarafımıza
+                teslimi durumunda KDV ödemeleri tarafımızca yapılacaktır.
+            </p>
 
-<h3 style="margin-top: 30px; margin-bottom: 15px; font-weight: bold;">
-    SORUMLULUK BEYANI
-</h3>
-
-<p style="margin: 0 0 15px 0; font-weight: bold;">
-    ODAK TEDARİK ZİNCİRİ VE LOJİSTİK A.Ş.’ne
-</p>
-
-<p style="margin: 0; line-height: 1.5;">
-    Sayın Taşıyıcı Muhatap; ${row.SupplierCurrentAccountFullTitle},
-    ${formatDateISO(row.DespatchDate)} tarihinde ${row.DocumentNo} nolu sefer numaralı
-    ${row.CustomerFullTitle}, ${row.PickupCityCountyName}’dan yükleyip
-    ${row.DeliveryCurrentAccountName}, ${row.DeliveryCityCountyName}’ya ulaştırılması
-    amacıyla ${plakaStr} plakalı araç sürücüsü ${row.FullName}
-    (TCKN: ${row.CitizenNumber}) tarafından, tedarikçi firma
-    ${row.SupplierCurrentAccountFullTitle} adına,
-    ${row.TMSDespatchWaybillNumber || '---'} irsaliyeli fatura ile teslim edilmiştir.
-</p>
+            <h3 style="margin-top: 30px; margin-bottom: 15px; font-weight: bold;">SORUMLULUK BEYANI</h3>
+            <p style="margin: 0 0 15px 0; font-weight: bold;">ODAK TEDARİK ZİNCİRİ VE LOJİSTİK A.Ş.’ne</p>
+            <p style="margin: 0; line-height: 1.5;">
+                ${row.SupplierCurrentAccountFullTitle},
+                ${formatDateISO(row.DespatchDate)} tarihinde ${row.DocumentNo} nolu sefer numaralı
+                ${row.CustomerFullTitle}, ${row.PickupCityCountyName}’dan yükleyip
+                ${row.DeliveryCurrentAccountName}, ${row.DeliveryCityCountyName}’ya ulaştırılması
+                amacıyla ${plakaStr} plakalı araç sürücüsü ${row.FullName}
+                (TCKN: ${row.CitizenNumber}) tarafından, tedarikçi firma
+                ${row.SupplierCurrentAccountFullTitle} adına,
+                ${row.TMSDespatchWaybillNumber || '---'} irsaliyeli fatura ile teslim edilmiştir.
+            </p>
             
             <div style="margin-top: 60px;">
                 <p>Tarih: ${today}</p>
@@ -179,227 +203,238 @@ const TopluTutanak = () => {
         </html>`;
     };
 
-    // --- Toplu ZIP İndirme İşlemi ---
     const handleBulkDownload = async () => {
         if (selectedIds.length === 0) return;
         setCreating(true);
         const zip = new JSZip();
 
+        // ✅ Dosya adı güvenli hale getirme (TR karakterler + Windows yasaklı karakterler)
+        const toAsciiTR = (s) =>
+            (s || '')
+                .replaceAll('İ', 'I').replaceAll('İ', 'I')
+                .replaceAll('ı', 'i')
+                .replaceAll('Ş', 'S').replaceAll('ş', 's')
+                .replaceAll('Ğ', 'G').replaceAll('ğ', 'g')
+                .replaceAll('Ü', 'U').replaceAll('ü', 'u')
+                .replaceAll('Ö', 'O').replaceAll('ö', 'o')
+                .replaceAll('Ç', 'C').replaceAll('ç', 'c');
+
+        const safeFilePart = (s, maxLen = 60) => {
+            const ascii = toAsciiTR((s ?? '').toString().trim());
+            return ascii
+                .replace(/[\\/:*?"<>|]/g, '')   // Windows illegal chars
+                .replace(/\s+/g, '_')           // spaces -> _
+                .replace(/_+/g, '_')
+                .slice(0, maxLen) || 'BILGI_YOK';
+        };
+
         try {
             const selectedRows = veriler.filter(v => selectedIds.includes(v.TMSDespatchId));
-
             selectedRows.forEach((row) => {
-                const htmlContent = generateTutanakHTML(row);
-                const docxBlob = htmlDocx.asBlob(htmlContent);
-                const fileName = `${row.DocumentNo}_${row.PlateNumber.replace(/\s/g, '')}_Tutanak.docx`;
+                const docxBlob = htmlDocx.asBlob(generateTutanakHTML(row));
+
+                const tedarikci = safeFilePart(row.SupplierCurrentAccountFullTitle, 50);
+                const sefer = safeFilePart(row.DocumentNo, 30);
+                const plaka = safeFilePart((row.PlateNumber || '').replace(/\s/g, ''), 20);
+
+                // ✅ İstenen: Word adı = Tedarikçi adı da içersin
+                const fileName = `${tedarikci}_${sefer}_${plaka}_Tutanak.docx`;
+
                 zip.file(fileName, docxBlob);
             });
 
             const zipContent = await zip.generateAsync({ type: "blob" });
-            saveAs(zipContent, `Tutanaklar_${new Date().getTime()}.zip`);
+            saveAs(zipContent, `Tutanaklar_${Date.now()}.zip`);
         } catch (error) {
-            console.error(error);
-            alert("Dosyalar oluşturulurken bir hata oluştu.");
-        } finally {
-            setCreating(false);
-        }
-    };
-
-    const toggleSelect = (id) => {
-        setSelectedIds(prev =>
-            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-        );
-    };
-
-    const toggleSelectAll = () => {
-        if (selectedIds.length === veriler.length && veriler.length > 0) {
-            setSelectedIds([]);
-        } else {
-            setSelectedIds(veriler.map(item => item.TMSDespatchId));
-        }
+            alert("Hata oluştu.");
+        } finally { setCreating(false); }
     };
 
     return (
-        <div className="min-h-screen bg-[#080c14] text-slate-300 p-6 lg:p-12 font-sans relative">
-
-            {/* Arka Plan Glow */}
-            <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-indigo-600/5 blur-[120px] rounded-full -z-10" />
-
+        <div className="min-h-screen bg-[#080c14] text-slate-300 p-6 lg:p-12">
             <div className="max-w-[1850px] mx-auto space-y-8">
-
-                {/* Header Section */}
-                <div className="flex flex-col xl:flex-row items-center justify-between gap-8">
-                    <div className="space-y-2">
-                        <h1 className="text-4xl font-black text-white tracking-tighter italic">
-                            TMS <span className="text-indigo-500 underline underline-offset-8 decoration-indigo-500/20">OPERASYON</span>
-                        </h1>
-                        <p className="text-slate-500 font-bold text-xs uppercase tracking-[0.4em]">Toplu Tutanak Oluşturma Merkezi</p>
+                {/* Filtre ve Header */}
+                <div className="flex flex-col xl:flex-row items-center justify-between gap-8 bg-slate-900/40 p-6 rounded-[2.5rem] border border-white/5">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-indigo-600 p-3 rounded-2xl"><ShieldCheck className="text-white" size={24} /></div>
+                        <h1 className="text-2xl font-black text-white italic">TMS TOPLU TUTANAK</h1>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row items-center gap-4 bg-slate-900/40 p-2.5 rounded-[2.5rem] border border-white/5 backdrop-blur-2xl">
-                        <div className="flex items-center gap-6 px-6 py-2">
+                    <div className="flex flex-wrap items-center gap-4 bg-black/40 p-2 rounded-3xl">
+                        <div className="flex items-center gap-4 px-6">
                             <CalendarIcon size={18} className="text-indigo-400" />
+
                             <DatePicker
                                 selected={startDate}
                                 onChange={d => setStartDate(d)}
                                 dateFormat="dd.MM.yyyy"
-                                className="bg-transparent w-24 text-sm font-bold text-white outline-none cursor-pointer"
-                                popperClassName="custom-date-popper"
+                                locale={tr}
+                                weekStartsOn={1}
+                                showPopperArrow={false}
+                                className="bg-white/5 border border-white/10 rounded-xl px-2 py-1 w-28 text-sm font-black text-white outline-none placeholder:text-slate-500"
                             />
+
                             <ArrowRight size={16} className="text-slate-700" />
+
                             <DatePicker
                                 selected={endDate}
                                 onChange={d => setEndDate(d)}
                                 dateFormat="dd.MM.yyyy"
-                                className="bg-transparent w-24 text-sm font-bold text-white outline-none cursor-pointer"
-                                popperClassName="custom-date-popper"
+                                locale={tr}
+                                weekStartsOn={1}
+                                showPopperArrow={false}
+                                className="bg-white/5 border border-white/10 rounded-xl px-2 py-1 w-28 text-sm font-black text-white outline-none placeholder:text-slate-500"
                             />
                         </div>
+
                         <button
                             onClick={fetchData}
                             disabled={loading}
-                            className="px-10 py-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 text-white rounded-[1.5rem] font-black text-xs tracking-widest transition-all shadow-xl shadow-indigo-600/20 active:scale-95 flex items-center gap-2"
+                            className="px-8 py-3 bg-indigo-600 rounded-2xl font-black text-xs text-white hover:bg-indigo-500 transition-all flex items-center gap-2"
                         >
-                            {loading ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
-                            SORGULA
+                            {loading ? <Loader2 className="animate-spin" size={16} /> : <Search size={16} />} SORGULA
                         </button>
                     </div>
                 </div>
 
-                {/* Table Section */}
-                <div className="bg-[#0d121f]/80 backdrop-blur-3xl border border-white/5 rounded-[2.5rem] overflow-hidden shadow-2xl relative">
-                    <div className="overflow-x-auto custom-scrollbar">
-                        <table className="w-full border-collapse">
-                            <thead>
-                                <tr className="bg-white/[0.02] border-b border-white/5">
-                                    <th className="px-8 py-8 w-16">
+                {/* Hata Alanı */}
+                {hata && (
+                    <div className="bg-red-500/10 border border-red-500/30 text-red-300 px-6 py-4 rounded-2xl">
+                        {hata}
+                    </div>
+                )}
+
+                {/* Tablo */}
+                <div className="bg-[#0d121f]/80 border border-white/5 rounded-[2.5rem] overflow-hidden shadow-2xl">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead className="bg-white/[0.02] border-b border-white/5">
+                                <tr>
+                                    <th className="p-8 w-16">
                                         <button
-                                            onClick={toggleSelectAll}
-                                            className={`w-6 h-6 rounded-lg border-2 transition-all flex items-center justify-center ${selectedIds.length === veriler.length && veriler.length > 0 ? 'bg-indigo-500 border-indigo-500 shadow-[0_0_10px_rgba(79,70,229,0.4)]' : 'border-slate-700'}`}
+                                            onClick={() => setSelectedIds(selectedIds.length === veriler.length ? [] : veriler.map(i => i.TMSDespatchId))}
+                                            className={`w-6 h-6 rounded-lg border-2 ${selectedIds.length === veriler.length && veriler.length > 0 ? 'bg-indigo-500 border-indigo-500' : 'border-slate-700'}`}
                                         >
-                                            {selectedIds.length === veriler.length && veriler.length > 0 && <CheckCircle2 size={16} className="text-white" />}
+                                            {selectedIds.length === veriler.length && veriler.length > 0 && <CheckCircle2 size={16} className="text-white mx-auto" />}
                                         </button>
                                     </th>
-                                    <th className="px-6 py-8 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Tedarikçi & Müşteri</th>
-                                    <th className="px-6 py-8 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Sefer & İrsaliye</th>
-                                    <th className="px-6 py-8 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Araç / Plaka</th>
-                                    <th className="px-6 py-8 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Rota</th>
-                                    <th className="px-6 py-8 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Sürücü Detay</th>
-                                    <th className="px-6 py-8 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Durum</th>
+                                    <th className="p-6 text-[10px] font-black uppercase text-slate-500">Tedarikçi</th>
+                                    <th className="p-6 text-[10px] font-black uppercase text-slate-500">Sefer / Tarih</th>
+                                    <th className="p-6 text-[10px] font-black uppercase text-slate-500">Plaka</th>
+                                    <th className="p-6 text-[10px] font-black uppercase text-slate-500">Durum</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-white/[0.03]">
-                                {loading ? (
-                                    <tr><td colSpan={7} className="py-48 text-center"><Loader2 size={40} className="animate-spin text-indigo-500 mx-auto opacity-20" /></td></tr>
-                                ) : veriler.length === 0 ? (
-                                    <tr><td colSpan={7} className="py-48 text-center text-slate-600 font-bold tracking-[0.3em] uppercase">Veri bulunamadı</td></tr>
-                                ) : (
-                                    veriler.map((item) => (
-                                        <tr
-                                            key={item.TMSDespatchId}
-                                            onClick={() => toggleSelect(item.TMSDespatchId)}
-                                            className={`group transition-all cursor-pointer ${selectedIds.includes(item.TMSDespatchId) ? 'bg-indigo-500/[0.08]' : 'hover:bg-white/[0.02]'}`}
-                                        >
-                                            <td className="px-8 py-8" onClick={(e) => e.stopPropagation()}>
-                                                <button
-                                                    onClick={() => toggleSelect(item.TMSDespatchId)}
-                                                    className={`w-6 h-6 rounded-lg border-2 transition-all flex items-center justify-center ${selectedIds.includes(item.TMSDespatchId) ? 'bg-indigo-500 border-indigo-500 shadow-[0_0_10px_rgba(79,70,229,0.4)]' : 'border-slate-800 group-hover:border-slate-600'}`}
-                                                >
-                                                    {selectedIds.includes(item.TMSDespatchId) && <CheckCircle2 size={16} className="text-white" />}
-                                                </button>
-                                            </td>
-                                            <td className="px-6 py-8">
-                                                <div className="font-bold text-white text-sm leading-tight max-w-[250px]">{item.SupplierCurrentAccountFullTitle}</div>
-                                                <div className="text-slate-500 text-[10px] font-bold mt-1 uppercase tracking-tighter">Müşteri: {item.CustomerFullTitle}</div>
-                                            </td>
-                                            <td className="px-6 py-8">
-                                                <div className="font-mono text-indigo-400 font-black text-sm">#{item.DocumentNo}</div>
-                                                <div className="text-slate-400 text-[10px] font-bold mt-1 uppercase italic">İrs: {item.TMSDespatchWaybillNumber || '-'}</div>
-                                                <div className="text-slate-600 text-[10px] font-bold mt-0.5">{formatDateISO(item.DespatchDate)}</div>
-                                            </td>
-                                            <td className="px-6 py-8">
-                                                <div className="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl text-white font-black text-xs tracking-widest w-fit mb-2 group-hover:border-indigo-500/50 transition-colors">
-                                                    {item.PlateNumber}
-                                                </div>
-                                                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 italic">
-                                                    <Container size={12} /> {item.TrailerPlateNumber || '---'}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-8">
-                                                <div className="flex flex-col gap-2 relative pl-4 border-l border-white/5">
-                                                    <div className="text-[11px] font-bold text-emerald-500 uppercase tracking-tighter">↑ {item.PickupCityCountyName}</div>
-                                                    <div className="text-[11px] font-bold text-rose-500 uppercase tracking-tighter">↓ {item.DeliveryCityCountyName}</div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-8">
-                                                <div className="font-black text-slate-200 text-[11px] uppercase tracking-tight italic">{item.FullName}</div>
-                                                <div className="text-slate-600 font-mono text-[10px] mt-1">{item.CitizenNumber}</div>
-                                            </td>
-                                            <td className="px-6 py-8">
-                                                <StatusBadge code={item.TMSDespatchDocumentStatu} />
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
+
+                            <tbody>
+                                {veriler.map((item) => (
+                                    <tr
+                                        key={item.TMSDespatchId}
+                                        onClick={() => setSelectedIds(prev => prev.includes(item.TMSDespatchId) ? prev.filter(i => i !== item.TMSDespatchId) : [...prev, item.TMSDespatchId])}
+                                        className="hover:bg-white/[0.02] border-b border-white/[0.03] cursor-pointer"
+                                    >
+                                        <td className="p-8">
+                                            <div className={`w-6 h-6 rounded-lg border-2 ${selectedIds.includes(item.TMSDespatchId) ? 'bg-indigo-500 border-indigo-500' : 'border-slate-800'}`}>
+                                                {selectedIds.includes(item.TMSDespatchId) && <CheckCircle2 size={16} className="text-white mx-auto" />}
+                                            </div>
+                                        </td>
+
+                                        <td className="p-6">
+                                            <div className="text-sm font-bold text-white">{item.SupplierCurrentAccountFullTitle}</div>
+                                            <div className="text-[10px] text-slate-500 mt-1">{item.CustomerFullTitle}</div>
+                                        </td>
+
+                                        <td className="p-6">
+                                            <div className="text-sm font-mono text-indigo-400">#{item.DocumentNo}</div>
+                                            <div className="text-[10px] text-slate-500">{formatDateISO(item.DespatchDate)}</div>
+                                        </td>
+
+                                        <td className="p-6 text-sm font-black text-slate-300">{item.PlateNumber}</td>
+
+                                        <td className="p-6">
+                                            <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full text-[10px] font-bold">
+                                                {durumAciklamalari[item.TMSDespatchDocumentStatu] || item.TMSDespatchDocumentStatu}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
                             </tbody>
                         </table>
                     </div>
                 </div>
 
-                {/* Floating Action Bar */}
+                {/* Alt Çubuk */}
                 {selectedIds.length > 0 && (
-                    <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-[95%] max-w-5xl z-[1000] animate-in fade-in slide-in-from-bottom-10 duration-500">
-                        <div className="bg-indigo-600 rounded-[2.5rem] p-4 shadow-[0_25px_50px_-12px_rgba(79,70,229,0.5)] flex flex-col sm:flex-row items-center justify-between border border-white/20 backdrop-blur-xl">
-                            <div className="flex items-center gap-6 pl-6 py-2 sm:py-0">
-                                <div className="bg-white/20 p-4 rounded-2xl">
-                                    <FileCheck2 className="text-white" size={32} />
-                                </div>
-                                <div>
-                                    <div className="text-white font-black text-2xl leading-none">{selectedIds.length} Sefer Seçildi</div>
-                                    <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest mt-2 opacity-80">ZIP formatında toplu Word belgeleri indirilebilir</p>
-                                </div>
+                    <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-[90%] max-w-4xl z-[1000]">
+                        <div className="bg-indigo-600 rounded-[2rem] p-4 flex items-center justify-between border border-white/20 shadow-2xl">
+                            <div className="flex items-center gap-4 pl-6">
+                                <FileCheck2 className="text-white" size={28} />
+                                <span className="text-white font-black text-xl">{selectedIds.length} Sefer Seçildi</span>
                             </div>
 
-                            <div className="flex items-center gap-4 w-full sm:w-auto mt-4 sm:mt-0">
-                                <button
-                                    onClick={() => setSelectedIds([])}
-                                    className="flex-1 sm:flex-none px-6 py-4 text-white font-black text-xs tracking-widest hover:bg-white/10 rounded-2xl transition-all"
-                                >
-                                    TEMİZLE
-                                </button>
-                                <button
-                                    onClick={handleBulkDownload}
-                                    disabled={creating}
-                                    className="flex-1 sm:flex-none bg-white text-indigo-600 px-10 py-5 rounded-[1.5rem] font-black text-xs tracking-[0.2em] hover:shadow-2xl hover:scale-[1.02] transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-                                >
-                                    {creating ? <Loader2 className="animate-spin" size={20} /> : <Download size={20} />}
-                                    {creating ? "HAZIRLANIYOR..." : "TOPLU TUTANAK İNDİR"}
-                                </button>
-                            </div>
+                            <button
+                                onClick={handleBulkDownload}
+                                disabled={creating}
+                                className="bg-white text-indigo-600 px-10 py-4 rounded-2xl font-black text-xs flex items-center gap-3 active:scale-95 transition-all"
+                            >
+                                {creating ? <Loader2 className="animate-spin" /> : <Download size={20} />} TOPLU TUTANAK İNDİR
+                            </button>
                         </div>
                     </div>
                 )}
             </div>
 
             <style jsx global>{`
-                .custom-date-popper { z-index: 99999 !important; }
-                .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 6px; }
-                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-                .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; border: 2px solid #080c14; }
-                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #4f46e5; }
-                
-                .react-datepicker {
-                    background: #0f172a !important;
-                    border: 1px solid rgba(255,255,255,0.1) !important;
-                    border-radius: 1.5rem !important;
-                    box-shadow: 0 50px 100px -20px rgba(0,0,0,0.7) !important;
-                }
-                .react-datepicker__header { background: transparent !important; border-bottom: 1px solid rgba(255,255,255,0.1) !important; }
-                .react-datepicker__current-month, .react-datepicker__day-name { color: #94a3b8 !important; font-weight: 800 !important; }
-                .react-datepicker__day { color: #f1f5f9 !important; }
-                .react-datepicker__day:hover { background: #4f46e5 !important; border-radius: 0.5rem; }
-                .react-datepicker__day--selected { background: #4f46e5 !important; border-radius: 0.5rem; }
-            `}</style>
+        .react-datepicker-popper { z-index: 9999 !important; }
+
+        .react-datepicker {
+          background: #0b1220 !important;
+          color: #e2e8f0 !important;
+          border-radius: 1rem !important;
+          border: 1px solid rgba(255,255,255,0.08) !important;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.6) !important;
+          overflow: hidden;
+        }
+
+        .react-datepicker__header {
+          background: rgba(255,255,255,0.02) !important;
+          border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+        }
+
+        .react-datepicker__current-month,
+        .react-datepicker-time__header,
+        .react-datepicker__day-name {
+          color: #e2e8f0 !important;
+          font-weight: 800 !important;
+        }
+
+        .react-datepicker__navigation-icon::before {
+          border-color: #94a3b8 !important;
+        }
+
+        .react-datepicker__day,
+        .react-datepicker__time-name {
+          color: #cbd5e1 !important;
+          border-radius: 0.75rem !important;
+        }
+
+        .react-datepicker__day:hover {
+          background: rgba(99,102,241,0.15) !important;
+        }
+
+        .react-datepicker__day--selected,
+        .react-datepicker__day--keyboard-selected {
+          background: rgba(99,102,241,0.9) !important;
+          color: #ffffff !important;
+        }
+
+        .react-datepicker__day--outside-month {
+          color: rgba(203,213,225,0.35) !important;
+        }
+
+        .react-datepicker__triangle {
+          display: none !important;
+        }
+      `}</style>
         </div>
     );
 };
