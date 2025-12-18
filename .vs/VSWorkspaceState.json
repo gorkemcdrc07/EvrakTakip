@@ -3,7 +3,8 @@
     "",
     "\\client",
     "\\client\\src",
-    "\\client\\src\\components"
+    "\\client\\src\\components",
+    "\\client\\src\\hooks"
   ],
   "SelectedNode": "\\client\\src\\components\\EditEvrakModal.js",
   "PreviewInSolutionExplorer": false

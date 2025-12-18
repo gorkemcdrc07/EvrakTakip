@@ -12,10 +12,10 @@ import KargoBilgisiEkle from './KargoBilgisiEkle';
 import TumKargoBilgileri from './TumKargoBilgileri';
 import Tutanak from './Tutanak';
 import Raporlar from './Raporlar';
-import HedefKargo from './hedefKargo'; // ✅ BURAYA EKLENDİ
+import HedefKargo from './hedefKargo';
 import EvrakRaporlari from './EvrakRaporları';
 import ExcelDonusum from './ExcelDonusum';
-
+import TopluTutanak from './TopluTutanak'; // ✅ YENİ
 
 function App() {
     const [darkMode, toggleDarkMode] = useDarkMode();
@@ -35,9 +35,10 @@ function App() {
                     <Route path="/tum-kargo-bilgileri" element={<TumKargoBilgileri />} />
                     <Route path="/tutanak" element={<Tutanak />} />
                     <Route path="/raporlar" element={<Raporlar />} />
-                    <Route path="/hedef-kargo" element={<HedefKargo />} /> {/* ✅ HEDEF KARGO EKLENDİ */}
-                    <Route path="/evrak-raporlari" element={<EvrakRaporlari />} /> {/* ✅ EVRAK RAPORLARI EKLENDİ */}
-                    <Route path="/ExcelDonusum" element={<ExcelDonusum />} /> 
+                    <Route path="/toplu-tutanak" element={<TopluTutanak />} /> {/* ✅ YENİ */}
+                    <Route path="/hedef-kargo" element={<HedefKargo />} />
+                    <Route path="/evrak-raporlari" element={<EvrakRaporlari />} />
+                    <Route path="/ExcelDonusum" element={<ExcelDonusum />} />
                 </Routes>
             </Router>
         </div>

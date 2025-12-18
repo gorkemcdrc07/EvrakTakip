@@ -321,8 +321,27 @@ function Anasayfa() {
                                                 <SectionCard>
                                                     <SectionTitle icon="📊">Raporlama</SectionTitle>
                                                     <div className="grid gap-2">
-                                                        <Button onClick={() => window.open("/evrak-raporlari", "_blank")} className="justify-start hover:text-indigo-600">📑 Evrak Raporları</Button>
-                                                        <Button onClick={() => window.open("/raporlar", "_blank")} className="justify-start hover:text-indigo-600">📈 Reel Raporları</Button>
+                                                        <Button
+                                                            onClick={() => window.open("/evrak-raporlari", "_blank")}
+                                                            className="justify-start hover:text-indigo-600"
+                                                        >
+                                                            📑 Evrak Raporları
+                                                        </Button>
+
+                                                        <Button
+                                                            onClick={() => window.open("/raporlar", "_blank")}
+                                                            className="justify-start hover:text-indigo-600"
+                                                        >
+                                                            📈 Reel Raporları
+                                                        </Button>
+
+                                                        {/* ✅ YENİ: Toplu Tutanak */}
+                                                        <Button
+                                                            onClick={() => window.open("/toplu-tutanak", "_blank")}
+                                                            className="justify-start hover:text-indigo-600"
+                                                        >
+                                                            🧾 Toplu Tutanak
+                                                        </Button>
                                                     </div>
                                                 </SectionCard>
 
