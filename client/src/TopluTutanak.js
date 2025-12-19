@@ -4,9 +4,12 @@ import DatePicker from 'react-datepicker';
 import { tr } from 'date-fns/locale';
 import {
     Search, Loader2, Calendar as CalendarIcon, ArrowRight,
-    Download, FileCheck2, CheckCircle2, Container, ShieldCheck
+    Download, FileCheck2, CheckCircle2, ShieldCheck
 } from 'lucide-react';
 import 'react-datepicker/dist/react-datepicker.css';
+
+// ✅ Supabase client
+import { supabase } from './supabaseClient';
 
 // Kütüphaneler
 import htmlDocx from 'html-docx-js/dist/html-docx';
@@ -65,6 +68,11 @@ const TopluTutanak = () => {
     const [selectedIds, setSelectedIds] = useState([]);
     const [hata, setHata] = useState(null);
 
+    // ✅ VKN GETİR için ek state'ler
+    const [firmaEslesmeleri, setFirmaEslesmeleri] = useState({});
+    const [vknLoading, setVknLoading] = useState(false);
+    const [vknHata, setVknHata] = useState(null);
+
     // Senin filtrelerin (Aynen korundu)
     const isBaseAllowed = (item) => {
         if (DURUM_ENGEL.has(Number(item.TMSDespatchDocumentStatu))) return false;
@@ -81,6 +89,10 @@ const TopluTutanak = () => {
         setLoading(true);
         setHata(null);
         setSelectedIds([]);
+
+        // ✅ Yeni sorguda VKN eşleşmelerini sıfırla
+        setFirmaEslesmeleri({});
+        setVknHata(null);
 
         try {
             const ranges = chunkDateRanges(startDate, endDate, 2);
@@ -130,6 +142,57 @@ const TopluTutanak = () => {
         }
     };
 
+    // ✅ VKN GETİR: tablodaki "Tedarikçi" -> supabase firmalar.unvan eşleştir (aynı unvan çoksa hepsini al)
+    const handleVknGetir = async () => {
+        setVknLoading(true);
+        setVknHata(null);
+
+        try {
+            const unvanlar = Array.from(
+                new Set(
+                    veriler
+                        .map(v => (v?.SupplierCurrentAccountFullTitle ?? '').toString().trim())
+                        .filter(Boolean)
+                )
+            );
+
+            if (unvanlar.length === 0) {
+                setFirmaEslesmeleri({});
+                return;
+            }
+
+            // Supabase .in() limitlerine takılmamak için chunk
+            const chunkSize = 100;
+            const allRows = [];
+
+            for (let i = 0; i < unvanlar.length; i += chunkSize) {
+                const batch = unvanlar.slice(i, i + chunkSize);
+
+                const { data, error } = await supabase
+                    .from('firmalar')
+                    .select('unvan, vkn, tc, kod, telefon, "ıban"')
+                    .in('unvan', batch);
+
+                if (error) throw error;
+                if (data?.length) allRows.push(...data);
+            }
+
+            const map = {};
+            for (const r of allRows) {
+                const key = U(r.unvan);
+                if (!map[key]) map[key] = [];
+                map[key].push(r);
+            }
+
+            setFirmaEslesmeleri(map);
+        } catch (e) {
+            console.error(e);
+            setVknHata('Firma bilgileri çekilemedi.');
+        } finally {
+            setVknLoading(false);
+        }
+    };
+
     // --- SENİN İSTEDİĞİN TUTANAK ŞABLONU (BİREBİR) ---
     const generateTutanakHTML = (row) => {
         const today = new Date().toLocaleDateString('tr-TR');
@@ -169,7 +232,7 @@ const TopluTutanak = () => {
                 Taşıtan yetkililerine teslim edilir. Teslimat esnasında, Taşıtan'ın müşterisine
                 ait sevk irsaliyelerinin alt nüshaları yükün tam ve eksiksiz teslim alındığına
                 dair kaşe ve imza yaptırılmak zorundadır. Kaşe ve imzası eksik olan seferlerin,
-                Taşıtan'ın müşterisine ait sevk irsaliyesi veya Taşıtan'a ait taşıma irsaliyesi
+                Taşıtan'ın müşterisine ait sevk irsaliyyesi veya Taşıtan'a ait taşıma irsaliyesi
                 eksik olan seferlerin bakiyesi ödenmez.”
                 <br><br>
                 İşbu nedenle, tarafınızca taşıması yapılan yukarıda sefer bilgisi verilen taşımaya
@@ -237,9 +300,7 @@ const TopluTutanak = () => {
                 const sefer = safeFilePart(row.DocumentNo, 30);
                 const plaka = safeFilePart((row.PlateNumber || '').replace(/\s/g, ''), 20);
 
-                // ✅ İstenen: Word adı = Tedarikçi adı da içersin
                 const fileName = `${tedarikci}_${sefer}_${plaka}_Tutanak.docx`;
-
                 zip.file(fileName, docxBlob);
             });
 
@@ -252,7 +313,7 @@ const TopluTutanak = () => {
 
     return (
         <div className="min-h-screen bg-[#080c14] text-slate-300 p-6 lg:p-12">
-            <div className="max-w-[1850px] mx-auto space-y-8">
+            <div className="max-w-[2200px] mx-auto space-y-8">
                 {/* Filtre ve Header */}
                 <div className="flex flex-col xl:flex-row items-center justify-between gap-8 bg-slate-900/40 p-6 rounded-[2.5rem] border border-white/5">
                     <div className="flex items-center gap-4">
@@ -294,6 +355,16 @@ const TopluTutanak = () => {
                         >
                             {loading ? <Loader2 className="animate-spin" size={16} /> : <Search size={16} />} SORGULA
                         </button>
+
+                        {/* ✅ Yeni Buton: VKN GETİR */}
+                        <button
+                            onClick={handleVknGetir}
+                            disabled={vknLoading || veriler.length === 0}
+                            className="px-8 py-3 bg-emerald-600 rounded-2xl font-black text-xs text-white hover:bg-emerald-500 transition-all flex items-center gap-2 disabled:opacity-50"
+                            title={veriler.length === 0 ? "Önce sorgu çekmelisin" : "Supabase firmalar tablosundan firma bilgileri getir"}
+                        >
+                            {vknLoading ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />} VKN GETİR
+                        </button>
                     </div>
                 </div>
 
@@ -304,59 +375,170 @@ const TopluTutanak = () => {
                     </div>
                 )}
 
+                {/* ✅ VKN Hata Alanı */}
+                {vknHata && (
+                    <div className="bg-amber-500/10 border border-amber-500/30 text-amber-200 px-6 py-4 rounded-2xl">
+                        {vknHata}
+                    </div>
+                )}
+
                 {/* Tablo */}
-                <div className="bg-[#0d121f]/80 border border-white/5 rounded-[2.5rem] overflow-hidden shadow-2xl">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead className="bg-white/[0.02] border-b border-white/5">
+                <div className="bg-[#0d121f]/80 border border-white/5 rounded-[2.5rem] shadow-2xl">
+                    <div className="overflow-x-auto overflow-y-auto max-h-[70vh]">
+                        <table className="w-full text-left table-fixed min-w-[1600px]">
+                            <thead className="sticky top-0 z-10 bg-[#0b1020]/90 backdrop-blur border-b border-white/5">
                                 <tr>
-                                    <th className="p-8 w-16">
+                                    <th className="p-7 w-20">
                                         <button
-                                            onClick={() => setSelectedIds(selectedIds.length === veriler.length ? [] : veriler.map(i => i.TMSDespatchId))}
-                                            className={`w-6 h-6 rounded-lg border-2 ${selectedIds.length === veriler.length && veriler.length > 0 ? 'bg-indigo-500 border-indigo-500' : 'border-slate-700'}`}
+                                            onClick={() =>
+                                                setSelectedIds(
+                                                    selectedIds.length === veriler.length ? [] : veriler.map(i => i.TMSDespatchId)
+                                                )
+                                            }
+                                            className={`w-7 h-7 rounded-xl border-2 transition-all ${selectedIds.length === veriler.length && veriler.length > 0
+                                                    ? 'bg-indigo-500 border-indigo-500 shadow-[0_0_0_5px_rgba(99,102,241,0.16)]'
+                                                    : 'border-slate-700 hover:border-slate-500'
+                                                }`}
                                         >
-                                            {selectedIds.length === veriler.length && veriler.length > 0 && <CheckCircle2 size={16} className="text-white mx-auto" />}
+                                            {selectedIds.length === veriler.length && veriler.length > 0 && (
+                                                <CheckCircle2 size={18} className="text-white mx-auto" />
+                                            )}
                                         </button>
                                     </th>
-                                    <th className="p-6 text-[10px] font-black uppercase text-slate-500">Tedarikçi</th>
-                                    <th className="p-6 text-[10px] font-black uppercase text-slate-500">Sefer / Tarih</th>
-                                    <th className="p-6 text-[10px] font-black uppercase text-slate-500">Plaka</th>
-                                    <th className="p-6 text-[10px] font-black uppercase text-slate-500">Durum</th>
+
+                                    <th className="px-7 py-6 text-[13px] tracking-wider font-black uppercase text-slate-300 w-[520px]">
+                                        Tedarikçi
+                                    </th>
+
+                                    <th className="px-7 py-6 text-[13px] tracking-wider font-black uppercase text-slate-300 w-[520px]">
+                                        Firma Bilgileri
+                                    </th>
+
+                                    <th className="px-7 py-6 text-[13px] tracking-wider font-black uppercase text-slate-300 w-[260px]">
+                                        Sefer / Tarih
+                                    </th>
+
+                                    <th className="px-7 py-6 text-[13px] tracking-wider font-black uppercase text-slate-300 w-[180px]">
+                                        Plaka
+                                    </th>
+
+                                    <th className="px-7 py-6 text-[13px] tracking-wider font-black uppercase text-slate-300 w-[240px]">
+                                        Durum
+                                    </th>
                                 </tr>
                             </thead>
 
-                            <tbody>
-                                {veriler.map((item) => (
-                                    <tr
-                                        key={item.TMSDespatchId}
-                                        onClick={() => setSelectedIds(prev => prev.includes(item.TMSDespatchId) ? prev.filter(i => i !== item.TMSDespatchId) : [...prev, item.TMSDespatchId])}
-                                        className="hover:bg-white/[0.02] border-b border-white/[0.03] cursor-pointer"
-                                    >
-                                        <td className="p-8">
-                                            <div className={`w-6 h-6 rounded-lg border-2 ${selectedIds.includes(item.TMSDespatchId) ? 'bg-indigo-500 border-indigo-500' : 'border-slate-800'}`}>
-                                                {selectedIds.includes(item.TMSDespatchId) && <CheckCircle2 size={16} className="text-white mx-auto" />}
-                                            </div>
-                                        </td>
+                            <tbody className="divide-y divide-white/[0.05]">
+                                {veriler.map((item) => {
+                                    const isSelected = selectedIds.includes(item.TMSDespatchId);
 
-                                        <td className="p-6">
-                                            <div className="text-sm font-bold text-white">{item.SupplierCurrentAccountFullTitle}</div>
-                                            <div className="text-[10px] text-slate-500 mt-1">{item.CustomerFullTitle}</div>
-                                        </td>
+                                    return (
+                                        <tr
+                                            key={item.TMSDespatchId}
+                                            onClick={() =>
+                                                setSelectedIds(prev =>
+                                                    prev.includes(item.TMSDespatchId)
+                                                        ? prev.filter(i => i !== item.TMSDespatchId)
+                                                        : [...prev, item.TMSDespatchId]
+                                                )
+                                            }
+                                            className={`group cursor-pointer transition-colors ${isSelected ? 'bg-indigo-500/12' : 'hover:bg-white/[0.04]'
+                                                }`}
+                                        >
+                                            <td className="p-7 align-top">
+                                                <div
+                                                    className={`w-7 h-7 rounded-xl border-2 transition-all ${isSelected
+                                                            ? 'bg-indigo-500 border-indigo-500 shadow-[0_0_0_5px_rgba(99,102,241,0.14)]'
+                                                            : 'border-slate-700/70 group-hover:border-slate-500'
+                                                        }`}
+                                                >
+                                                    {isSelected && <CheckCircle2 size={18} className="text-white mx-auto" />}
+                                                </div>
+                                            </td>
 
-                                        <td className="p-6">
-                                            <div className="text-sm font-mono text-indigo-400">#{item.DocumentNo}</div>
-                                            <div className="text-[10px] text-slate-500">{formatDateISO(item.DespatchDate)}</div>
-                                        </td>
+                                            <td className="px-7 py-7 align-top">
+                                                <div className="text-[18px] font-extrabold text-white leading-snug break-words">
+                                                    {item.SupplierCurrentAccountFullTitle}
+                                                </div>
+                                                <div className="mt-3 text-[14px] text-slate-400 leading-snug break-words">
+                                                    {item.CustomerFullTitle}
+                                                </div>
+                                            </td>
 
-                                        <td className="p-6 text-sm font-black text-slate-300">{item.PlateNumber}</td>
+                                            <td className="px-7 py-7 align-top">
+                                                {(() => {
+                                                    const key = U(item.SupplierCurrentAccountFullTitle);
+                                                    const matches = firmaEslesmeleri[key] || [];
 
-                                        <td className="p-6">
-                                            <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full text-[10px] font-bold">
-                                                {durumAciklamalari[item.TMSDespatchDocumentStatu] || item.TMSDespatchDocumentStatu}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
+                                                    if (matches.length === 0) {
+                                                        return (
+                                                            <span className="inline-flex items-center px-4 py-2 rounded-full text-[14px] font-black bg-white/[0.04] border border-white/[0.06] text-slate-500">
+                                                                -
+                                                            </span>
+                                                        );
+                                                    }
+
+                                                    const uniq = (arr) => Array.from(new Set(arr.filter(Boolean)));
+                                                    const vk = uniq(matches.map(m => (m.vkn ?? '').toString().trim()));
+                                                    const tc = uniq(matches.map(m => (m.tc ?? '').toString().trim()));
+                                                    const kd = uniq(matches.map(m => (m.kod ?? '').toString().trim()));
+                                                    const tl = uniq(matches.map(m => (m.telefon ?? '').toString().trim()));
+                                                    const ib = uniq(matches.map(m => (m["ıban"] ?? '').toString().trim()));
+
+                                                    const valueOrDash = (arr) => (arr.length ? arr.join(' / ') : '-');
+
+                                                    const Chip = ({ label, value }) => (
+                                                        <div className="flex items-start gap-4">
+                                                            <span className="text-[12px] font-black tracking-wide text-slate-500 uppercase w-16 pt-[6px]">
+                                                                {label}
+                                                            </span>
+                                                            <span className="px-4 py-2 rounded-2xl text-[14px] font-black bg-emerald-500/10 text-emerald-200 border border-emerald-500/20 break-all">
+                                                                {value}
+                                                            </span>
+                                                        </div>
+                                                    );
+
+                                                    return (
+                                                        <div className="space-y-3">
+                                                            <Chip label="VKN" value={valueOrDash(vk)} />
+                                                            <Chip label="TC" value={valueOrDash(tc)} />
+                                                            <Chip label="KOD" value={valueOrDash(kd)} />
+                                                            <Chip label="TEL" value={valueOrDash(tl)} />
+                                                            <Chip label="IBAN" value={valueOrDash(ib)} />
+
+                                                            {matches.length > 1 && (
+                                                                <div className="text-[13px] text-slate-400">
+                                                                    {matches.length} eşleşme
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </td>
+
+                                            <td className="px-7 py-7 align-top">
+                                                <div className="text-[16px] font-mono font-black text-indigo-300">
+                                                    #{item.DocumentNo}
+                                                </div>
+                                                <div className="mt-3 text-[14px] text-slate-400">
+                                                    {formatDateISO(item.DespatchDate)}
+                                                </div>
+                                            </td>
+
+                                            <td className="px-7 py-7 align-top">
+                                                <div className="inline-flex items-center px-5 py-2 rounded-2xl text-[16px] font-black bg-white/[0.04] border border-white/[0.06] text-slate-100">
+                                                    {item.PlateNumber}
+                                                </div>
+                                            </td>
+
+                                            <td className="px-7 py-7 align-top">
+                                                <span className="inline-flex items-center px-5 py-2 rounded-2xl text-[14px] font-black bg-indigo-500/10 text-indigo-200 border border-indigo-500/20">
+                                                    {durumAciklamalari[item.TMSDespatchDocumentStatu] || item.TMSDespatchDocumentStatu}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
