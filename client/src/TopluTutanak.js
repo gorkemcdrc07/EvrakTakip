@@ -80,7 +80,7 @@ const TopluTutanak = () => {
     // Senin filtrelerin (Aynen korundu)
     const isBaseAllowed = (item) => {
         if (DURUM_ENGEL.has(Number(item.TMSDespatchDocumentStatu))) return false;
-        const PROJE_ENGEL = ['HASAR İADE', 'AKTÜL', 'KARGO HİZMETLERİ', 'HGS-YAKIT FATURA İŞLEME'].map(U);
+        const PROJE_ENGEL = ['HASAR İADE', 'AKTÜL', 'KARGO HİZMETİ', 'HGS-YAKIT FATURA İŞLEME'].map(U);
         return U(item.VehicleWorkingTypeName) === 'SPOT' &&
             U(item.SpecialGroupName) === 'SPOT' &&
             item.DocumentNo?.startsWith('SFR') &&
@@ -126,7 +126,7 @@ const TopluTutanak = () => {
                 'ARKAS LOJİSTİK ANONİM ŞİRKETİ',
                 'HEDEF TÜKETİM ÜRÜNLERİ SANAYİ VE DIŞ TİCARET ANONİM ŞİRKETİ',
                 'MOKS MOBİLYA KURULUM SERVİS LOJİSTİK PETROL İTHALAT İHRACAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ',
-                'ODAK TEDARİK ZİNCİRİ VE LOJİSTİK ANONİM ŞİRKETİ','KONFRUT AG ARAÇ KİRALAMA'
+                'ODAK TEDARİK ZİNCİRİ VE LOJİSTİK ANONİM ŞİRKETİ','KONFRUT AG TARIM ANONİM ŞİRKETİ'
             ].map(U);
 
             const filtered = all
