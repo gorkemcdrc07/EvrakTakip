@@ -99,7 +99,7 @@ const Raporlar = () => {
                     'İZ KENT LOJİSTİK HİZMETLERİ LİMİTED ŞİRKETİ', 'ARKAS LOJİSTİK ANONİM ŞİRKETİ',
                     'HEDEF TÜKETİM ÜRÜNLERİ SANAYİ VE DIŞ TİCARET ANONİM ŞİRKETİ',
                     'MOKS MOBİLYA KURULUM SERVİS LOJİSTİK PETROL İTHALAT İHRACAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ',
-                    'ODAK TEDARİK ZİNCİRİ VE LOJİSTİK ANONİM ŞİRKETİ',
+                    'ODAK TEDARİK ZİNCİRİ VE LOJİSTİK ANONİM ŞİRKETİ','KONFRUT AG ARAÇ KİRALAMA'
                 ];
 
                 return (

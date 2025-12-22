@@ -15,6 +15,8 @@ import { supabase } from './supabaseClient';
 import htmlDocx from 'html-docx-js/dist/html-docx';
 import { saveAs } from 'file-saver';
 import JSZip from 'jszip';
+import * as XLSX from "xlsx";
+
 
 // ---------- 1. YARDIMCI FONKSİYONLAR & SABİTLER ----------
 const U = (v) => (v ?? '').toString().trim().toLocaleUpperCase('tr-TR');
@@ -73,6 +75,8 @@ const TopluTutanak = () => {
     const [vknLoading, setVknLoading] = useState(false);
     const [vknHata, setVknHata] = useState(null);
 
+
+
     // Senin filtrelerin (Aynen korundu)
     const isBaseAllowed = (item) => {
         if (DURUM_ENGEL.has(Number(item.TMSDespatchDocumentStatu))) return false;
@@ -122,7 +126,7 @@ const TopluTutanak = () => {
                 'ARKAS LOJİSTİK ANONİM ŞİRKETİ',
                 'HEDEF TÜKETİM ÜRÜNLERİ SANAYİ VE DIŞ TİCARET ANONİM ŞİRKETİ',
                 'MOKS MOBİLYA KURULUM SERVİS LOJİSTİK PETROL İTHALAT İHRACAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ',
-                'ODAK TEDARİK ZİNCİRİ VE LOJİSTİK ANONİM ŞİRKETİ',
+                'ODAK TEDARİK ZİNCİRİ VE LOJİSTİK ANONİM ŞİRKETİ','KONFRUT AG ARAÇ KİRALAMA'
             ].map(U);
 
             const filtered = all
@@ -311,6 +315,93 @@ const TopluTutanak = () => {
         } finally { setCreating(false); }
     };
 
+    const handleExcelExport = () => {
+        const rows = (selectedIds.length > 0
+            ? veriler.filter(v => selectedIds.includes(v.TMSDespatchId))
+            : veriler
+        );
+
+        if (!rows.length) return;
+
+        const toAsciiTR = (s) =>
+            (s || '')
+                .replaceAll('İ', 'I').replaceAll('İ', 'I')
+                .replaceAll('ı', 'i')
+                .replaceAll('Ş', 'S').replaceAll('ş', 's')
+                .replaceAll('Ğ', 'G').replaceAll('ğ', 'g')
+                .replaceAll('Ü', 'U').replaceAll('ü', 'u')
+                .replaceAll('Ö', 'O').replaceAll('ö', 'o')
+                .replaceAll('Ç', 'C').replaceAll('ç', 'c');
+
+        const safeFilePart = (s, maxLen = 60) => {
+            const ascii = toAsciiTR((s ?? '').toString().trim());
+            return ascii
+                .replace(/[\\/:*?"<>|]/g, '')
+                .replace(/\s+/g, '_')
+                .replace(/_+/g, '_')
+                .slice(0, maxLen) || 'BILGI_YOK';
+        };
+
+        const getFirma = (supplierTitle) => {
+            const key = U(supplierTitle);
+            const matches = firmaEslesmeleri[key] || [];
+
+            const uniq = (arr) => Array.from(new Set(arr.filter(Boolean)));
+            const joinOrDash = (arr) => (arr.length ? arr.join(' / ') : '');
+
+            return {
+                VKN: joinOrDash(uniq(matches.map(m => (m.vkn ?? '').toString().trim()))),
+                TC: joinOrDash(uniq(matches.map(m => (m.tc ?? '').toString().trim()))),
+                KOD: joinOrDash(uniq(matches.map(m => (m.kod ?? '').toString().trim()))),
+                TEL: joinOrDash(uniq(matches.map(m => (m.telefon ?? '').toString().trim()))),
+                IBAN: joinOrDash(uniq(matches.map(m => (m["ıban"] ?? '').toString().trim()))),
+                ESLESME_SAYISI: matches.length || 0,
+            };
+        };
+
+        const dataForExcel = rows.map(item => {
+            const f = getFirma(item.SupplierCurrentAccountFullTitle);
+            return {
+                TMSDespatchId: item.TMSDespatchId,
+                Tedarikci: item.SupplierCurrentAccountFullTitle || '',
+                Musteri: item.CustomerFullTitle || '',
+                SeferNo: item.DocumentNo || '',
+                Tarih: formatDateISO(item.DespatchDate),
+                Plaka: item.PlateNumber || '',
+                Dorse: item.TrailerPlateNumber || '',
+                Durum: durumAciklamalari[item.TMSDespatchDocumentStatu] || item.TMSDespatchDocumentStatu,
+                VKN: f.VKN,
+                TC: f.TC,
+                KOD: f.KOD,
+                TEL: f.TEL,
+                IBAN: f.IBAN,
+                EslesmeSayisi: f.ESLESME_SAYISI,
+                YuklemeIlIlce: item.PickupCityCountyName || '',
+                TeslimIlIlce: item.DeliveryCityCountyName || '',
+                TeslimCari: item.DeliveryCurrentAccountName || '',
+                IrsaliyeNo: item.TMSDespatchWaybillNumber || '',
+                Surucu: item.FullName || '',
+                SurucuTCKN: item.CitizenNumber || '',
+                Proje: item.ProjectName || '',
+            };
+        });
+
+        const ws = XLSX.utils.json_to_sheet(dataForExcel);
+
+        // Basit kolon genişliği (opsiyonel ama hoş)
+        ws["!cols"] = Object.keys(dataForExcel[0] || {}).map(() => ({ wch: 22 }));
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Tutanak_Listesi");
+
+        const fileName = `Tutanak_${safeFilePart(
+            new Date().toLocaleDateString('tr-TR')
+        )}_${rows.length}_satir.xlsx`;
+
+        XLSX.writeFile(wb, fileName);
+    };
+
+
     return (
         <div className="min-h-screen bg-[#080c14] text-slate-300 p-6 lg:p-12">
             <div className="max-w-[2200px] mx-auto space-y-8">
@@ -365,6 +456,15 @@ const TopluTutanak = () => {
                         >
                             {vknLoading ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />} VKN GETİR
                         </button>
+                        <button
+                            onClick={handleExcelExport}
+                            disabled={veriler.length === 0}
+                            className="px-8 py-3 bg-slate-700 rounded-2xl font-black text-xs text-white hover:bg-slate-600 transition-all flex items-center gap-2 disabled:opacity-50"
+                            title={veriler.length === 0 ? "Önce sorgu çekmelisin" : (selectedIds.length ? "Seçilileri indir" : "Tüm listeyi indir")}
+                        >
+                            <Download size={16} /> EXCEL İNDİR
+                        </button>
+
                     </div>
                 </div>
 
@@ -435,28 +535,31 @@ const TopluTutanak = () => {
                                     return (
                                         <tr
                                             key={item.TMSDespatchId}
-                                            onClick={() =>
-                                                setSelectedIds(prev =>
-                                                    prev.includes(item.TMSDespatchId)
-                                                        ? prev.filter(i => i !== item.TMSDespatchId)
-                                                        : [...prev, item.TMSDespatchId]
-                                                )
-                                            }
-                                            className={`group cursor-pointer transition-colors ${isSelected ? 'bg-indigo-500/12' : 'hover:bg-white/[0.04]'
+                                            className={`group transition-colors ${isSelected ? 'bg-indigo-500/12' : 'hover:bg-white/[0.04]'
                                                 }`}
                                         >
+
                                             <td className="p-7 align-top">
-                                                <div
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedIds(prev =>
+                                                            prev.includes(item.TMSDespatchId)
+                                                                ? prev.filter(i => i !== item.TMSDespatchId)
+                                                                : [...prev, item.TMSDespatchId]
+                                                        );
+                                                    }}
                                                     className={`w-7 h-7 rounded-xl border-2 transition-all ${isSelected
                                                             ? 'bg-indigo-500 border-indigo-500 shadow-[0_0_0_5px_rgba(99,102,241,0.14)]'
                                                             : 'border-slate-700/70 group-hover:border-slate-500'
                                                         }`}
                                                 >
                                                     {isSelected && <CheckCircle2 size={18} className="text-white mx-auto" />}
-                                                </div>
+                                                </button>
                                             </td>
 
-                                            <td className="px-7 py-7 align-top">
+                                            <td className="px-7 py-7 align-top select-text">
                                                 <div className="text-[18px] font-extrabold text-white leading-snug break-words">
                                                     {item.SupplierCurrentAccountFullTitle}
                                                 </div>
@@ -465,7 +568,7 @@ const TopluTutanak = () => {
                                                 </div>
                                             </td>
 
-                                            <td className="px-7 py-7 align-top">
+                                            <td className="px-7 py-7 align-top select-text">
                                                 {(() => {
                                                     const key = U(item.SupplierCurrentAccountFullTitle);
                                                     const matches = firmaEslesmeleri[key] || [];
