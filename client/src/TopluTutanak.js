@@ -219,80 +219,103 @@ const TopluTutanak = () => {
         }
     };
 
-    // --- TUTANAK ŞABLONU (BİREBİR) ---
+    // --- TUTANAK ŞABLONU (BİREBİR) + ✅ PDF kırpılma fixleri (padding-bottom + no-break) ---
     const generateTutanakHTML = (row) => {
         const today = new Date().toLocaleDateString('tr-TR');
         const plakaStr = `${row.PlateNumber || ''} / ${row.TrailerPlateNumber || ''}`;
 
         return `
-        <!DOCTYPE html>
-        <html>
-        <head><meta charset="utf-8"></head>
-        <body style="font-family: 'Times New Roman', serif; font-size: 11pt; color: black; line-height: 1.5;">
-            <h1 style="text-align: center; font-size: 14pt; font-weight: bold; margin-bottom: 30px;">
-                NAKLİYE SEFERİ BİLGİLENDİRME FORMU
-            </h1>
-            
-            <div style="margin-bottom: 20px;">
-                <p style="margin: 0;"><strong>İŞVEREN :</strong></p>
-                <p style="margin: 0;">ODAK TEDARİK ZİNCİRİ VE LOJİSTİK A.Ş.</p>
-                <p style="margin: 0;">Vergi Dairesi: ALEMDAĞ<br>Vergi No: 6340954050</p>
-            </div>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    @page { size: A4; margin: 0; }
+    html, body { background: #fff !important; }
 
-            <div style="margin-bottom: 25px;">
-                <p><strong>TAŞIYICI :</strong></p>
-                <p><strong>${row.SupplierCurrentAccountFullTitle || '---'}</strong></p>
-            </div>
+    .no-break{
+      break-inside: avoid;
+      page-break-inside: avoid;
+      -webkit-column-break-inside: avoid;
+    }
 
-            <h3 style="text-decoration: underline;">AÇIKLAMALAR :</h3>
-            <p style="text-align: justify;">
-                Sayın Taşıyıcı Muhatap; ${row.SupplierCurrentAccountFullTitle}, ${formatDateISO(row.DespatchDate)} tarihinde ${row.DocumentNo} nolu sefer numaralı ${row.CustomerFullTitle}, ${row.PickupCityCountyName}’dan yükleyip ${row.DeliveryCurrentAccountName}, ${row.DeliveryCityCountyName}’ya ulaştırılması amacıyla ${plakaStr} Plakalı araç sürücüsü ${row.FullName} (TCKN: ${row.CitizenNumber}) Tedarikçi firma ${row.SupplierCurrentAccountFullTitle}, ${row.TMSDespatchWaybillNumber || '---'} nolu irsaliyeli fatura ile taşınan ürünlerin teslim edildiğini beyan edilmiştir. Ancak teslime ilişkin evraklar bugüne kadar tarafımıza ibraz edilmemiştir.
-            </p>
+    h1, h2, h3 { break-after: avoid; page-break-after: avoid; }
+    p { orphans: 3; widows: 3; }
+  </style>
+</head>
 
-            <p style="text-align: left; line-height: 1.5; margin-top: 15px;">
-                Karayolları Trafik Kanunu ve teamüller uyarınca; “basiretli bir tacir olan taşıyan,
-                verilen yük muhteviyatını, boşaltma/teslim adresine sağlam, eksiksiz ve sözleşmede
-                belirlenen süre içerisinde teslim etmekle ve her bir sevkiyat için Taşıtan'ın
-                irsaliye ofislerinden taşıma irsaliyesini almakla yükümlüdür. Yükleme tamamlandıktan
-                sonra bu irsaliyenin bir nüshası kesilecek olan nakliye faturasına eklenir ve
-                Taşıtan yetkililerine teslim edilir. Teslimat esnasında, Taşıtan'ın müşterisine
-                ait sevk irsaliyelerinin alt nüshaları yükün tam ve eksiksiz teslim alındığına
-                dair kaşe ve imza yaptırılmak zorundadır. Kaşe ve imzası eksik olan seferlerin,
-                Taşıtan'ın müşterisine ait sevk irsaliyyesi veya Taşıtan'a ait taşıma irsaliyesi
-                eksik olan seferlerin bakiyesi ödenmez.”
-                <br><br>
-                İşbu nedenle, tarafınızca taşıması yapılan yukarıda sefer bilgisi verilen taşımaya
-                ilişkin teslim evraklarının tarafımıza teslim edilmemesi nedeni ile KDV ödemeleriniz
-                yapılamamaktadır. Teslim evraklarının 3 (üç) gün içerisinde tarafımıza teslimi ya da
-                evrakların temin edilememesi/kaybolması durumunda oluşabilecek zararlarla ilgili
-                sorumluluğun kendinizde olduğuna ilişkin ekteki tutanağın imzalanarak tarafımıza
-                teslimi durumunda KDV ödemeleri tarafımızca yapılacaktır.
-            </p>
+<body style="
+  font-family: 'Times New Roman', serif;
+  font-size: 11pt;
+  color: black;
+  line-height: 1.5;
+  padding: 10mm 10mm 28mm 10mm;  /* ✅ alt padding büyük */
+  box-sizing: border-box;
+">
+  <h1 style="text-align: center; font-size: 14pt; font-weight: bold; margin-bottom: 30px;">
+    NAKLİYE SEFERİ BİLGİLENDİRME FORMU
+  </h1>
+  
+  <div style="margin-bottom: 20px;">
+    <p style="margin: 0;"><strong>İŞVEREN :</strong></p>
+    <p style="margin: 0;">ODAK TEDARİK ZİNCİRİ VE LOJİSTİK A.Ş.</p>
+    <p style="margin: 0;">Vergi Dairesi: ALEMDAĞ<br>Vergi No: 6340954050</p>
+  </div>
 
-            <h3 style="margin-top: 30px; margin-bottom: 15px; font-weight: bold;">SORUMLULUK BEYANI</h3>
-            <p style="margin: 0 0 15px 0; font-weight: bold;">ODAK TEDARİK ZİNCİRİ VE LOJİSTİK A.Ş.’ne</p>
-            <p style="margin: 0; line-height: 1.5;">
-                ${row.SupplierCurrentAccountFullTitle},
-                ${formatDateISO(row.DespatchDate)} tarihinde ${row.DocumentNo} nolu sefer numaralı
-                ${row.CustomerFullTitle}, ${row.PickupCityCountyName}’dan yükleyip
-                ${row.DeliveryCurrentAccountName}, ${row.DeliveryCityCountyName}’ya ulaştırılması
-                amacıyla ${plakaStr} plakalı araç sürücüsü ${row.FullName}
-                (TCKN: ${row.CitizenNumber}) tarafından, tedarikçi firma
-                ${row.SupplierCurrentAccountFullTitle} adına,
-                ${row.TMSDespatchWaybillNumber || '---'} irsaliyeli fatura ile teslim edilmiştir.
-            </p>
-            
-            <div style="margin-top: 60px;">
-                <p>Tarih: ${today}</p>
-                <p>Beyan eden: ${row.SupplierCurrentAccountFullTitle}</p>
-                <br>
-                <p>Kaşe / İmza</p>
-            </div>
-        </body>
-        </html>`;
+  <div style="margin-bottom: 25px;">
+    <p><strong>TAŞIYICI :</strong></p>
+    <p><strong>${row.SupplierCurrentAccountFullTitle || '---'}</strong></p>
+  </div>
+
+  <h3 style="text-decoration: underline;">AÇIKLAMALAR :</h3>
+  <p style="text-align: justify;">
+    Sayın Taşıyıcı Muhatap; ${row.SupplierCurrentAccountFullTitle}, ${formatDateISO(row.DespatchDate)} tarihinde ${row.DocumentNo} nolu sefer numaralı ${row.CustomerFullTitle}, ${row.PickupCityCountyName}’dan yükleyip ${row.DeliveryCurrentAccountName}, ${row.DeliveryCityCountyName}’ya ulaştırılması amacıyla ${plakaStr} Plakalı araç sürücüsü ${row.FullName} (TCKN: ${row.CitizenNumber}) Tedarikçi firma ${row.SupplierCurrentAccountFullTitle}, ${row.TMSDespatchWaybillNumber || '---'} nolu irsaliyeli fatura ile taşınan ürünlerin teslim edildiğini beyan edilmiştir. Ancak teslime ilişkin evraklar bugüne kadar tarafımıza ibraz edilmemiştir.
+  </p>
+
+  <p style="text-align: left; line-height: 1.5; margin-top: 15px;">
+    Karayolları Trafik Kanunu ve teamüller uyarınca; “basiretli bir tacir olan taşıyan,
+    verilen yük muhteviyatını, boşaltma/teslim adresine sağlam, eksiksiz ve sözleşmede
+    belirlenen süre içerisinde teslim etmekle ve her bir sevkiyat için Taşıtan'ın
+    irsaliye ofislerinden taşıma irsaliyesini almakla yükümlüdür. Yükleme tamamlandıktan
+    sonra bu irsaliyenin bir nüshası kesilecek olan nakliye faturasına eklenir ve
+    Taşıtan yetkililerine teslim edilir. Teslimat esnasında, Taşıtan'ın müşterisine
+    ait sevk irsaliyelerinin alt nüshaları yükün tam ve eksiksiz teslim alındığına
+    dair kaşe ve imza yaptırılmak zorundadır. Kaşe ve imzası eksik olan seferlerin,
+    Taşıtan'ın müşterisine ait sevk irsaliyyesi veya Taşıtan'a ait taşıma irsaliyesi
+    eksik olan seferlerin bakiyesi ödenmez.”
+    <br><br>
+    İşbu nedenle, tarafınızca taşıması yapılan yukarıda sefer bilgisi verilen taşımaya
+    ilişkin teslim evraklarının tarafımıza teslim edilmemesi nedeni ile KDV ödemeleriniz
+    yapılamamaktadır. Teslim evraklarının 3 (üç) gün içerisinde tarafımıza teslimi ya da
+    evrakların temin edilememesi/kaybolması durumunda oluşabilecek zararlarla ilgili
+    sorumluluğun kendinizde olduğuna ilişkin ekteki tutanağın imzalanarak tarafımıza
+    teslimi durumunda KDV ödemeleri tarafımızca yapılacaktır.
+  </p>
+
+  <h3 style="margin-top: 30px; margin-bottom: 15px; font-weight: bold;">SORUMLULUK BEYANI</h3>
+  <p style="margin: 0 0 15px 0; font-weight: bold;">ODAK TEDARİK ZİNCİRİ VE LOJİSTİK A.Ş.’ne</p>
+  <p style="margin: 0; line-height: 1.5;">
+    ${row.SupplierCurrentAccountFullTitle},
+    ${formatDateISO(row.DespatchDate)} tarihinde ${row.DocumentNo} nolu sefer numaralı
+    ${row.CustomerFullTitle}, ${row.PickupCityCountyName}’dan yükleyip
+    ${row.DeliveryCurrentAccountName}, ${row.DeliveryCityCountyName}’ya ulaştırılması
+    amacıyla ${plakaStr} plakalı araç sürücüsü ${row.FullName}
+    (TCKN: ${row.CitizenNumber}) tarafından, tedarikçi firma
+    ${row.SupplierCurrentAccountFullTitle} adına,
+    ${row.TMSDespatchWaybillNumber || '---'} irsaliyeli fatura ile teslim edilmiştir.
+  </p>
+  
+  <div class="no-break" style="margin-top: 60px; margin-bottom: 18mm;">
+    <p>Tarih: ${today}</p>
+    <p>Beyan eden: ${row.SupplierCurrentAccountFullTitle}</p>
+    <br>
+    <p>Kaşe / İmza</p>
+  </div>
+</body>
+</html>`;
     };
 
-    // ✅ HTML string -> PDF Blob (iframe render ile "boş PDF" sorununu çözer)
+    // ✅ HTML string -> PDF Blob (iframe render + dynamic import) + ✅ margin fix
     const htmlToPdfBlob = async (htmlString, fileName = 'tutanak.pdf') => {
         const html2pdf = (await import('html2pdf.js')).default;
 
@@ -321,7 +344,8 @@ const TopluTutanak = () => {
             const body = doc.body;
 
             const opt = {
-                margin: [10, 10, 10, 10],
+                // ✅ alt margin büyütüldü => “Kaşe/İmza” kırpılmasın
+                margin: [10, 10, 20, 10],
                 filename: fileName,
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: {
@@ -513,7 +537,7 @@ const TopluTutanak = () => {
                             {loading ? <Loader2 className="animate-spin" size={16} /> : <Search size={16} />} SORGULA
                         </button>
 
-                        {/* ✅ Yeni Buton: VKN GETİR */}
+                        {/* ✅ VKN GETİR */}
                         <button
                             onClick={handleVknGetir}
                             disabled={vknLoading || veriler.length === 0}
@@ -531,7 +555,6 @@ const TopluTutanak = () => {
                         >
                             <Download size={16} /> EXCEL İNDİR
                         </button>
-
                     </div>
                 </div>
 
@@ -542,7 +565,7 @@ const TopluTutanak = () => {
                     </div>
                 )}
 
-                {/* ✅ VKN Hata Alanı */}
+                {/* VKN Hata Alanı */}
                 {vknHata && (
                     <div className="bg-amber-500/10 border border-amber-500/30 text-amber-200 px-6 py-4 rounded-2xl">
                         {vknHata}
