@@ -17,6 +17,9 @@ import { saveAs } from 'file-saver';
 import JSZip from 'jszip';
 import * as XLSX from "xlsx";
 
+// ❌ SABİT IMPORTU KALDIRDIK (SSR/Next vb. + boş PDF sorunları)
+// import html2pdf from 'html2pdf.js';
+
 
 // ---------- 1. YARDIMCI FONKSİYONLAR & SABİTLER ----------
 const U = (v) => (v ?? '').toString().trim().toLocaleUpperCase('tr-TR');
@@ -60,13 +63,35 @@ const chunkDateRanges = (startDate, endDate, chunkDays = 2) => {
     return ranges;
 };
 
+// ✅ Dosya adı güvenli hale getirme (TR karakterler + Windows yasaklı karakterler)
+const toAsciiTR = (s) =>
+    (s || '')
+        .replaceAll('İ', 'I').replaceAll('İ', 'I')
+        .replaceAll('ı', 'i')
+        .replaceAll('Ş', 'S').replaceAll('ş', 's')
+        .replaceAll('Ğ', 'G').replaceAll('ğ', 'g')
+        .replaceAll('Ü', 'U').replaceAll('ü', 'u')
+        .replaceAll('Ö', 'O').replaceAll('ö', 'o')
+        .replaceAll('Ç', 'C').replaceAll('ç', 'c');
+
+const safeFilePart = (s, maxLen = 60) => {
+    const ascii = toAsciiTR((s ?? '').toString().trim());
+    return ascii
+        .replace(/[\\/:*?"<>|]/g, '')
+        .replace(/\s+/g, '_')
+        .replace(/_+/g, '_')
+        .slice(0, maxLen) || 'BILGI_YOK';
+};
+
+
 // ---------- 2. ANA BİLEŞEN ----------
 const TopluTutanak = () => {
     const [startDate, setStartDate] = useState(new Date());
     const [endDate, setEndDate] = useState(new Date());
     const [veriler, setVeriler] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [creating, setCreating] = useState(false);
+    const [creating, setCreating] = useState(false);        // ✅ WORD ZIP
+    const [creatingPdf, setCreatingPdf] = useState(false);  // ✅ PDF ZIP
     const [selectedIds, setSelectedIds] = useState([]);
     const [hata, setHata] = useState(null);
 
@@ -74,8 +99,6 @@ const TopluTutanak = () => {
     const [firmaEslesmeleri, setFirmaEslesmeleri] = useState({});
     const [vknLoading, setVknLoading] = useState(false);
     const [vknHata, setVknHata] = useState(null);
-
-
 
     // Senin filtrelerin (Aynen korundu)
     const isBaseAllowed = (item) => {
@@ -126,7 +149,7 @@ const TopluTutanak = () => {
                 'ARKAS LOJİSTİK ANONİM ŞİRKETİ',
                 'HEDEF TÜKETİM ÜRÜNLERİ SANAYİ VE DIŞ TİCARET ANONİM ŞİRKETİ',
                 'MOKS MOBİLYA KURULUM SERVİS LOJİSTİK PETROL İTHALAT İHRACAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ',
-                'ODAK TEDARİK ZİNCİRİ VE LOJİSTİK ANONİM ŞİRKETİ','KONFRUT AG TARIM ANONİM ŞİRKETİ'
+                'ODAK TEDARİK ZİNCİRİ VE LOJİSTİK ANONİM ŞİRKETİ', 'KONFRUT AG TARIM ANONİM ŞİRKETİ'
             ].map(U);
 
             const filtered = all
@@ -146,7 +169,7 @@ const TopluTutanak = () => {
         }
     };
 
-    // ✅ VKN GETİR: tablodaki "Tedarikçi" -> supabase firmalar.unvan eşleştir (aynı unvan çoksa hepsini al)
+    // ✅ VKN GETİR: tablodaki "Tedarikçi" -> supabase firmalar.unvan eşleştir
     const handleVknGetir = async () => {
         setVknLoading(true);
         setVknHata(null);
@@ -165,7 +188,6 @@ const TopluTutanak = () => {
                 return;
             }
 
-            // Supabase .in() limitlerine takılmamak için chunk
             const chunkSize = 100;
             const allRows = [];
 
@@ -197,7 +219,7 @@ const TopluTutanak = () => {
         }
     };
 
-    // --- SENİN İSTEDİĞİN TUTANAK ŞABLONU (BİREBİR) ---
+    // --- TUTANAK ŞABLONU (BİREBİR) ---
     const generateTutanakHTML = (row) => {
         const today = new Date().toLocaleDateString('tr-TR');
         const plakaStr = `${row.PlateNumber || ''} / ${row.TrailerPlateNumber || ''}`;
@@ -270,30 +292,62 @@ const TopluTutanak = () => {
         </html>`;
     };
 
+    // ✅ HTML string -> PDF Blob (iframe render ile "boş PDF" sorununu çözer)
+    const htmlToPdfBlob = async (htmlString, fileName = 'tutanak.pdf') => {
+        const html2pdf = (await import('html2pdf.js')).default;
+
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '1px';
+        iframe.style.height = '1px';
+        iframe.style.opacity = '0.01'; // ✅ hidden değil (render alsın)
+        iframe.style.pointerEvents = 'none';
+        iframe.style.border = '0';
+        iframe.setAttribute('aria-hidden', 'true');
+
+        document.body.appendChild(iframe);
+
+        try {
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open();
+            doc.write(htmlString);
+            doc.close();
+
+            // ✅ render/font otursun
+            await new Promise((r) => setTimeout(r, 250));
+
+            const body = doc.body;
+
+            const opt = {
+                margin: [10, 10, 10, 10],
+                filename: fileName,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                    windowWidth: body.scrollWidth,
+                    windowHeight: body.scrollHeight,
+                },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                pagebreak: { mode: ['css', 'legacy'] },
+            };
+
+            const pdf = await html2pdf().set(opt).from(body).toPdf().get('pdf');
+            return pdf.output('blob');
+        } finally {
+            document.body.removeChild(iframe);
+        }
+    };
+
+    // ✅ TOPLU WORD (MEVCUT)
     const handleBulkDownload = async () => {
         if (selectedIds.length === 0) return;
         setCreating(true);
         const zip = new JSZip();
-
-        // ✅ Dosya adı güvenli hale getirme (TR karakterler + Windows yasaklı karakterler)
-        const toAsciiTR = (s) =>
-            (s || '')
-                .replaceAll('İ', 'I').replaceAll('İ', 'I')
-                .replaceAll('ı', 'i')
-                .replaceAll('Ş', 'S').replaceAll('ş', 's')
-                .replaceAll('Ğ', 'G').replaceAll('ğ', 'g')
-                .replaceAll('Ü', 'U').replaceAll('ü', 'u')
-                .replaceAll('Ö', 'O').replaceAll('ö', 'o')
-                .replaceAll('Ç', 'C').replaceAll('ç', 'c');
-
-        const safeFilePart = (s, maxLen = 60) => {
-            const ascii = toAsciiTR((s ?? '').toString().trim());
-            return ascii
-                .replace(/[\\/:*?"<>|]/g, '')   // Windows illegal chars
-                .replace(/\s+/g, '_')           // spaces -> _
-                .replace(/_+/g, '_')
-                .slice(0, maxLen) || 'BILGI_YOK';
-        };
 
         try {
             const selectedRows = veriler.filter(v => selectedIds.includes(v.TMSDespatchId));
@@ -311,8 +365,42 @@ const TopluTutanak = () => {
             const zipContent = await zip.generateAsync({ type: "blob" });
             saveAs(zipContent, `Tutanaklar_${Date.now()}.zip`);
         } catch (error) {
+            console.error(error);
             alert("Hata oluştu.");
-        } finally { setCreating(false); }
+        } finally {
+            setCreating(false);
+        }
+    };
+
+    // ✅ TOPLU PDF (ALT BARDA WORD'UN YANINA)
+    const handleBulkPdfDownload = async () => {
+        if (selectedIds.length === 0) return;
+        setCreatingPdf(true);
+
+        try {
+            const zip = new JSZip();
+            const selectedRows = veriler.filter(v => selectedIds.includes(v.TMSDespatchId));
+
+            for (const row of selectedRows) {
+                const tedarikci = safeFilePart(row.SupplierCurrentAccountFullTitle, 50);
+                const sefer = safeFilePart(row.DocumentNo, 30);
+                const plaka = safeFilePart((row.PlateNumber || '').replace(/\s/g, ''), 20);
+
+                const fileName = `${tedarikci}_${sefer}_${plaka}_Tutanak.pdf`;
+                const html = generateTutanakHTML(row);
+
+                const pdfBlob = await htmlToPdfBlob(html, fileName);
+                zip.file(fileName, pdfBlob);
+            }
+
+            const zipContent = await zip.generateAsync({ type: "blob" });
+            saveAs(zipContent, `Tutanaklar_PDF_${Date.now()}.zip`);
+        } catch (e) {
+            console.error(e);
+            alert("PDF oluşturulurken hata oluştu.");
+        } finally {
+            setCreatingPdf(false);
+        }
     };
 
     const handleExcelExport = () => {
@@ -322,25 +410,6 @@ const TopluTutanak = () => {
         );
 
         if (!rows.length) return;
-
-        const toAsciiTR = (s) =>
-            (s || '')
-                .replaceAll('İ', 'I').replaceAll('İ', 'I')
-                .replaceAll('ı', 'i')
-                .replaceAll('Ş', 'S').replaceAll('ş', 's')
-                .replaceAll('Ğ', 'G').replaceAll('ğ', 'g')
-                .replaceAll('Ü', 'U').replaceAll('ü', 'u')
-                .replaceAll('Ö', 'O').replaceAll('ö', 'o')
-                .replaceAll('Ç', 'C').replaceAll('ç', 'c');
-
-        const safeFilePart = (s, maxLen = 60) => {
-            const ascii = toAsciiTR((s ?? '').toString().trim());
-            return ascii
-                .replace(/[\\/:*?"<>|]/g, '')
-                .replace(/\s+/g, '_')
-                .replace(/_+/g, '_')
-                .slice(0, maxLen) || 'BILGI_YOK';
-        };
 
         const getFirma = (supplierTitle) => {
             const key = U(supplierTitle);
@@ -387,8 +456,6 @@ const TopluTutanak = () => {
         });
 
         const ws = XLSX.utils.json_to_sheet(dataForExcel);
-
-        // Basit kolon genişliği (opsiyonel ama hoş)
         ws["!cols"] = Object.keys(dataForExcel[0] || {}).map(() => ({ wch: 22 }));
 
         const wb = XLSX.utils.book_new();
@@ -400,7 +467,6 @@ const TopluTutanak = () => {
 
         XLSX.writeFile(wb, fileName);
     };
-
 
     return (
         <div className="min-h-screen bg-[#080c14] text-slate-300 p-6 lg:p-12">
@@ -456,6 +522,7 @@ const TopluTutanak = () => {
                         >
                             {vknLoading ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />} VKN GETİR
                         </button>
+
                         <button
                             onClick={handleExcelExport}
                             disabled={veriler.length === 0}
@@ -496,8 +563,8 @@ const TopluTutanak = () => {
                                                 )
                                             }
                                             className={`w-7 h-7 rounded-xl border-2 transition-all ${selectedIds.length === veriler.length && veriler.length > 0
-                                                    ? 'bg-indigo-500 border-indigo-500 shadow-[0_0_0_5px_rgba(99,102,241,0.16)]'
-                                                    : 'border-slate-700 hover:border-slate-500'
+                                                ? 'bg-indigo-500 border-indigo-500 shadow-[0_0_0_5px_rgba(99,102,241,0.16)]'
+                                                : 'border-slate-700 hover:border-slate-500'
                                                 }`}
                                         >
                                             {selectedIds.length === veriler.length && veriler.length > 0 && (
@@ -538,7 +605,6 @@ const TopluTutanak = () => {
                                             className={`group transition-colors ${isSelected ? 'bg-indigo-500/12' : 'hover:bg-white/[0.04]'
                                                 }`}
                                         >
-
                                             <td className="p-7 align-top">
                                                 <button
                                                     type="button"
@@ -551,8 +617,8 @@ const TopluTutanak = () => {
                                                         );
                                                     }}
                                                     className={`w-7 h-7 rounded-xl border-2 transition-all ${isSelected
-                                                            ? 'bg-indigo-500 border-indigo-500 shadow-[0_0_0_5px_rgba(99,102,241,0.14)]'
-                                                            : 'border-slate-700/70 group-hover:border-slate-500'
+                                                        ? 'bg-indigo-500 border-indigo-500 shadow-[0_0_0_5px_rgba(99,102,241,0.14)]'
+                                                        : 'border-slate-700/70 group-hover:border-slate-500'
                                                         }`}
                                                 >
                                                     {isSelected && <CheckCircle2 size={18} className="text-white mx-auto" />}
@@ -647,22 +713,32 @@ const TopluTutanak = () => {
                     </div>
                 </div>
 
-                {/* Alt Çubuk */}
+                {/* ✅ Alt Çubuk (SADECE SEÇİLİ VARSA) */}
                 {selectedIds.length > 0 && (
-                    <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-[90%] max-w-4xl z-[1000]">
+                    <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-[90%] max-w-5xl z-[1000]">
                         <div className="bg-indigo-600 rounded-[2rem] p-4 flex items-center justify-between border border-white/20 shadow-2xl">
                             <div className="flex items-center gap-4 pl-6">
                                 <FileCheck2 className="text-white" size={28} />
                                 <span className="text-white font-black text-xl">{selectedIds.length} Sefer Seçildi</span>
                             </div>
 
-                            <button
-                                onClick={handleBulkDownload}
-                                disabled={creating}
-                                className="bg-white text-indigo-600 px-10 py-4 rounded-2xl font-black text-xs flex items-center gap-3 active:scale-95 transition-all"
-                            >
-                                {creating ? <Loader2 className="animate-spin" /> : <Download size={20} />} TOPLU TUTANAK İNDİR
-                            </button>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={handleBulkDownload}
+                                    disabled={creating || creatingPdf}
+                                    className="bg-white text-indigo-600 px-10 py-4 rounded-2xl font-black text-xs flex items-center gap-3 active:scale-95 transition-all disabled:opacity-70"
+                                >
+                                    {creating ? <Loader2 className="animate-spin" /> : <Download size={20} />} TOPLU WORD İNDİR
+                                </button>
+
+                                <button
+                                    onClick={handleBulkPdfDownload}
+                                    disabled={creatingPdf || creating}
+                                    className="bg-white/90 text-rose-600 px-10 py-4 rounded-2xl font-black text-xs flex items-center gap-3 active:scale-95 transition-all disabled:opacity-70"
+                                >
+                                    {creatingPdf ? <Loader2 className="animate-spin" /> : <Download size={20} />} TOPLU PDF İNDİR
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
