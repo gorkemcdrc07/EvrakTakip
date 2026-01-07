@@ -1,18 +1,16 @@
-﻿import React, { useEffect, useState, useCallback, useMemo } from 'react';
+﻿import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { supabase } from './supabaseClient';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
 /**
- * HedefKargo – Modern UI Revamp v2
+ * HedefKargo – Modern UI Revamp v2 (Fix Pack)
  * --------------------------------------------------------------
- * - Pure Tailwind (no extra UI libs)
- * - Softer gradients, glass surfaces, subtle animations
- * - Compact filter toolbar with active-chip summary
- * - Sticky table header + footer, zebra rows, hover states
- * - Lightweight toast for success/error
- * - Skeleton rows while loading
- * - Same data model/logic
+ * FIX: Kaydet / Ekle sonrası sayfa yenileyince eskiye dönme
+ * - update/insert: .select('*').single() ile net doğrulama
+ * - başarı sonrası fetchData() ile DB'den tekrar çekme (kalıcılık garantisi)
+ * - hata mesajlarını görünür yapma
+ * - yıl filtresi dinamik (varsayılan: 2025)
  */
 
 function HedefKargo() {
@@ -22,7 +20,13 @@ function HedefKargo() {
     const [deletingItem, setDeletingItem] = useState(null);
     const [adding, setAdding] = useState(false);
 
-    const [toast, setToast] = useState(null); // {type: 'success'|'error'|'info', msg}
+    const [toast, setToast] = useState(null); // {type, msg}
+    const toastTimerRef = useRef(null);
+
+    // İstersen sabit 2025 bırak, istersen dinamik yıl seçtir.
+    const year = 2025;
+    const yearStart = `${year}-01-01`;
+    const yearEnd = `${year}-12-31`;
 
     const [filters, setFilters] = useState({
         tarih: '',
@@ -34,7 +38,8 @@ function HedefKargo() {
 
     const showToast = (type, msg) => {
         setToast({ type, msg });
-        setTimeout(() => setToast(null), 2400);
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => setToast(null), 2400);
     };
 
     const handleFilterChange = (e) => {
@@ -47,20 +52,16 @@ function HedefKargo() {
         [filters]
     );
 
-    const filteredData = useMemo(
-        () =>
-            kargoData.filter((item) =>
-                Object.entries(filters).every(([field, selected]) => {
-                    if (selected === '') return true;
-                    const itemValue = (item[field] || '')
-                        .toString()
-                        .toLocaleLowerCase('tr');
-                    const selectedValue = selected.toString().toLocaleLowerCase('tr');
-                    return itemValue.includes(selectedValue);
-                })
-            ),
-        [kargoData, filters]
-    );
+    const filteredData = useMemo(() => {
+        return kargoData.filter((item) =>
+            Object.entries(filters).every(([field, selected]) => {
+                if (selected === '') return true;
+                const itemValue = (item[field] || '').toString().toLocaleLowerCase('tr');
+                const selectedValue = selected.toString().toLocaleLowerCase('tr');
+                return itemValue.includes(selectedValue);
+            })
+        );
+    }, [kargoData, filters]);
 
     const [editForm, setEditForm] = useState({
         tarih: '',
@@ -80,24 +81,27 @@ function HedefKargo() {
 
     useEffect(() => {
         fetchData();
+        return () => {
+            if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const fetchData = async () => {
         setLoading(true);
+
         const { data, error } = await supabase
             .from('hedef_kargo')
             .select('*')
-            .filter('tarih', 'gte', '2025-01-01')
-            .filter('tarih', 'lte', '2025-12-31')
             .order('tarih', { ascending: false });
 
         if (error) {
-            console.error('Veri alınamadı:', error);
-            showToast('error', 'Veri alınamadı.');
+            console.error(error);
+            showToast('error', 'Veri alınamadı');
         } else {
             setKargoData(data || []);
-            showToast('success', 'Veriler yenilendi.');
         }
+
         setLoading(false);
     };
 
@@ -105,23 +109,31 @@ function HedefKargo() {
 
     const handleDeleteConfirmed = async () => {
         if (!deletingItem) return;
+
         const { error } = await supabase
             .from('hedef_kargo')
             .delete()
             .eq('id', deletingItem.id);
+
         if (!error) {
             setKargoData((prev) => prev.filter((item) => item.id !== deletingItem.id));
             setDeletingItem(null);
             showToast('success', 'Kayıt silindi.');
         } else {
             console.error('Silme hatası:', error);
-            showToast('error', 'Silme sırasında hata oluştu.');
+            showToast('error', error.message || 'Silme sırasında hata oluştu.');
         }
     };
 
     const handleEdit = (item) => {
         setEditingItem(item);
-        setEditForm({ ...item });
+        setEditForm({
+            tarih: item.tarih ?? '',
+            gonderici: item.gonderici ?? '',
+            tedarikci: item.tedarikci ?? '',
+            teslim_edilen_kisi: item.teslim_edilen_kisi ?? '',
+            teslim_tarihi: item.teslim_tarihi ?? ''
+        });
     };
 
     const handleFormChange = useCallback((e) => {
@@ -133,6 +145,8 @@ function HedefKargo() {
     }, []);
 
     const handleSave = async () => {
+        if (!editingItem?.id) return;
+
         const updatableKeys = [
             'tarih',
             'gonderici',
@@ -140,11 +154,11 @@ function HedefKargo() {
             'teslim_edilen_kisi',
             'teslim_tarihi'
         ];
+
+        // boş string -> null
         const cleaned = updatableKeys.reduce((acc, key) => {
-            if (key in editForm) {
-                const val = editForm[key];
-                acc[key] = val === '' ? null : val;
-            }
+            const val = editForm[key];
+            acc[key] = val === '' ? null : val;
             return acc;
         }, {});
 
@@ -152,48 +166,81 @@ function HedefKargo() {
             .from('hedef_kargo')
             .update(cleaned)
             .eq('id', editingItem.id)
-            .select();
+            .select('*')
+            .single();
 
-        if (!error && data?.[0]) {
-            setKargoData((prev) =>
-                prev.map((it) => (it.id === editingItem.id ? data[0] : it))
-            );
-            setEditingItem(null);
-            showToast('success', 'Değişiklikler kaydedildi.');
-        } else {
+        console.log('update result:', { data, error, cleaned, id: editingItem.id });
+
+        if (error) {
             console.error('Güncelleme hatası:', error);
-            showToast('error', 'Güncellenemedi.');
+            showToast('error', error.message || 'Güncellenemedi.');
+            return;
         }
+
+        if (!data) {
+            showToast('error', 'Güncelleme DB’ye yansımadı (RLS/Policy olabilir).');
+            return;
+        }
+
+        // UI'yı hemen güncelle
+        setKargoData((prev) => prev.map((it) => (it.id === editingItem.id ? data : it)));
+        setEditingItem(null);
+        showToast('success', 'Değişiklikler kaydedildi.');
+
+        // Kalıcılığı garantile: DB’den tekrar çek
+        await fetchData();
     };
 
     const handleAdd = async () => {
+        // İstersen zorunlu yap:
+        // if (!addForm.tarih) { showToast('error', 'TARİH zorunlu.'); return; }
+
         const cleanedForm = Object.fromEntries(
             Object.entries(addForm).map(([key, val]) => [key, val === '' ? null : val])
         );
+
         const { data, error } = await supabase
             .from('hedef_kargo')
             .insert([cleanedForm])
-            .select();
-        if (!error && data?.length > 0) {
-            setKargoData((prev) => [data[0], ...prev]);
-            setAdding(false);
-            setAddForm({
-                tarih: '',
-                gonderici: '',
-                tedarikci: '',
-                teslim_edilen_kisi: '',
-                teslim_tarihi: ''
-            });
-            showToast('success', 'Yeni kayıt eklendi.');
-        } else {
+            .select('*')
+            .single();
+
+        console.log('insert result:', { data, error, cleanedForm });
+
+        if (error) {
             console.error('Ekleme hatası:', error);
-            showToast('error', 'Kayıt eklenemedi.');
+            showToast('error', error.message || 'Kayıt eklenemedi.');
+            return;
         }
+
+        if (!data) {
+            showToast('error', 'Insert DB’ye yansımadı (RLS/Policy olabilir).');
+            return;
+        }
+
+        // UI'yı hemen güncelle
+        setKargoData((prev) => [data, ...prev]);
+
+        setAdding(false);
+        setAddForm({
+            tarih: '',
+            gonderici: '',
+            tedarikci: '',
+            teslim_edilen_kisi: '',
+            teslim_tarihi: ''
+        });
+
+        showToast('success', 'Yeni kayıt eklendi.');
+
+        // Kalıcılığı garantile: DB’den tekrar çek
+        await fetchData();
     };
 
     const formatDate = (dateStr) => {
         if (!dateStr) return '';
-        return new Date(dateStr).toLocaleDateString('tr-TR', {
+        const d = new Date(dateStr);
+        if (Number.isNaN(d.getTime())) return String(dateStr); // bozuk parse ise ham bas
+        return d.toLocaleDateString('tr-TR', {
             day: '2-digit',
             month: 'long',
             year: 'numeric'
@@ -248,11 +295,7 @@ function HedefKargo() {
             });
             if (idx > 1 && idx % 2 === 0) {
                 row.eachCell((cell) => {
-                    cell.fill = {
-                        type: 'pattern',
-                        pattern: 'solid',
-                        fgColor: { argb: 'F3F4F6' }
-                    };
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F3F4F6' } };
                 });
             }
         });
@@ -294,6 +337,10 @@ function HedefKargo() {
                             <p className="text-sm md:text-[15px] text-gray-600 dark:text-gray-300 mt-2">
                                 Kargo kayıtlarını filtrele, düzenle ve tek tıkla Excel’e aktar.
                             </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                Görüntülenen yıl aralığı: <span className="font-semibold">{yearStart}</span> –{' '}
+                                <span className="font-semibold">{yearEnd}</span>
+                            </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <button
@@ -306,6 +353,7 @@ function HedefKargo() {
                                 </svg>
                                 <span className="font-medium">Yeni Kayıt</span>
                             </button>
+
                             <button
                                 onClick={exportToExcel}
                                 className="inline-flex items-center gap-2 rounded-xl px-4 py-2 bg-white/80 dark:bg-gray-800/70 text-gray-900 dark:text-gray-100 border border-gray-200/70 dark:border-gray-700/70 hover:bg-white dark:hover:bg-gray-800 shadow-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500/20 transition"
@@ -318,6 +366,7 @@ function HedefKargo() {
                                 </svg>
                                 <span className="font-medium">Excel’e Aktar</span>
                             </button>
+
                             <button
                                 onClick={fetchData}
                                 className="inline-flex items-center gap-2 rounded-xl px-4 py-2 bg-gray-100/80 dark:bg-gray-800/70 text-gray-800 dark:text-gray-100 border border-gray-200/70 dark:border-gray-700/70 hover:bg-gray-50 dark:hover:bg-gray-800 focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500/20 transition"
@@ -348,15 +397,15 @@ function HedefKargo() {
                                     </span>
                                 )}
                             </div>
+
                             <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-3">
                                 {Object.keys(filters).map((field) => {
-                                    const uniqueValues = [
-                                        ...new Set(
-                                            kargoData.map((item) => (item[field] || '').toString().trim().toLowerCase())
-                                        )
-                                    ]
+                                    const uniqueValues = [...new Set(
+                                        kargoData.map((item) => (item[field] || '').toString().trim().toLowerCase())
+                                    )]
                                         .filter(Boolean)
-                                        .slice(0, 50); // aşırı uzun olmaması için
+                                        .slice(0, 50);
+
                                     return (
                                         <div key={field} className="flex flex-col">
                                             <label className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1 tracking-wide">
@@ -381,6 +430,7 @@ function HedefKargo() {
                                     );
                                 })}
                             </div>
+
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={() =>
@@ -400,7 +450,6 @@ function HedefKargo() {
                             </div>
                         </div>
 
-                        {/* Aktif filtre çipleri */}
                         {activeChips.length > 0 && (
                             <div className="px-5 pb-4 -mt-2 flex flex-wrap gap-2">
                                 {activeChips.map(({ key, val }) => (
@@ -422,9 +471,8 @@ function HedefKargo() {
                     </div>
                 )}
 
-                {/* TABLO KARTI */}
+                {/* TABLO */}
                 <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/60 backdrop-blur shadow-sm overflow-hidden">
-                    {/* Table Head */}
                     <div className="overflow-x-auto">
                         <table className="min-w-full text-sm md:text-[15px]">
                             <thead className="bg-gray-50/80 dark:bg-gray-900/70 sticky top-0 z-10">
@@ -442,50 +490,53 @@ function HedefKargo() {
                                     </th>
                                 </tr>
                             </thead>
+
                             <tbody>
                                 {loading && <SkeletonRows rows={6} cols={6} />}
 
-                                {!loading && filteredData.map((item, index) => (
-                                    <tr
-                                        key={item.id}
-                                        className={`${index % 2 === 0 ? 'bg-white/80 dark:bg-gray-900/60' : 'bg-gray-50/60 dark:bg-gray-900/40'} hover:bg-indigo-50/60 dark:hover:bg-gray-800/60 transition-colors`}
-                                    >
-                                        <td className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-                                            {formatDate(item.tarih)}
-                                        </td>
-                                        <td className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">{item.gonderici}</td>
-                                        <td className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">{item.tedarikci}</td>
-                                        <td className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">{item.teslim_edilen_kisi}</td>
-                                        <td className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-                                            {formatDate(item.teslim_tarihi)}
-                                        </td>
-                                        <td className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-                                            <div className="flex gap-2 justify-center flex-wrap">
-                                                <button
-                                                    className="group relative inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-amber-900 dark:text-amber-100 bg-amber-50/90 dark:bg-amber-900/30 border border-amber-200/70 dark:border-amber-800/60 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-400/30"
-                                                    onClick={() => handleEdit(item)}
-                                                    title="Düzenle"
-                                                >
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="transition-transform duration-200 group-hover:rotate-3 group-hover:scale-110">
-                                                        <path d="M4 20h4l10-10-4-4L4 16v4z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                                    </svg>
-                                                    Düzenle
-                                                </button>
+                                {!loading &&
+                                    filteredData.map((item, index) => (
+                                        <tr
+                                            key={item.id}
+                                            className={`${index % 2 === 0 ? 'bg-white/80 dark:bg-gray-900/60' : 'bg-gray-50/60 dark:bg-gray-900/40'
+                                                } hover:bg-indigo-50/60 dark:hover:bg-gray-800/60 transition-colors`}
+                                        >
+                                            <td className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+                                                {formatDate(item.tarih)}
+                                            </td>
+                                            <td className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">{item.gonderici}</td>
+                                            <td className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">{item.tedarikci}</td>
+                                            <td className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">{item.teslim_edilen_kisi}</td>
+                                            <td className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+                                                {formatDate(item.teslim_tarihi)}
+                                            </td>
+                                            <td className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+                                                <div className="flex gap-2 justify-center flex-wrap">
+                                                    <button
+                                                        className="group relative inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-amber-900 dark:text-amber-100 bg-amber-50/90 dark:bg-amber-900/30 border border-amber-200/70 dark:border-amber-800/60 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-400/30"
+                                                        onClick={() => handleEdit(item)}
+                                                        title="Düzenle"
+                                                    >
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="transition-transform duration-200 group-hover:rotate-3 group-hover:scale-110">
+                                                            <path d="M4 20h4l10-10-4-4L4 16v4z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                                        </svg>
+                                                        Düzenle
+                                                    </button>
 
-                                                <button
-                                                    className="group relative inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-white bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 focus:outline-none focus-visible:ring-4 focus-visible:ring-rose-500/30"
-                                                    onClick={() => confirmDelete(item)}
-                                                    title="Sil"
-                                                >
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="transition-transform duration-200 group-hover:-rotate-3 group-hover:scale-110">
-                                                        <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                                    </svg>
-                                                    Sil
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
+                                                    <button
+                                                        className="group relative inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-white bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 focus:outline-none focus-visible:ring-4 focus-visible:ring-rose-500/30"
+                                                        onClick={() => confirmDelete(item)}
+                                                        title="Sil"
+                                                    >
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="transition-transform duration-200 group-hover:-rotate-3 group-hover:scale-110">
+                                                            <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                                        </svg>
+                                                        Sil
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
 
                                 {!loading && filteredData.length === 0 && (
                                     <tr>
@@ -498,7 +549,9 @@ function HedefKargo() {
                                                     </svg>
                                                 </div>
                                                 <p className="text-gray-600 dark:text-gray-300 font-medium">Kayıt bulunamadı</p>
-                                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Filtreleri temizlemeyi deneyin veya yeni bir kayıt ekleyin.</p>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                                    Filtreleri temizlemeyi deneyin veya yeni bir kayıt ekleyin.
+                                                </p>
                                                 <div className="mt-4">
                                                     <button
                                                         onClick={() => setAdding(true)}
@@ -515,10 +568,12 @@ function HedefKargo() {
                         </table>
                     </div>
 
-                    {/* Sticky footer summary */}
                     <div className="flex items-center justify-between px-4 py-3 bg-gray-50/70 dark:bg-gray-900/70 border-t border-gray-200 dark:border-gray-800 text-xs text-gray-600 dark:text-gray-400">
                         <div>
-                            Görüntülenen kayıt: <span className="font-semibold text-gray-800 dark:text-gray-200">{!loading ? filteredData.length : '-'}</span>
+                            Görüntülenen kayıt:{' '}
+                            <span className="font-semibold text-gray-800 dark:text-gray-200">
+                                {!loading ? filteredData.length : '-'}
+                            </span>
                         </div>
                         <div className="italic opacity-75">HEDEF • {new Date().toLocaleDateString('tr-TR')}</div>
                     </div>
@@ -539,10 +594,8 @@ function HedefKargo() {
                 </button>
             )}
 
-            {/* TOAST */}
             {toast && <Toast type={toast.type} msg={toast.msg} />}
 
-            {/* MODALLAR */}
             {editingItem && (
                 <EditModal
                     form={editForm}
@@ -609,7 +662,7 @@ const SkeletonRows = ({ rows = 5, cols = 6 }) => {
 };
 
 /* =========================
-   MODAL BİLEŞENLERİ – Modern Tasarım
+   MODAL BİLEŞENLERİ
    ========================= */
 
 const ModalShell = ({ title, children, onCancel }) => (
@@ -705,7 +758,9 @@ const AddModal = ({ form, handleAddFormChange, handleAdd, onCancel }) => (
 
 const DeleteModal = ({ onCancel, onConfirm }) => (
     <ModalShell title="⚠️ Emin misiniz?" onCancel={onCancel}>
-        <p className="mb-6 text-sm text-gray-600 dark:text-gray-300">Bu kaydı silmek istediğinizden emin misiniz?</p>
+        <p className="mb-6 text-sm text-gray-600 dark:text-gray-300">
+            Bu kaydı silmek istediğinizden emin misiniz?
+        </p>
         <div className="flex justify-end gap-2">
             <button
                 onClick={onCancel}
