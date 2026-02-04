@@ -27,10 +27,7 @@ const Button = ({ children, className = "", primary = false, ...props }) => {
         "bg-gradient-to-r from-indigo-500 to-cyan-500 text-white shadow-indigo-500/40 hover:shadow-xl hover:shadow-indigo-500/50 border-transparent";
 
     return (
-        <button
-            className={`${baseStyle} ${primary ? primaryStyle : defaultStyle} ${className}`}
-            {...props}
-        >
+        <button className={`${baseStyle} ${primary ? primaryStyle : defaultStyle} ${className}`} {...props}>
             {children}
         </button>
     );
@@ -78,12 +75,13 @@ function Anasayfa() {
     const navigate = useNavigate();
 
     const adSoyad = localStorage.getItem("ad") ?? "Kullanıcı";
-    const username = localStorage.getItem("username") ?? "";
+
+    // ✅ username normalize (trim + lowercase)
+    const usernameRaw = localStorage.getItem("username") ?? "";
+    const usernameLower = usernameRaw.trim().toLowerCase();
 
     const [menuOpen, setMenuOpen] = useState(false);
-    const [darkMode, setDarkMode] = useState(
-        () => localStorage.getItem("theme") === "dark"
-    );
+    const [darkMode, setDarkMode] = useState(() => localStorage.getItem("theme") === "dark");
 
     const [dailyData, setDailyData] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -93,8 +91,19 @@ function Anasayfa() {
     const [selectedFirma, setSelectedFirma] = useState("Hepsi");
 
     // --- ROL TANIMLARI ---
-    const isRefika = username === "refika";
-    const isAdminOrManager = username === "yaren" || username === "ozge" || username === "mehmet";
+    const isRefika = usernameLower === "refika";
+    const isAdminOrManager = ["yaren", "ozge", "mehmet"].includes(usernameLower);
+
+    // ✅ Tahakkuk sayfasını SADECE bu kullanıcılar görebilsin:
+    const tahakkukAllowedUsers = ["aleynagncl", "cagla123", "didem", "canan"].map((u) =>
+        u.trim().toLowerCase()
+    );
+
+    // ✅ Ek garanti: bu kullanıcılar asla görmesin (istersen kaldırabilirsin)
+    const tahakkukBlockedUsers = ["yaren", "ozge", "refika", "mehmet"];
+
+    const canSeeTahakkuk =
+        tahakkukAllowedUsers.includes(usernameLower) && !tahakkukBlockedUsers.includes(usernameLower);
 
     // --- THEME & LOGOUT ---
     useEffect(() => {
@@ -116,9 +125,7 @@ function Anasayfa() {
     useEffect(() => {
         (async () => {
             try {
-                const { data, error } = await supabase
-                    .from("kargo_bilgileri")
-                    .select("kargo_firmasi");
+                const { data, error } = await supabase.from("kargo_bilgileri").select("kargo_firmasi");
                 if (error) throw error;
                 const unique = Array.from(
                     new Set(
@@ -144,15 +151,7 @@ function Anasayfa() {
                 const oneWeekAgo = new Date();
                 oneWeekAgo.setDate(today.getDate() - 6);
 
-                const gunIsimleri = [
-                    "Pazar",
-                    "Pazartesi",
-                    "Salı",
-                    "Çarşamba",
-                    "Perşembe",
-                    "Cuma",
-                    "Cumartesi",
-                ];
+                const gunIsimleri = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
 
                 const dayMap = {};
                 for (let i = 0; i < 7; i++) {
@@ -170,7 +169,6 @@ function Anasayfa() {
                     .lte("tarih", today.toISOString().split("T")[0]);
 
                 if (selectedFirma !== "Hepsi") {
-                    // Supabase'de case-insensitive arama için 'ilike' kullanıyoruz.
                     query = query.ilike("kargo_firmasi", selectedFirma);
                 }
 
@@ -193,17 +191,13 @@ function Anasayfa() {
         })();
     }, [metric, selectedFirma]);
 
-    const totalCount = useMemo(
-        () => dailyData.reduce((sum, i) => sum + (i.count || 0), 0),
-        [dailyData]
-    );
+    const totalCount = useMemo(() => dailyData.reduce((sum, i) => sum + (i.count || 0), 0), [dailyData]);
 
     const metricLabel = metric === "kargo" ? "Kargo" : "Evrak";
 
     // --- Recharts Chart Bileşeni ---
     const Chart = () => {
-        const ChartComp =
-            chartType === "bar" ? BarChart : chartType === "line" ? LineChart : AreaChart;
+        const ChartComp = chartType === "bar" ? BarChart : chartType === "line" ? LineChart : AreaChart;
         return (
             <ResponsiveContainer width="100%" height={340}>
                 <ChartComp data={dailyData} margin={{ top: 10, right: 24, bottom: 0, left: 0 }}>
@@ -226,15 +220,9 @@ function Anasayfa() {
                         labelStyle={{ color: darkMode ? "#f3f4f6" : "#1f2937", fontWeight: "bold" }}
                         formatter={(value) => [`${value} ${metricLabel}`, "Toplam"]}
                     />
-                    {chartType === "bar" && (
-                        <Bar dataKey="count" fill="url(#mainGrad)" radius={[8, 8, 0, 0]} />
-                    )}
-                    {chartType === "line" && (
-                        <Line type="monotone" dataKey="count" stroke="#6366f1" strokeWidth={3} dot={false} />
-                    )}
-                    {chartType === "area" && (
-                        <Area type="monotone" dataKey="count" stroke="#6366f1" strokeWidth={2} fill="url(#mainGrad)" />
-                    )}
+                    {chartType === "bar" && <Bar dataKey="count" fill="url(#mainGrad)" radius={[8, 8, 0, 0]} />}
+                    {chartType === "line" && <Line type="monotone" dataKey="count" stroke="#6366f1" strokeWidth={3} dot={false} />}
+                    {chartType === "area" && <Area type="monotone" dataKey="count" stroke="#6366f1" strokeWidth={2} fill="url(#mainGrad)" />}
                 </ChartComp>
             </ResponsiveContainer>
         );
@@ -243,7 +231,6 @@ function Anasayfa() {
     return (
         <Layout>
             <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-indigo-50/70 via-white/80 to-cyan-100/70 dark:from-gray-950 dark:via-gray-900 dark:to-gray-800 text-gray-900 dark:text-gray-100">
-
                 {/* TOP BAR */}
                 <div className="sticky top-0 z-40 backdrop-blur-md bg-white/80 dark:bg-gray-900/70 border-b border-black/5 dark:border-white/10 shadow-lg shadow-black/5 dark:shadow-black/20">
                     <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
@@ -254,12 +241,10 @@ function Anasayfa() {
                             <span className="text-xl font-bold tracking-tight text-indigo-600 dark:text-cyan-400">📁 Evrak Yönetimi</span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <span className="hidden sm:inline text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300">{adSoyad}</span>
-                            <Button
-                                onClick={toggleDarkMode}
-                                className="rounded-full w-10 h-10 flex items-center justify-center text-lg"
-                                title="Tema"
-                            >
+                            <span className="hidden sm:inline text-sm md:text-base font-semibold text-gray-700 dark:text-gray-300">
+                                {adSoyad}
+                            </span>
+                            <Button onClick={toggleDarkMode} className="rounded-full w-10 h-10 flex items-center justify-center text-lg" title="Tema">
                                 {darkMode ? "🌙" : "☀️"}
                             </Button>
                             <Button onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white font-semibold">
@@ -273,7 +258,6 @@ function Anasayfa() {
                 <AnimatePresence>
                     {menuOpen && (
                         <>
-                            {/* Overlay/Perde */}
                             <motion.div
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
@@ -297,49 +281,65 @@ function Anasayfa() {
                                         </Button>
                                     </div>
 
-                                    {/* Menü grupları: YÖNETİCİ/ADMİN GRUPLARI */}
                                     <div className="flex-1 overflow-y-auto pr-2 space-y-5">
+                                        {/* ✅ VERİ GİRİŞİ – Tahakkuk (sadece allowed users görür) */}
+                                        {canSeeTahakkuk && (
+                                            <SectionCard>
+                                                <SectionTitle icon="🧾">Veri Girişi</SectionTitle>
+                                                <div className="grid gap-2">
+                                                    <Button
+                                                        onClick={() => {
+                                                            setMenuOpen(false);
+                                                            navigate("/tahakkuk");
+                                                        }}
+                                                        className="justify-start hover:text-indigo-600"
+                                                    >
+                                                        🧾 Tahakkuk
+                                                    </Button>
+                                                </div>
+                                            </SectionCard>
+                                        )}
+
+                                        {/* YÖNETİCİ/ADMİN GRUPLARI */}
                                         {isAdminOrManager && (
                                             <>
                                                 <SectionCard>
                                                     <SectionTitle icon="🗂️">Navigasyon</SectionTitle>
                                                     <div className="grid gap-2">
-                                                        <Button onClick={() => window.open("/lokasyonlar", "_blank")} className="justify-start hover:text-indigo-600">📍 Lokasyonlar</Button>
-                                                        <Button onClick={() => window.open("/projeler", "_blank")} className="justify-start hover:text-indigo-600">📁 Projeler</Button>
+                                                        <Button onClick={() => window.open("/lokasyonlar", "_blank")} className="justify-start hover:text-indigo-600">
+                                                            📍 Lokasyonlar
+                                                        </Button>
+                                                        <Button onClick={() => window.open("/projeler", "_blank")} className="justify-start hover:text-indigo-600">
+                                                            📁 Projeler
+                                                        </Button>
                                                     </div>
                                                 </SectionCard>
 
                                                 <SectionCard>
                                                     <SectionTitle icon="📄">Evrak İşlemleri</SectionTitle>
                                                     <div className="grid gap-2">
-                                                        <Button onClick={() => window.open("/evrak-ekle", "_blank")} className="justify-start hover:text-indigo-600">📝 Evrak Ekle</Button>
-                                                        <Button onClick={() => window.open("/toplu-evraklar", "_blank")} className="justify-start hover:text-indigo-600">📄 Tüm Evraklar</Button>
-                                                        <Button onClick={() => window.open("/tum-kargo-bilgileri", "_blank")} className="justify-start hover:text-indigo-600">📋 Tüm Kargo Bilgileri</Button>
+                                                        <Button onClick={() => window.open("/evrak-ekle", "_blank")} className="justify-start hover:text-indigo-600">
+                                                            📝 Evrak Ekle
+                                                        </Button>
+                                                        <Button onClick={() => window.open("/toplu-evraklar", "_blank")} className="justify-start hover:text-indigo-600">
+                                                            📄 Tüm Evraklar
+                                                        </Button>
+                                                        <Button onClick={() => window.open("/tum-kargo-bilgileri", "_blank")} className="justify-start hover:text-indigo-600">
+                                                            📋 Tüm Kargo Bilgileri
+                                                        </Button>
                                                     </div>
                                                 </SectionCard>
 
                                                 <SectionCard>
                                                     <SectionTitle icon="📊">Raporlama</SectionTitle>
                                                     <div className="grid gap-2">
-                                                        <Button
-                                                            onClick={() => window.open("/evrak-raporlari", "_blank")}
-                                                            className="justify-start hover:text-indigo-600"
-                                                        >
+                                                        <Button onClick={() => window.open("/evrak-raporlari", "_blank")} className="justify-start hover:text-indigo-600">
                                                             📑 Evrak Raporları
                                                         </Button>
-
-                                                        <Button
-                                                            onClick={() => window.open("/raporlar", "_blank")}
-                                                            className="justify-start hover:text-indigo-600"
-                                                        >
+                                                        <Button onClick={() => window.open("/raporlar", "_blank")} className="justify-start hover:text-indigo-600">
                                                             📈 Reel Raporları
                                                         </Button>
-
-                                                        {/* ✅ YENİ: Toplu Tutanak */}
-                                                        <Button
-                                                            onClick={() => window.open("/toplu-tutanak", "_blank")}
-                                                            className="justify-start hover:text-indigo-600"
-                                                        >
+                                                        <Button onClick={() => window.open("/toplu-tutanak", "_blank")} className="justify-start hover:text-indigo-600">
                                                             🧾 Toplu Tutanak
                                                         </Button>
                                                     </div>
@@ -348,8 +348,12 @@ function Anasayfa() {
                                                 <SectionCard>
                                                     <SectionTitle icon="🧩">Diğer</SectionTitle>
                                                     <div className="grid gap-2">
-                                                        <Button onClick={() => window.open("/hedef-kargo", "_blank")} className="justify-start hover:text-indigo-600">🎯 Hedef Kargo</Button>
-                                                        <Button onClick={() => window.open("/tutanak", "_blank")} className="justify-start hover:text-indigo-600">📝 Tutanak</Button>
+                                                        <Button onClick={() => window.open("/hedef-kargo", "_blank")} className="justify-start hover:text-indigo-600">
+                                                            🎯 Hedef Kargo
+                                                        </Button>
+                                                        <Button onClick={() => window.open("/tutanak", "_blank")} className="justify-start hover:text-indigo-600">
+                                                            📝 Tutanak
+                                                        </Button>
                                                         <Button onClick={() => window.open("/ExcelDonusum", "_blank")} className="justify-start hover:text-indigo-600">
                                                             📑 Excel & Word
                                                         </Button>
@@ -363,14 +367,20 @@ function Anasayfa() {
                                             <SectionCard>
                                                 <SectionTitle icon="📦">Kargo</SectionTitle>
                                                 <div className="grid gap-2">
-                                                    <Button onClick={() => window.open("/kargo-bilgisi-ekle", "_blank")} className="justify-start hover:text-indigo-600">📦 Kargo Bilgisi Ekle</Button>
-                                                    <Button onClick={() => window.open("/tum-kargo-bilgileri", "_blank")} className="justify-start hover:text-indigo-600">📋 Tüm Kargo Bilgileri</Button>
+                                                    <Button onClick={() => window.open("/kargo-bilgisi-ekle", "_blank")} className="justify-start hover:text-indigo-600">
+                                                        📦 Kargo Bilgisi Ekle
+                                                    </Button>
+                                                    <Button onClick={() => window.open("/tum-kargo-bilgileri", "_blank")} className="justify-start hover:text-indigo-600">
+                                                        📋 Tüm Kargo Bilgileri
+                                                    </Button>
                                                 </div>
                                             </SectionCard>
                                         )}
                                     </div>
+
                                     <div className="mt-4 text-xs text-gray-500 dark:text-gray-400 border-t pt-3 border-gray-200 dark:border-gray-700">
-                                        Giriş Kullanıcısı: <span className="font-medium text-gray-700 dark:text-gray-300">{username || "-"}</span>
+                                        Giriş Kullanıcısı:{" "}
+                                        <span className="font-medium text-gray-700 dark:text-gray-300">{usernameRaw || "-"}</span>
                                     </div>
                                 </div>
                             </motion.aside>
@@ -382,47 +392,35 @@ function Anasayfa() {
                 <main className="mx-auto max-w-7xl px-4 py-6">
                     {(isRefika || isAdminOrManager) && (
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
-
                             {/* Welcome Card */}
                             <Card className="p-8 border-l-4 border-indigo-500">
                                 <h2 className="text-4xl font-extrabold text-indigo-600 dark:text-cyan-400">👋 Hoş Geldin, {adSoyad}</h2>
-                                <p className="mt-2 text-lg text-gray-600 dark:text-gray-300">
-                                    Gösterge tablosuna genel bakış ve hızlı aksiyonlar.
-                                </p>
+                                <p className="mt-2 text-lg text-gray-600 dark:text-gray-300">Gösterge tablosuna genel bakış ve hızlı aksiyonlar.</p>
                             </Card>
 
-                            {/* Stats Cards (Animasyon Eklendi) */}
+                            {/* Stats Cards */}
                             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mt-6">
-                                {/* İstatistik Kart 1 */}
                                 <motion.div whileHover={{ scale: 1.02 }} transition={{ type: "spring", stiffness: 300 }}>
                                     <Card className="border-l-4 border-cyan-500 hover:shadow-cyan-500/20 transition-shadow">
-                                        <div className="text-sm uppercase tracking-wider font-semibold text-gray-500 dark:text-gray-400">
-                                            Bugünkü Kargo (Örnek)
-                                        </div>
+                                        <div className="text-sm uppercase tracking-wider font-semibold text-gray-500 dark:text-gray-400">Bugünkü Kargo (Örnek)</div>
                                         <div className="mt-2 flex items-center gap-3 text-3xl font-extrabold text-cyan-600 dark:text-cyan-400">
                                             <span className="text-4xl">📦</span> 12
                                         </div>
                                     </Card>
                                 </motion.div>
 
-                                {/* İstatistik Kart 2 */}
                                 <motion.div whileHover={{ scale: 1.02 }} transition={{ type: "spring", stiffness: 300 }}>
                                     <Card className="border-l-4 border-indigo-500 hover:shadow-indigo-500/20 transition-shadow">
-                                        <div className="text-sm uppercase tracking-wider font-semibold text-gray-500 dark:text-gray-400">
-                                            Toplam Firma
-                                        </div>
+                                        <div className="text-sm uppercase tracking-wider font-semibold text-gray-500 dark:text-gray-400">Toplam Firma</div>
                                         <div className="mt-2 flex items-center gap-3 text-3xl font-extrabold text-indigo-600 dark:text-indigo-400">
                                             <span className="text-4xl">🏢</span> {Math.max(0, firmalar.length - 1)}
                                         </div>
                                     </Card>
                                 </motion.div>
 
-                                {/* İstatistik Kart 3 */}
                                 <motion.div whileHover={{ scale: 1.02 }} transition={{ type: "spring", stiffness: 300 }}>
                                     <Card className="border-l-4 border-purple-500 hover:shadow-purple-500/20 transition-shadow">
-                                        <div className="text-sm uppercase tracking-wider font-semibold text-gray-500 dark:text-gray-400">
-                                            Kullanıcı Rolü
-                                        </div>
+                                        <div className="text-sm uppercase tracking-wider font-semibold text-gray-500 dark:text-gray-400">Kullanıcı Rolü</div>
                                         <div className="mt-2 flex items-center gap-3 text-3xl font-extrabold text-purple-600 dark:text-purple-400">
                                             <span className="text-4xl">👤</span> {adSoyad}
                                         </div>
@@ -472,12 +470,14 @@ function Anasayfa() {
                             <Card className="mt-6">
                                 <div className="flex items-center justify-between flex-wrap gap-3 mb-4 border-b border-gray-100 dark:border-gray-800 pb-3">
                                     <h3 className="text-xl font-bold">
-                                        {metric === "kargo" ? "📦 Günlük Kargo Sayısı" : "📄 Günlük Evrak Adedi"} <span className="text-gray-500 dark:text-gray-400 font-normal text-base">(Son 7 Gün)</span>
+                                        {metric === "kargo" ? "📦 Günlük Kargo Sayısı" : "📄 Günlük Evrak Adedi"}{" "}
+                                        <span className="text-gray-500 dark:text-gray-400 font-normal text-base">(Son 7 Gün)</span>
                                     </h3>
                                     <span className="inline-flex items-center gap-2 rounded-full bg-indigo-100 text-indigo-700 dark:bg-cyan-500/15 dark:text-cyan-300 px-4 py-1.5 text-sm font-semibold">
                                         TOPLAM: <strong className="ml-1">{totalCount}</strong> kayıt
                                     </span>
                                 </div>
+
                                 <div className="h-[360px] relative">
                                     <AnimatePresence>
                                         {loading ? (
@@ -490,20 +490,16 @@ function Anasayfa() {
                                             >
                                                 <svg className="h-10 w-10 animate-spin text-indigo-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                                    <path
+                                                        className="opacity-75"
+                                                        fill="currentColor"
+                                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                                    />
                                                 </svg>
-                                                <span className="mt-3 text-lg font-medium text-gray-600 dark:text-gray-300">
-                                                    {metricLabel} Verileri Yükleniyor...
-                                                </span>
+                                                <span className="mt-3 text-lg font-medium text-gray-600 dark:text-gray-300">{metricLabel} Verileri Yükleniyor...</span>
                                             </motion.div>
                                         ) : (
-                                            <motion.div
-                                                key="chart"
-                                                initial={{ opacity: 0, y: 10 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                transition={{ duration: 0.5 }}
-                                                className="h-full"
-                                            >
+                                            <motion.div key="chart" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="h-full">
                                                 <Chart />
                                             </motion.div>
                                         )}
@@ -511,11 +507,14 @@ function Anasayfa() {
                                 </div>
                             </Card>
 
-                            {/* Day Cards (Daha Belirgin Hover Efekti) */}
+                            {/* Day Cards */}
                             <div className="mt-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
                                 {dailyData.map((item) => (
                                     <motion.div
-                                        whileHover={{ scale: 1.05, boxShadow: "0 10px 15px -3px rgba(99, 102, 241, 0.3), 0 4px 6px -2px rgba(99, 102, 241, 0.05)" }}
+                                        whileHover={{
+                                            scale: 1.05,
+                                            boxShadow: "0 10px 15px -3px rgba(99, 102, 241, 0.3), 0 4px 6px -2px rgba(99, 102, 241, 0.05)",
+                                        }}
                                         key={item.date}
                                         className="p-4 rounded-2xl border bg-white dark:bg-gray-800 shadow-xl transition-all duration-200 border-l-4 border-indigo-500 cursor-pointer"
                                     >

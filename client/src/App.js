@@ -1,21 +1,24 @@
-﻿import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+﻿import React from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
-import useDarkMode from './hooks/useDarkMode';
-import Login from './Login';
-import Anasayfa from './Anasayfa';
-import Lokasyonlar from './Lokasyonlar';
-import Projeler from './Projeler';
-import TopluEvraklar from './TopluEvraklar';
-import EvrakEkle from './EvrakEkle';
-import KargoBilgisiEkle from './KargoBilgisiEkle';
-import TumKargoBilgileri from './TumKargoBilgileri';
-import Tutanak from './Tutanak';
-import Raporlar from './Raporlar';
-import HedefKargo from './hedefKargo';
-import EvrakRaporlari from './EvrakRaporları';
-import ExcelDonusum from './ExcelDonusum';
-import TopluTutanak from './TopluTutanak'; // ✅ YENİ
+import useDarkMode from "./hooks/useDarkMode";
+import Login from "./Login";
+import Anasayfa from "./Anasayfa";
+import Lokasyonlar from "./Lokasyonlar";
+import Projeler from "./Projeler";
+import TopluEvraklar from "./TopluEvraklar";
+import EvrakEkle from "./EvrakEkle";
+import KargoBilgisiEkle from "./KargoBilgisiEkle";
+import TumKargoBilgileri from "./TumKargoBilgileri";
+import Tutanak from "./Tutanak";
+import Raporlar from "./Raporlar";
+import HedefKargo from "./hedefKargo";
+import EvrakRaporlari from "./EvrakRaporları";
+import ExcelDonusum from "./ExcelDonusum";
+import TopluTutanak from "./TopluTutanak";
+
+// ✅ DOĞRU: Dosya adı Tahakkuk.js ise import böyle olmalı
+import Tahakkuk from "./Tahakkuk";
 
 function App() {
     const [darkMode, toggleDarkMode] = useDarkMode();
@@ -26,6 +29,7 @@ function App() {
                 <Routes>
                     <Route path="/" element={<Navigate to="/login" replace />} />
                     <Route path="/login" element={<Login />} />
+
                     <Route path="/anasayfa" element={<Anasayfa />} />
                     <Route path="/lokasyonlar" element={<Lokasyonlar />} />
                     <Route path="/projeler" element={<Projeler />} />
@@ -35,10 +39,14 @@ function App() {
                     <Route path="/tum-kargo-bilgileri" element={<TumKargoBilgileri />} />
                     <Route path="/tutanak" element={<Tutanak />} />
                     <Route path="/raporlar" element={<Raporlar />} />
-                    <Route path="/toplu-tutanak" element={<TopluTutanak />} /> {/* ✅ YENİ */}
+
+                    <Route path="/toplu-tutanak" element={<TopluTutanak />} />
                     <Route path="/hedef-kargo" element={<HedefKargo />} />
                     <Route path="/evrak-raporlari" element={<EvrakRaporlari />} />
                     <Route path="/ExcelDonusum" element={<ExcelDonusum />} />
+
+                    {/* ✅ Tahakkuk route */}
+                    <Route path="/tahakkuk" element={<Tahakkuk />} />
                 </Routes>
             </Router>
         </div>
