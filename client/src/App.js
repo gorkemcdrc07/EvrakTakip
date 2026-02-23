@@ -17,8 +17,12 @@ import EvrakRaporlari from "./EvrakRaporları";
 import ExcelDonusum from "./ExcelDonusum";
 import TopluTutanak from "./TopluTutanak";
 
-// ✅ DOĞRU: Dosya adı Tahakkuk.js ise import böyle olmalı
+// ✅ Tahakkuk
 import Tahakkuk from "./Tahakkuk";
+
+// ✅ Yeni sayfalar (dosyaları src/pages içine koyduysan)
+import JpgToPdf from "./pages/JpgToPdf";
+import PdfSikistirma from "./pages/PdfSikistirma";
 
 function App() {
     const [darkMode, toggleDarkMode] = useDarkMode();
@@ -47,6 +51,13 @@ function App() {
 
                     {/* ✅ Tahakkuk route */}
                     <Route path="/tahakkuk" element={<Tahakkuk />} />
+
+                    {/* ✅ Yeni route'lar */}
+                    <Route path="/jpg-to-pdf" element={<JpgToPdf />} />
+                    <Route path="/pdf-sikistirma" element={<PdfSikistirma />} />
+
+                    {/* opsiyonel: bilinmeyen route */}
+                    <Route path="*" element={<Navigate to="/anasayfa" replace />} />
                 </Routes>
             </Router>
         </div>

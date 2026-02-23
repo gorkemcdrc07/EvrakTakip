@@ -2,10 +2,13 @@
   "ExpandedNodes": [
     "",
     "\\client",
+    "\\client\\public",
     "\\client\\src",
+    "\\client\\src\\assets",
     "\\client\\src\\components",
-    "\\client\\src\\hooks"
+    "\\client\\src\\hooks",
+    "\\client\\src\\pages"
   ],
-  "SelectedNode": "\\client\\src\\Tahakkuk.js",
+  "SelectedNode": "\\client\\public\\logo.svg",
   "PreviewInSolutionExplorer": false
 }
