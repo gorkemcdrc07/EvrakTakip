@@ -4,8 +4,10 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import htmlDocx from 'html-docx-js/dist/html-docx';
+import { useNavigate } from "react-router-dom";
 
 const Tutanak = () => {
+    const navigate = useNavigate();
     const [aciklama, setAciklama] = useState('');
     const [sorumluluk, setSorumluluk] = useState('');
     const [firma, setFirma] = useState('');
@@ -179,6 +181,12 @@ ${finalInnerHTML}
             />
 
             <div className="flex gap-4 mb-6 flex-wrap">
+                <button
+                    onClick={() => navigate("/anasayfa")}
+                    className="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded"
+                >
+                    ⬅️ Anasayfa
+                </button>
                 <button onClick={handleWordExport} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">📄 Word</button>
                 <button onClick={handlePDFExport} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">📕 PDF</button>
                 <button onClick={handleExcelExport} className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded">📊 Excel</button>

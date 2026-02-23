@@ -4,6 +4,7 @@ import Layout from "./components/Layout";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import Select from "react-select";
+import { useNavigate } from "react-router-dom";
 import {
     FiFilter,
     FiDownload,
@@ -155,6 +156,7 @@ const rsStyles = (isDark) => ({
 });
 
 function TumKargoBilgileri() {
+    const navigate = useNavigate();
     const [veriler, setVeriler] = useState([]);
     const [filteredVeriler, setFilteredVeriler] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -587,6 +589,14 @@ function TumKargoBilgileri() {
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
+                            <button
+                                onClick={() => navigate("/anasayfa")}
+                                className="inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 font-semibold
+               border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5"
+                                title="Anasayfaya dön"
+                            >
+                                Anasayfaya Dön
+                            </button>
                             <div className="relative">
                                 <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                                 <input

@@ -1,11 +1,27 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
+
 import {
-    PieChart, Pie, Cell, Tooltip as ReTooltip, ResponsiveContainer,
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
+    PieChart,
+    Pie,
+    Cell,
+    Tooltip as ReTooltip,
+    ResponsiveContainer,
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Legend,
 } from "recharts";
+
 import {
-    FiRefreshCw, FiCalendar, FiTrendingUp, FiPackage,
+    FiRefreshCw,
+    FiCalendar,
+    FiTrendingUp,
+    FiPackage,
+    FiHome, // ikon istersen
 } from "react-icons/fi";
 
 const COLORS = ["#8b5cf6", "#a78bfa", "#f472b6", "#fb7185", "#38bdf8", "#60a5fa", "#34d399", "#f59e0b"];
@@ -52,6 +68,7 @@ function canonicalProjectName(raw) {
 const fmt = (n) => Number(n || 0).toLocaleString("tr-TR");
 
 export default function EvrakRaporlari() {
+    const navigate = useNavigate();
     const [evraklar, setEvraklar] = useState([]);
     const [lokasyonlar, setLokasyonlar] = useState({});
     // Proje tekilleştirme için iki harita:
@@ -296,6 +313,13 @@ export default function EvrakRaporlari() {
 
                 {/* Üst Filtreler */}
                 <div className="flex flex-wrap items-end gap-4 mb-6">
+                    <button
+                        onClick={() => navigate("/anasayfa")}
+                        className="flex items-center gap-2 px-4 h-[44px] rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 transition-colors"
+                        title="Anasayfaya dön"
+                    >
+                        Anasayfaya Dön
+                    </button>
                     {/* Tarih */}
                     <div className="flex items-center gap-2 bg-white/[0.03] backdrop-blur-md p-3 rounded-2xl border border-white/10 shadow-inner">
                         <FiCalendar className="opacity-80" />

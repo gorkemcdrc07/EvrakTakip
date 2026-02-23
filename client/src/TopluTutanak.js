@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import 'react-datepicker/dist/react-datepicker.css';
 
+import { useNavigate } from "react-router-dom";
 // ✅ Supabase client
 import { supabase } from './supabaseClient';
 
@@ -86,6 +87,7 @@ const safeFilePart = (s, maxLen = 60) => {
 
 // ---------- 2. ANA BİLEŞEN ----------
 const TopluTutanak = () => {
+    const navigate = useNavigate();
     const [startDate, setStartDate] = useState(new Date());
     const [endDate, setEndDate] = useState(new Date());
     const [veriler, setVeriler] = useState([]);
@@ -503,6 +505,13 @@ const TopluTutanak = () => {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-4 bg-black/40 p-2 rounded-3xl">
+                        <button
+                            onClick={() => navigate("/anasayfa")}
+                            className="px-8 py-3 bg-white/10 rounded-2xl font-black text-xs text-white hover:bg-white/15 transition-all flex items-center gap-2"
+                            title="Anasayfaya dön"
+                        >
+                            Anasayfaya Dön
+                        </button>
                         <div className="flex items-center gap-4 px-6">
                             <CalendarIcon size={18} className="text-indigo-400" />
 

@@ -6,6 +6,7 @@ import tr from 'date-fns/locale/tr';
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import { useNavigate } from "react-router-dom";
 
 import {
     FiFilter, FiDownload, FiBarChart2, FiUsers, FiTruck, FiTable, FiX, FiRefreshCw, FiCalendar,
@@ -15,6 +16,7 @@ registerLocale('tr', tr);
 
 const Raporlar = () => {
     // ---------------- state & sabitler (AYNEN) ----------------
+    const navigate = useNavigate();
     const [veriler, setVeriler] = useState([]);
     const [loading, setLoading] = useState(false);
     const [hata, setHata] = useState(null);
@@ -291,6 +293,13 @@ const Raporlar = () => {
                             </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-4">
+                            <button
+                                onClick={() => navigate("/anasayfa")}
+                                className="btn-lg btn-ghost"
+                                title="Anasayfaya dön"
+                            >
+                                Anasayfaya Dön
+                            </button>
                             <button onClick={fetchData} className="btn-lg btn-indigo"><FiRefreshCw className="mr-2" />Sorgula</button>
                             <button onClick={excelExportEt} className="btn-lg btn-emerald"><FiDownload className="mr-2" />Genel Excel</button>
                             <button onClick={projeBazliRaporOlustur} className="btn-lg btn-violet"><FiBarChart2 className="mr-2" />Proje Durum</button>

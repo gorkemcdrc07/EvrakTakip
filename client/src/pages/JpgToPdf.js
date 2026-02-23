@@ -1,6 +1,8 @@
 // src/pages/JpgToPdf.jsx
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import Layout from "../components/Layout";
+// ✅ ekle (importlara)
+import { useNavigate } from "react-router-dom";
 
 import {
     Box,
@@ -48,6 +50,7 @@ function loadImage(src) {
 }
 
 export default function JpgToPdf() {
+    const navigate = useNavigate();
     const theme = useTheme();
     const isDark = theme.palette.mode === "dark";
 
@@ -256,6 +259,16 @@ export default function JpgToPdf() {
                                 </Box>
 
                                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" justifyContent="flex-end">
+                                    {/* ✅ Anasayfa butonu */}
+                                    <Button
+                                        variant="outlined"
+                                        onClick={() => navigate("/anasayfa")}
+                                        disabled={busy}
+                                        sx={{ borderRadius: 999, fontWeight: 900, borderColor: borderCol }}
+                                    >
+                                        ⬅️ Anasayfa
+                                    </Button>
+
                                     <Button
                                         variant="outlined"
                                         startIcon={<UploadRoundedIcon />}
@@ -288,8 +301,7 @@ export default function JpgToPdf() {
                                     >
                                         Temizle
                                     </Button>
-                                </Stack>
-                            </Stack>
+                                </Stack>                            </Stack>
 
                             {busy && (
                                 <Box sx={{ mt: 2 }}>

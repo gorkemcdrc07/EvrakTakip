@@ -2,8 +2,9 @@
   "ExpandedNodes": [
     "",
     "\\client",
-    "\\client\\src"
+    "\\client\\src",
+    "\\client\\src\\components"
   ],
-  "SelectedNode": "\\client\\src\\TopluEvraklar.js",
+  "SelectedNode": "\\client\\src\\components\\ModernSidebar.js",
   "PreviewInSolutionExplorer": false
 }

@@ -2,6 +2,7 @@
 import { supabase } from './supabaseClient';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import { useNavigate } from "react-router-dom";
 
 /**
  * HedefKargo – Modern UI Revamp v2 (Fix Pack)
@@ -14,6 +15,7 @@ import { saveAs } from 'file-saver';
  */
 
 function HedefKargo() {
+    const navigate = useNavigate();
     const [kargoData, setKargoData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [editingItem, setEditingItem] = useState(null);
@@ -343,6 +345,13 @@ function HedefKargo() {
                             </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
+                            <button
+                                onClick={() => navigate("/anasayfa")}
+                                className="inline-flex items-center gap-2 rounded-xl px-4 py-2 bg-white/80 dark:bg-gray-800/70 text-gray-900 dark:text-gray-100 border border-gray-200/70 dark:border-gray-700/70 hover:bg-white dark:hover:bg-gray-800 shadow-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500/20 transition"
+                                title="Anasayfaya dön"
+                            >
+                                ⬅️ <span className="font-medium">Anasayfa</span>
+                            </button>
                             <button
                                 onClick={() => setAdding(true)}
                                 className="group inline-flex items-center gap-2 rounded-xl px-4 py-2 text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 shadow-md shadow-indigo-600/20 ring-1 ring-white/10 focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500/30 transition"

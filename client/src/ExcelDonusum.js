@@ -4,6 +4,7 @@
 import React, { useState, useRef } from "react";
 import * as XLSX from "xlsx";
 import ReactToPrint from "react-to-print";
+import { useNavigate } from "react-router-dom";
 
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import {
@@ -149,6 +150,7 @@ function SortableColumn({ col, toggleColumn, removeColumn }) {
 // ==========================
 export default function ExcelDonusum() {
 
+    const navigate = useNavigate();
     const [columns, setColumns] = useState([]);
     const [rows, setRows] = useState([]);
     const [fileName, setFileName] = useState("");
@@ -409,12 +411,28 @@ export default function ExcelDonusum() {
 
             {/* ---- UPLOAD ---- */}
             <section className="mb-10 p-6 bg-gray-800 rounded-xl border border-gray-700">
-                <h2 className="text-xl font-bold text-indigo-400 flex items-center mb-4">
-                    <Upload size={22} className="mr-2" /> Dosya Yükleme
-                </h2>
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-indigo-400 flex items-center">
+                        <Upload size={22} className="mr-2" /> Dosya Yükleme
+                    </h2>
+
+                    <button
+                        type="button"
+                        onClick={() => navigate("/anasayfa")}
+                        className="bg-gray-900 hover:bg-gray-700 px-5 py-2 rounded-full text-white font-bold flex items-center"
+                        title="Anasayfaya dön"
+                    >
+                        ⬅️ Anasayfa
+                    </button>
+                </div>
 
                 <label className="cursor-pointer block">
-                    <input type="file" className="hidden" accept=".xlsx,.xls" onChange={handleFileUpload} />
+                    <input
+                        type="file"
+                        className="hidden"
+                        accept=".xlsx,.xls"
+                        onChange={handleFileUpload}
+                    />
 
                     <div className="p-10 text-center border border-dashed border-gray-600 rounded-xl">
                         {isLoading ? (
@@ -423,14 +441,11 @@ export default function ExcelDonusum() {
                                 <span>Yükleniyor...</span>
                             </div>
                         ) : (
-                            <span className="text-gray-300">
-                                {fileName || "Yüklemek için tıklayın"}
-                            </span>
+                            <span className="text-gray-300">{fileName || "Yüklemek için tıklayın"}</span>
                         )}
                     </div>
                 </label>
             </section>
-
 
             {/* ---- SÜTUN YÖNETİMİ ---- */}
             {columns.length > 0 && (
