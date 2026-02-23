@@ -2,13 +2,8 @@
   "ExpandedNodes": [
     "",
     "\\client",
-    "\\client\\public",
-    "\\client\\src",
-    "\\client\\src\\assets",
-    "\\client\\src\\components",
-    "\\client\\src\\hooks",
-    "\\client\\src\\pages"
+    "\\client\\src"
   ],
-  "SelectedNode": "\\client\\public\\logo.svg",
+  "SelectedNode": "\\client\\src\\TopluEvraklar.js",
   "PreviewInSolutionExplorer": false
 }

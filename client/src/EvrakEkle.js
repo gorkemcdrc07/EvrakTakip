@@ -1,7 +1,8 @@
-﻿// EvrakEkle.jsx (Güncel Tam Kod)
+﻿// EvrakEkle.jsx (Güncel Tam Kod - UI iyileştirme + Anasayfaya Dön butonu)
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from './supabaseClient';
 import Layout from './components/Layout';
+import { useNavigate } from 'react-router-dom';
 import {
     FiClipboard,
     FiCalendar,
@@ -15,6 +16,7 @@ import {
     FiCheckCircle,
     FiAlertTriangle,
     FiZap,
+    FiHome,
 } from 'react-icons/fi';
 
 /* === Konfeti (Saçılarak sağ & sol) === */
@@ -161,6 +163,8 @@ function Toast({ show, type = 'success', message }) {
 }
 
 export default function EvrakEkle() {
+    const navigate = useNavigate();
+
     const [lokasyonlar, setLokasyonlar] = useState([]);
     const [projeler, setProjeler] = useState([]);
 
@@ -333,6 +337,14 @@ export default function EvrakEkle() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const goHome = () => {
+        if (isDirty) {
+            const ok = window.confirm('Kaydedilmemiş değişiklikler var. Yine de anasayfaya dönülsün mü?');
+            if (!ok) return;
+        }
+        navigate('/Anasayfa');
     };
 
     const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
@@ -523,13 +535,26 @@ export default function EvrakEkle() {
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2">
+                                {/* ✅ Anasayfaya dön butonu */}
+                                <button
+                                    type="button"
+                                    onClick={goHome}
+                                    className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2 text-xs font-semibold text-white ring-1 ring-white/15 hover:bg-white/15 active:scale-[0.98] transition"
+                                    title="Anasayfaya dön"
+                                >
+                                    <FiHome />
+                                    Anasayfaya Dön
+                                </button>
+
                                 <Pill tone="info" title="Projelerden otomatik hesaplanır">
                                     Toplam Sefer: <b className="ml-1">{toplamSeferSayisi}</b>
                                 </Pill>
                                 <Pill tone={isDirty ? 'warn' : 'ok'} title={isDirty ? 'Kaydedilmemiş değişiklik var' : 'Her şey güncel'}>
                                     {isDirty ? 'Kaydedilmemiş' : 'Güncel'}
                                 </Pill>
-                                <Pill tone="neutral" title="Kısayol">Ctrl/⌘+S</Pill>
+                                <Pill tone="neutral" title="Kısayol">
+                                    Ctrl/⌘+S
+                                </Pill>
                             </div>
                         </div>
 
@@ -670,10 +695,7 @@ export default function EvrakEkle() {
                             >
                                 <div className="space-y-3">
                                     {form.projeler.map((p, i) => (
-                                        <div
-                                            key={i}
-                                            className="rounded-3xl border border-gray-200/70 bg-white p-3 shadow-sm dark:border-gray-700/60 dark:bg-gray-950/35"
-                                        >
+                                        <div key={i} className="rounded-3xl border border-gray-200/70 bg-white p-3 shadow-sm dark:border-gray-700/60 dark:bg-gray-950/35">
                                             <div className="grid gap-3 sm:grid-cols-[1fr_180px_auto] sm:items-center">
                                                 {loading ? (
                                                     <Skeleton className="h-[46px]" />
@@ -765,9 +787,7 @@ export default function EvrakEkle() {
                                             ))}
                                         </div>
 
-                                        <div className="mt-2 text-xs opacity-80">
-                                            Karşılaştırma: boşluk/harf duyarsız (örn. “ab 12” = “AB 12”).
-                                        </div>
+                                        <div className="mt-2 text-xs opacity-80">Karşılaştırma: boşluk/harf duyarsız (örn. “ab 12” = “AB 12”).</div>
                                     </div>
                                 )}
 
@@ -775,10 +795,7 @@ export default function EvrakEkle() {
                                     {form.seferler.map((s, i) => {
                                         const isDupRow = duplicateRowIndexes.has(i);
                                         return (
-                                            <div
-                                                key={i}
-                                                className="rounded-3xl border border-gray-200/70 bg-white p-3 shadow-sm dark:border-gray-700/60 dark:bg-gray-950/35"
-                                            >
+                                            <div key={i} className="rounded-3xl border border-gray-200/70 bg-white p-3 shadow-sm dark:border-gray-700/60 dark:bg-gray-950/35">
                                                 <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
                                                     <div>
                                                         <label className="mb-1 flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
@@ -794,11 +811,7 @@ export default function EvrakEkle() {
                                                                     : 'border-gray-200 bg-white focus:border-indigo-400 focus:ring-indigo-100 dark:border-gray-700 dark:bg-gray-950/50 dark:focus:ring-indigo-900/40'
                                                                 }`}
                                                         />
-                                                        {isDupRow && (
-                                                            <div className="mt-1 text-xs font-semibold text-rose-600 dark:text-rose-300">
-                                                                Bu Sefer No başka satırda da var.
-                                                            </div>
-                                                        )}
+                                                        {isDupRow && <div className="mt-1 text-xs font-semibold text-rose-600 dark:text-rose-300">Bu Sefer No başka satırda da var.</div>}
                                                     </div>
 
                                                     <div>
@@ -875,20 +888,35 @@ export default function EvrakEkle() {
                                                 className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm
                                    hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                                             >
-                                                <FiSave />
-                                                {saving ? 'Kaydediliyor…' : 'Kaydet'}
+                                                {saving ? (
+                                                    <span className="inline-flex items-center gap-2">
+                                                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                                                        Kaydediliyor…
+                                                    </span>
+                                                ) : (
+                                                    <>
+                                                        <FiSave />
+                                                        Kaydet
+                                                    </>
+                                                )}
                                             </button>
                                         </div>
                                     </div>
 
                                     {!canSubmit && (
-                                        <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-                                            Kaydet için: <b>tarih</b>, <b>lokasyon</b> ve en az <b>1 proje + sefer sayısı</b> gerekli.
-                                            {hasDuplicateSeferNo && (
-                                                <span className="ml-1">
-                                                    Ayrıca <b>mükerrer Sefer No</b> olmamalı.
-                                                </span>
-                                            )}
+                                        <div className="mt-3 grid gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                            <div className="flex items-center gap-2">
+                                                <span className={`h-2 w-2 rounded-full ${validBasics ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                                                Tarih ve lokasyon seçili olmalı
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className={`h-2 w-2 rounded-full ${validProjects ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                                                En az 1 proje + sefer sayısı girilmeli
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className={`h-2 w-2 rounded-full ${!hasDuplicateSeferNo ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                                Mükerrer Sefer No olmamalı
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -904,7 +932,9 @@ export default function EvrakEkle() {
                                 <div className="mt-3 space-y-3 text-sm">
                                     <div className="flex items-center justify-between rounded-2xl bg-gray-50 px-4 py-3 dark:bg-gray-950/45">
                                         <span className="text-gray-600 dark:text-gray-300">Adım</span>
-                                        <b className="text-gray-900 dark:text-white">{step}/3</b>
+                                        <b className="text-gray-900 dark:text-white">
+                                            {step}/3
+                                        </b>
                                     </div>
                                     <div className="flex items-center justify-between rounded-2xl bg-gray-50 px-4 py-3 dark:bg-gray-950/45">
                                         <span className="text-gray-600 dark:text-gray-300">Toplam Sefer</span>
@@ -932,9 +962,7 @@ export default function EvrakEkle() {
 
                             <div className="rounded-3xl border border-gray-200/70 bg-white/70 p-5 shadow-sm backdrop-blur-xl dark:border-gray-700/60 dark:bg-gray-900/55">
                                 <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Taslak</div>
-                                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                    Değişiklikler otomatik taslak olarak saklanır. Kaydet sonrası temizlenir.
-                                </div>
+                                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">Değişiklikler otomatik taslak olarak saklanır. Kaydet sonrası temizlenir.</div>
                             </div>
                         </div>
                     </aside>

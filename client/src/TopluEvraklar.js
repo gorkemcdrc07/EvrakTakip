@@ -1,12 +1,25 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from './supabaseClient';
-import { FiFile } from 'react-icons/fi';
+import {
+    FiFile,
+    FiHome,
+    FiFilter,
+    FiX,
+    FiDownload,
+    FiTrash2,
+    FiEdit2,
+    FiInfo,
+    FiSearch,
+} from 'react-icons/fi';
 import Layout from './components/Layout';
 import * as XLSX from 'xlsx';
+import { useNavigate } from 'react-router-dom';
 import EditEvrakModal from './components/EditEvrakModal';
 import ModernSummary from "./components/ModernSummary";
 
 function TopluEvraklar() {
+    const navigate = useNavigate();
+
     const [evraklar, setEvraklar] = useState([]);
     const [lokasyonlar, setLokasyonlar] = useState({});
     const [projeler, setProjeler] = useState({});
@@ -59,7 +72,6 @@ function TopluEvraklar() {
     const [showDetailCard, setShowDetailCard] = useState(false);
 
     const normalize = (str) => (str || '').trim().toLocaleUpperCase('tr').replace(/\s+/g, ' ');
-
     const toplamSefer = evraklar.reduce((sum, evrak) => sum + (evrak.sefersayisi || 0), 0);
 
     const duzeltilmis = evraklar.reduce(
@@ -90,18 +102,18 @@ function TopluEvraklar() {
         else setOriginalEvrak(null);
     }, [showEditModal, selectedEvrak?.id]);
 
-    // Sekme kapanışı / sayfadan ayrılma (F5, tab kapatma vs.) uyarısı
+    // Sekme kapanışı / sayfadan ayrılma uyarısı
     useEffect(() => {
         const handler = (e) => {
             if (!hasUnsavedEdit) return;
             e.preventDefault();
-            e.returnValue = ''; // uyarıyı tetikler
+            e.returnValue = '';
         };
         if (hasUnsavedEdit) window.addEventListener('beforeunload', handler);
         return () => window.removeEventListener('beforeunload', handler);
     }, [hasUnsavedEdit]);
 
-    // SPA içinde anchor/Link tıklamalarını engelle (aynı origin, _blank değilse)
+    // SPA içinde anchor/Link tıklamalarını engelle
     useEffect(() => {
         const onAnchorClick = (e) => {
             if (!hasUnsavedEdit) return;
@@ -158,6 +170,14 @@ function TopluEvraklar() {
         setLokasyonlar(lokasyonMap);
         setProjeler(projeMap);
         setLoading(false);
+    };
+
+    const goHome = () => {
+        if (hasUnsavedEdit) {
+            const ok = window.confirm('Kaydedilmemiş değişiklikler var. Yine de anasayfaya dönülsün mü?');
+            if (!ok) return;
+        }
+        navigate('/Anasayfa');
     };
 
     const handleCloseEditModal = () => {
@@ -251,7 +271,7 @@ function TopluEvraklar() {
             ? evrakObj.evrakseferler.filter((s) => s.seferno && s.aciklama)
             : [];
 
-        // ✅ seferno bazlı dedup — isterseniz anahtarınızı `${seferno}__${aciklama}` yapabilirsiniz
+        // ✅ seferno bazlı dedup
         const seen = new Set();
         const uniqueSeferler = [];
         for (const s of evrakseferler) {
@@ -263,14 +283,12 @@ function TopluEvraklar() {
         }
 
         try {
-            // ana evrak
             const { error: errEvrak } = await supabase
                 .from('evraklar')
                 .update({ tarih, lokasyonid, sefersayisi: toplamSefer })
                 .eq('id', evrakId);
             if (errEvrak) throw errEvrak;
 
-            // projeler: sil -> ekle
             const { error: errProjDel } = await supabase.from('evrakproje').delete().eq('evrakid', evrakId);
             if (errProjDel) throw errProjDel;
 
@@ -285,7 +303,6 @@ function TopluEvraklar() {
                 if (errProjIns) throw errProjIns;
             }
 
-            // seferler: sil -> dedup edilmiş şekilde ekle
             const { error: errSeferDel } = await supabase.from('evrakseferler').delete().eq('evrakid', evrakId);
             if (errSeferDel) throw errSeferDel;
 
@@ -316,30 +333,6 @@ function TopluEvraklar() {
             console.error('Evrak güncelleme hatası:', error);
             alert('Güncelleme sırasında bir hata oluştu.');
         }
-    };
-
-
-    const lokasyonBazliAciklamaVerileri = () => {
-        const sonuc = {};
-        evraklar.forEach((evrak) => {
-            const lokasyonAdi = lokasyonlar?.[evrak.lokasyonid];
-            if (!lokasyonAdi) return;
-
-            if (!sonuc[lokasyonAdi]) {
-                sonuc[lokasyonAdi] = { toplamSefer: 0, aciklamalar: {} };
-            }
-            sonuc[lokasyonAdi].toplamSefer += evrak.sefersayisi || 0;
-
-            evrak.evrakseferler?.forEach((sefer) => {
-                const aciklama = sefer.aciklama;
-                if (aciklama) {
-                    sonuc[lokasyonAdi].aciklamalar[aciklama] =
-                        (sonuc[lokasyonAdi].aciklamalar[aciklama] || 0) + 1;
-                }
-            });
-        });
-
-        return sonuc;
     };
 
     const exportToExcel = () => {
@@ -432,7 +425,6 @@ function TopluEvraklar() {
     };
 
     const exportFilteredExcel = () => {
-        // 1) Tüm açıklama türlerini topla
         const allAciklamalar = new Set();
         filteredEvraklar.forEach((evrak) => {
             evrak.evrakseferler?.forEach((s) => {
@@ -444,11 +436,9 @@ function TopluEvraklar() {
 
         const aciklamaListesi = [...allAciklamalar];
 
-        // Başlıklar
         const headers = ["TARİH", "LOKASYON", "TOPLAM SEFER", ...aciklamaListesi];
         const sheetData = [headers];
 
-        // 2) Verileri toplu şekilde ekle
         filteredEvraklar.forEach((evrak) => {
             const tarih = new Date(evrak.tarih).toLocaleDateString("tr-TR");
             const lokasyon = lokasyonlar[evrak.lokasyonid] || "—";
@@ -470,13 +460,9 @@ function TopluEvraklar() {
             ]);
         });
 
-        // 3) Çalışma sayfasını oluştur
         const ws = XLSX.utils.aoa_to_sheet(sheetData);
-
-        // KOLON GENİŞLİKLERİ (daha güzel görünüm için)
         ws["!cols"] = headers.map((h) => ({ wch: Math.max(20, h.length + 5) }));
 
-        // TASARIM STİLLERİ
         const border = {
             top: { style: "thin", color: { rgb: "999999" } },
             bottom: { style: "thin", color: { rgb: "999999" } },
@@ -486,22 +472,14 @@ function TopluEvraklar() {
 
         const headerStyle = {
             font: { bold: true, color: { rgb: "ffffff" } },
-            fill: { fgColor: { rgb: "1E3A8A" } }, // koyu lacivert
+            fill: { fgColor: { rgb: "1E3A8A" } },
             alignment: { horizontal: "center", vertical: "center" },
             border,
         };
 
-        const rowLight = {
-            fill: { fgColor: { rgb: "F3F4F6" } },
-            border,
-        };
+        const rowLight = { fill: { fgColor: { rgb: "F3F4F6" } }, border };
+        const rowDark = { fill: { fgColor: { rgb: "E5E7EB" } }, border };
 
-        const rowDark = {
-            fill: { fgColor: { rgb: "E5E7EB" } },
-            border,
-        };
-
-        // TÜM HÜCRELERE STİL UYGULA
         const range = XLSX.utils.decode_range(ws["!ref"]);
         for (let R = range.s.r; R <= range.e.r; R++) {
             for (let C = range.s.c; C <= range.e.c; C++) {
@@ -509,23 +487,15 @@ function TopluEvraklar() {
                 const cell = ws[cellRef];
                 if (!cell) continue;
 
-                // Header satırı
-                if (R === 0) {
-                    cell.s = headerStyle;
-                } else {
-                    // Zebra görünüm
-                    cell.s = R % 2 === 0 ? rowDark : rowLight;
-                }
+                if (R === 0) cell.s = headerStyle;
+                else cell.s = R % 2 === 0 ? rowDark : rowLight;
             }
         }
 
-        // 4) Çalışma kitabı oluştur
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Detay Rapor");
-
         XLSX.writeFile(wb, "Detay_Rapor.xlsx");
     };
-
 
     const exportEvrakToExcel = (evrak) => {
         const tarih = new Date(evrak.tarih).toLocaleDateString('tr-TR');
@@ -635,7 +605,7 @@ function TopluEvraklar() {
 
         return tarihMatch && lokasyonMatch && projeMatch && aciklamaMatch && seferNoMatch;
     });
-    // FILTRELENMIŞ AÇIKLAMALAR
+
     const filteredAciklamaVerileri = () => {
         const counts = {};
         filteredEvraklar.forEach((evrak) => {
@@ -647,7 +617,6 @@ function TopluEvraklar() {
         return Object.entries(counts).map(([name, value]) => ({ name, value }));
     };
 
-    // FILTRELENMIŞ TOPLAM SEFER
     const filteredToplamSefer = filteredEvraklar.reduce(
         (sum, evrak) => sum + (evrak.sefersayisi || 0),
         0
@@ -703,6 +672,18 @@ function TopluEvraklar() {
         setShowDetailCard(true);
     };
 
+    // ✅ Modern mini skeleton
+    const TableSkeleton = () => (
+        <div className="rounded-2xl border border-gray-200/70 dark:border-gray-700/60 bg-white/70 dark:bg-gray-900/50 p-5 shadow-sm backdrop-blur-xl">
+            <div className="h-6 w-48 rounded bg-gray-200/70 dark:bg-gray-700/40 animate-pulse mb-4" />
+            <div className="space-y-3">
+                {[...Array(8)].map((_, i) => (
+                    <div key={i} className="h-12 rounded-xl bg-gray-200/70 dark:bg-gray-700/40 animate-pulse" />
+                ))}
+            </div>
+        </div>
+    );
+
     return (
         <>
             {showEditModal && selectedEvrak && (
@@ -711,81 +692,139 @@ function TopluEvraklar() {
                     lokasyonlar={lokasyonlar}
                     projeler={projeler}
                     onClose={handleCloseEditModal}
-                    onSave={handleEvrakGuncelle} // ✅ payload alır
+                    onSave={handleEvrakGuncelle}
                 />
             )}
 
             <Layout>
-                <div className="flex flex-col gap-8 p-8 bg-white text-black dark:bg-gray-900 dark:text-white transition-colors duration-300">
-                    {/* Üst bar */}
-                    <div className="bg-gray-800 p-4 rounded-lg shadow-md mb-2 flex flex-wrap items-center gap-3">
-                        <button
-                            onClick={() => {
-                                setDraft(filters);
-                                setShowFilters(true);
-                            }}
-                            className="h-[40px] px-4 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-                        >
-                            🔎 Filtre
-                        </button>
+                {/* Arkaplan glow */}
+                <div className="pointer-events-none fixed inset-0 -z-10">
+                    <div className="absolute -top-24 left-1/2 h-72 w-[44rem] -translate-x-1/2 rounded-full bg-gradient-to-r from-indigo-400/25 via-violet-400/20 to-fuchsia-400/25 blur-3xl" />
+                    <div className="absolute bottom-0 right-0 h-64 w-64 rounded-full bg-gradient-to-tr from-emerald-400/15 to-sky-400/10 blur-3xl" />
+                </div>
 
-                        {hasActiveFilters && (
-                            <button
-                                onClick={() => setFilters(initialFilterState)}
-                                className="h-[40px] px-4 rounded-md bg-gray-600 hover:bg-gray-700 text-white"
-                            >
-                                Temizle
-                            </button>
-                        )}
+                <div className="mx-auto max-w-7xl px-4 py-8">
+                    {/* HERO */}
+                    <div className="mb-6 overflow-hidden rounded-[28px] border border-gray-200/70 bg-white/60 shadow-sm backdrop-blur-xl dark:border-gray-700/60 dark:bg-gray-900/50">
+                        <div className="bg-gradient-to-r from-gray-950 via-gray-900 to-gray-950 px-6 py-5 text-white dark:from-black dark:via-gray-950 dark:to-black">
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold ring-1 ring-white/15">
+                                        <FiSearch /> Liste • Filtre • Excel
+                                    </div>
+                                    <h2 className="mt-3 text-2xl font-bold tracking-tight">📚 Toplu Evraklar</h2>
+                                    <p className="mt-1 text-sm text-white/70">
+                                        Toplam Evrak: <b className="text-white">{filteredEvraklar.length}</b> • Toplam Sefer: <b className="text-white">{filteredToplamSefer}</b>
+                                    </p>
+                                </div>
 
-                        <button
-                            onClick={exportToExcel}
-                            className="flex items-center gap-2 h-[40px] px-4 rounded-md bg-green-600 hover:bg-green-700 text-white font-semibold"
-                        >
-                            <FiFile size={18} />
-                            Excel'e Aktar
-                        </button>
-                        <button
-                            onClick={exportFilteredExcel}
-                            className="flex items-center gap-2 h-[40px] px-4 rounded-md bg-purple-600 hover:bg-purple-700 text-white font-semibold"
-                        >
-                            📄 Detay Excel
-                        </button>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={goHome}
+                                        className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2 text-xs font-semibold text-white ring-1 ring-white/15 hover:bg-white/15 active:scale-[0.98] transition"
+                                        title="Anasayfaya dön"
+                                    >
+                                        <FiHome />
+                                        Anasayfaya Dön
+                                    </button>
 
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setDraft(filters);
+                                            setShowFilters(true);
+                                        }}
+                                        className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 active:scale-[0.98] transition"
+                                    >
+                                        <FiFilter />
+                                        Filtre
+                                    </button>
+
+                                    {hasActiveFilters && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setFilters(initialFilterState)}
+                                            className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2 text-xs font-semibold text-white ring-1 ring-white/15 hover:bg-white/15 active:scale-[0.98] transition"
+                                            title="Filtreleri temizle"
+                                        >
+                                            <FiX />
+                                            Temizle
+                                        </button>
+                                    )}
+
+                                    <button
+                                        type="button"
+                                        onClick={exportToExcel}
+                                        className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 active:scale-[0.98] transition"
+                                    >
+                                        <FiDownload />
+                                        Excel'e Aktar
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={exportFilteredExcel}
+                                        className="inline-flex items-center gap-2 rounded-2xl bg-fuchsia-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-fuchsia-700 active:scale-[0.98] transition"
+                                    >
+                                        <FiFile />
+                                        Detay Excel
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* mini stats */}
+                            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                                <div className="rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/10">
+                                    <div className="text-xs text-white/70">Düzeltilmiş</div>
+                                    <div className="mt-1 text-lg font-bold">{duzeltilmis} <span className="text-xs font-semibold text-white/70">({oran(duzeltilmis)}%)</span></div>
+                                </div>
+                                <div className="rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/10">
+                                    <div className="text-xs text-white/70">Orijinale Çekilmiş</div>
+                                    <div className="mt-1 text-lg font-bold">{orjinaleCekilmis} <span className="text-xs font-semibold text-white/70">({oran(orjinaleCekilmis)}%)</span></div>
+                                </div>
+                                <div className="rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/10">
+                                    <div className="text-xs text-white/70">Toplam Sefer (Genel)</div>
+                                    <div className="mt-1 text-lg font-bold">{toplamSefer}</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    {/* Ana içerik */}
-                    <div className="flex flex-col gap-6">
-                        {/* Üstte: Açıklama Dağılımı (tam genişlik) */}
-                        {!showFilters && (
+                    {/* Özet kartları */}
+                    {!showFilters && (
+                        <div className="mb-6">
                             <ModernSummary
                                 title="Açıklama Dağılımı"
                                 data={filteredAciklamaVerileri()}
                                 total={filteredToplamSefer}
                                 onCardClick={openCardPanel}
                             />
-                        )}
+                        </div>
+                    )}
 
-                        {/* Altta: Tablo */}
-                        {loading ? (
-                            <p className="text-center">Yükleniyor...</p>
-                        ) : (
-                            <div className="rounded-xl overflow-hidden shadow">
+                    {/* Tablo */}
+                    {loading ? (
+                        <TableSkeleton />
+                    ) : (
+                        <div className="rounded-2xl overflow-hidden border border-gray-200/70 dark:border-gray-700/60 bg-white/70 dark:bg-gray-900/50 shadow-sm backdrop-blur-xl">
+                            <div className="overflow-auto">
                                 <table className="w-full border-collapse">
-                                    <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
+                                    <thead className="bg-gray-100/90 dark:bg-gray-800/80 sticky top-0 z-10 backdrop-blur">
                                         <tr>
-                                            <th className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">#</th>
-                                            <th className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">Tarih</th>
-                                            <th className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">Lokasyon</th>
-                                            <th className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">Projeler</th>
-                                            <th className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">Toplam Sefer</th>
-                                            <th className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">Sefer No</th>
-                                            <th className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-left text-sm font-semibold text-gray-900 dark:text-gray-100">Açıklama</th>
-                                            <th className="px-4 py-2 border border-gray-200 dark:border-gray-700"></th>
-                                            <th className="px-4 py-2 border border-gray-200 dark:border-gray-700"></th>
-                                            <th className="px-4 py-2 border border-gray-200 dark:border-gray-700"></th>
+                                            <th className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60 text-left text-xs font-bold tracking-wide text-gray-700 dark:text-gray-200">#</th>
+                                            <th className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60 text-left text-xs font-bold tracking-wide text-gray-700 dark:text-gray-200">Tarih</th>
+                                            <th className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60 text-left text-xs font-bold tracking-wide text-gray-700 dark:text-gray-200">Lokasyon</th>
+                                            <th className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60 text-left text-xs font-bold tracking-wide text-gray-700 dark:text-gray-200">Projeler</th>
+                                            <th className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60 text-left text-xs font-bold tracking-wide text-gray-700 dark:text-gray-200">Toplam</th>
+                                            <th className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60 text-center text-xs font-bold tracking-wide text-gray-700 dark:text-gray-200">Sefer</th>
+                                            <th className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60 text-center text-xs font-bold tracking-wide text-gray-700 dark:text-gray-200">Açıklama</th>
+                                            <th className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60"></th>
+                                            <th className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60"></th>
+                                            <th className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60"></th>
                                         </tr>
                                     </thead>
+
                                     <tbody>
                                         {filteredEvraklar.map((evrak, index) => {
                                             const isProjelerVisible = acikProjeId === evrak.id;
@@ -793,116 +832,133 @@ function TopluEvraklar() {
                                             return (
                                                 <tr
                                                     key={evrak.id}
-                                                    className="bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100 odd:bg-gray-50 dark:odd:bg-gray-900 hover:bg-indigo-50/40 dark:hover:bg-indigo-900/20 transition-colors"
+                                                    className="bg-white/60 text-gray-900 dark:bg-gray-900/20 dark:text-gray-100 odd:bg-gray-50/70 dark:odd:bg-gray-900/35 hover:bg-indigo-50/60 dark:hover:bg-indigo-900/25 transition-colors"
                                                 >
-                                                    <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 font-semibold text-center">
+                                                    <td className="px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/50 font-semibold text-center">
                                                         {index + 1}
                                                     </td>
-                                                    <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
+                                                    <td className="px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/50">
                                                         {new Date(evrak.tarih).toLocaleDateString('tr-TR')}
                                                     </td>
-                                                    <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
+                                                    <td className="px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/50">
                                                         {lokasyonlar[evrak.lokasyonid]}
                                                     </td>
-                                                    <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
+
+                                                    <td className="px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/50">
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 setAcikProjeId(isProjelerVisible ? null : evrak.id);
                                                             }}
-                                                            className="rounded-md px-2 py-1 text-xs cursor-pointer mb-2 bg-gray-100 border border-gray-300 text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                            className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold bg-gray-100/80 border border-gray-200 text-gray-900
+                                         hover:bg-gray-200/70 dark:bg-gray-800/60 dark:border-gray-700 dark:text-white dark:hover:bg-gray-800"
                                                         >
+                                                            <FiInfo />
                                                             {isProjelerVisible ? 'Projeleri Gizle' : 'Projeleri Göster'}
                                                         </button>
+
                                                         {isProjelerVisible && (
-                                                            <ul className="list-none p-2 m-0">
+                                                            <ul className="mt-2 space-y-1 rounded-xl bg-white/60 dark:bg-gray-900/30 border border-gray-200/60 dark:border-gray-700/50 p-3">
                                                                 {evrak.evrakproje?.map((p, idx) => (
-                                                                    <li key={idx}>
-                                                                        {projeler[p.projeid]} ({p.sefersayisi})
+                                                                    <li key={idx} className="text-sm">
+                                                                        <span className="font-semibold">{projeler[p.projeid]}</span>{' '}
+                                                                        <span className="opacity-80">({p.sefersayisi})</span>
                                                                     </li>
                                                                 ))}
+                                                                {(!evrak.evrakproje || !evrak.evrakproje.length) && (
+                                                                    <li className="text-sm opacity-70">Proje kaydı yok.</li>
+                                                                )}
                                                             </ul>
                                                         )}
                                                     </td>
-                                                    <td className="px-4 py-2 border border-gray-200 dark:border-gray-700">
-                                                        {evrak.sefersayisi}
+
+                                                    <td className="px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/50">
+                                                        <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-800 dark:bg-emerald-900/25 dark:text-emerald-200 px-3 py-1 text-xs font-bold">
+                                                            {evrak.sefersayisi}
+                                                        </span>
                                                     </td>
 
-                                                    {/* Sefer No: Detay */}
-                                                    <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
+                                                    <td className="px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/50 text-center">
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 openDetail(evrak);
                                                             }}
-                                                            className="text-xs bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700"
+                                                            className="inline-flex items-center justify-center rounded-xl bg-indigo-600 text-white px-3 py-2 text-xs font-semibold hover:bg-indigo-700 active:scale-[0.98] transition"
                                                         >
                                                             Detay
                                                         </button>
                                                     </td>
 
-                                                    {/* Açıklama: Detay */}
-                                                    <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
+                                                    <td className="px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/50 text-center">
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 openDetail(evrak);
                                                             }}
-                                                            className="text-xs underline text-blue-700 dark:text-blue-400"
+                                                            className="inline-flex items-center justify-center rounded-xl bg-white/60 dark:bg-gray-900/25 border border-gray-200/70 dark:border-gray-700/60 px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300 hover:bg-white/90 dark:hover:bg-gray-900/40 active:scale-[0.98] transition"
                                                         >
                                                             Detay
                                                         </button>
                                                     </td>
 
-                                                    <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
+                                                    <td className="px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/50 text-center">
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 setSelectedEvrak(evrak);
                                                                 setShowEditModal(true);
                                                             }}
-                                                            className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                                                            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 text-white px-3 py-2 text-xs font-semibold hover:bg-blue-700 active:scale-[0.98] transition"
                                                         >
+                                                            <FiEdit2 />
                                                             Düzenle
                                                         </button>
                                                     </td>
 
-                                                    <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
+                                                    <td className="px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/50 text-center">
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 exportEvrakToExcel(evrak);
                                                             }}
-                                                            className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+                                                            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 text-white px-3 py-2 text-xs font-semibold hover:bg-emerald-700 active:scale-[0.98] transition"
                                                         >
-                                                            Satır Raporu Al
+                                                            <FiDownload />
+                                                            Satır Raporu
                                                         </button>
                                                     </td>
 
-                                                    <td className="px-4 py-2 border border-gray-200 dark:border-gray-700 text-center">
+                                                    <td className="px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/50 text-center">
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 handleEvrakSil(evrak);
                                                             }}
                                                             disabled={deletingId === evrak.id}
-                                                            className={`text-xs px-3 py-1 rounded ${deletingId === evrak.id
-                                                                    ? 'bg-red-300 cursor-not-allowed text-white'
-                                                                    : 'bg-red-600 hover:bg-red-700 text-white'
-                                                                }`}
+                                                            className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-white active:scale-[0.98] transition
+                                ${deletingId === evrak.id ? 'bg-rose-300 cursor-not-allowed' : 'bg-rose-600 hover:bg-rose-700'}`}
                                                         >
+                                                            <FiTrash2 />
                                                             {deletingId === evrak.id ? 'Siliniyor…' : 'Sil'}
                                                         </button>
                                                     </td>
                                                 </tr>
                                             );
                                         })}
+
+                                        {filteredEvraklar.length === 0 && (
+                                            <tr>
+                                                <td colSpan={10} className="px-6 py-10 text-center text-sm text-gray-600 dark:text-gray-300">
+                                                    Kayıt bulunamadı. Filtreleri gevşetmeyi deneyin.
+                                                </td>
+                                            </tr>
+                                        )}
                                     </tbody>
                                 </table>
                             </div>
-                        )}
-                    </div>
-
+                        </div>
+                    )}
                 </div>
             </Layout>
 
@@ -910,10 +966,10 @@ function TopluEvraklar() {
             {showFilters && (
                 <div className="fixed inset-0 z-50">
                     <div className="absolute inset-0 bg-black/40" onClick={() => setShowFilters(false)} />
-                    <div className="absolute left-0 top-0 h-full w-full max-w-[380px] bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-2xl p-5 overflow-y-auto">
+                    <div className="absolute left-0 top-0 h-full w-full max-w-[420px] bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-2xl p-5 overflow-y-auto">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-semibold">Filtreler</h3>
-                            <button onClick={() => setShowFilters(false)} className="text-xl px-2">×</button>
+                            <button onClick={() => setShowFilters(false)} className="text-xl px-2" aria-label="Kapat">×</button>
                         </div>
 
                         {/* Tarihler */}
@@ -924,7 +980,7 @@ function TopluEvraklar() {
                                     type="date"
                                     value={draft.startDate}
                                     onChange={(e) => setDraft({ ...draft, startDate: e.target.value })}
-                                    className="mt-1 w-full px-3 py-2 rounded border border-gray-300 dark:bg-gray-800 dark:border-gray-700"
+                                    className="mt-1 w-full px-3 py-2 rounded-xl border border-gray-300 dark:bg-gray-800 dark:border-gray-700"
                                 />
                             </div>
                             <div>
@@ -933,7 +989,7 @@ function TopluEvraklar() {
                                     type="date"
                                     value={draft.endDate}
                                     onChange={(e) => setDraft({ ...draft, endDate: e.target.value })}
-                                    className="mt-1 w-full px-3 py-2 rounded border border-gray-300 dark:bg-gray-800 dark:border-gray-700"
+                                    className="mt-1 w-full px-3 py-2 rounded-xl border border-gray-300 dark:bg-gray-800 dark:border-gray-700"
                                 />
                             </div>
                         </div>
@@ -942,13 +998,13 @@ function TopluEvraklar() {
                         <div className="mt-5">
                             <div className="flex items-center justify-between">
                                 <label className="text-sm font-medium">Projeler</label>
-                                <button onClick={() => setDraft((d) => ({ ...d, proje: [] }))} className="text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700">
+                                <button onClick={() => setDraft((d) => ({ ...d, proje: [] }))} className="text-xs px-2 py-1 rounded-lg bg-gray-200 dark:bg-gray-700">
                                     Temizle
                                 </button>
                             </div>
-                            <div className="mt-2 max-h-40 overflow-auto border border-gray-200 dark:border-gray-700 rounded">
+                            <div className="mt-2 max-h-40 overflow-auto border border-gray-200 dark:border-gray-700 rounded-xl">
                                 {projeOptions.map(({ id, name }) => (
-                                    <label key={id} className="flex items-center gap-2 px-3 py-1 text-sm cursor-pointer">
+                                    <label key={id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60">
                                         <input
                                             type="checkbox"
                                             checked={draft.proje.includes(id)}
@@ -972,13 +1028,13 @@ function TopluEvraklar() {
                         <div className="mt-5">
                             <div className="flex items-center justify-between">
                                 <label className="text-sm font-medium">Lokasyonlar</label>
-                                <button onClick={() => setDraft((d) => ({ ...d, lokasyon: [] }))} className="text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700">
+                                <button onClick={() => setDraft((d) => ({ ...d, lokasyon: [] }))} className="text-xs px-2 py-1 rounded-lg bg-gray-200 dark:bg-gray-700">
                                     Temizle
                                 </button>
                             </div>
-                            <div className="mt-2 max-h-40 overflow-auto border border-gray-200 dark:border-gray-700 rounded">
+                            <div className="mt-2 max-h-40 overflow-auto border border-gray-200 dark:border-gray-700 rounded-xl">
                                 {lokasyonOptions.map(({ id, name }) => (
-                                    <label key={id} className="flex items-center gap-2 px-3 py-1 text-sm cursor-pointer">
+                                    <label key={id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60">
                                         <input
                                             type="checkbox"
                                             checked={draft.lokasyon.includes(id)}
@@ -1006,7 +1062,7 @@ function TopluEvraklar() {
                                 list="aciklama-list"
                                 value={draft.aciklama}
                                 onChange={(e) => setDraft({ ...draft, aciklama: e.target.value })}
-                                className="mt-1 w-full px-3 py-2 rounded border border-gray-300 dark:bg-gray-800 dark:border-gray-700"
+                                className="mt-1 w-full px-3 py-2 rounded-xl border border-gray-300 dark:bg-gray-800 dark:border-gray-700"
                                 placeholder="Ara ya da yaz..."
                             />
                             <datalist id="aciklama-list">
@@ -1024,7 +1080,7 @@ function TopluEvraklar() {
                                 list="sefer-list"
                                 value={draft.seferno}
                                 onChange={(e) => setDraft({ ...draft, seferno: e.target.value })}
-                                className="mt-1 w-full px-3 py-2 rounded border border-gray-300 dark:bg-gray-800 dark:border-gray-700"
+                                className="mt-1 w-full px-3 py-2 rounded-xl border border-gray-300 dark:bg-gray-800 dark:border-gray-700"
                                 placeholder="Ara ya da yaz..."
                             />
                             <datalist id="sefer-list">
@@ -1042,7 +1098,7 @@ function TopluEvraklar() {
                                     setDraft(initialFilterState);
                                     setShowFilters(false);
                                 }}
-                                className="h-[40px] px-4 rounded-md bg-gray-600 hover:bg-gray-700 text-white"
+                                className="h-[44px] px-4 rounded-xl bg-gray-600 hover:bg-gray-700 text-white font-semibold"
                             >
                                 Temizle
                             </button>
@@ -1051,7 +1107,7 @@ function TopluEvraklar() {
                                     setFilters(draft);
                                     setShowFilters(false);
                                 }}
-                                className="h-[40px] px-4 rounded-md bg-green-600 hover:bg-green-700 text-white font-semibold"
+                                className="h-[44px] px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
                             >
                                 Uygula
                             </button>
@@ -1064,22 +1120,22 @@ function TopluEvraklar() {
             {showDetailCard && detailEvrak && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center">
                     <div className="absolute inset-0 bg-black/40" onClick={() => setShowDetailCard(false)} />
-                    <div className="relative bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 w-full max-w-2xl max-h-[85vh] rounded-2xl shadow-2xl p-6 overflow-y-auto">
+                    <div className="relative bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 w-full max-w-2xl max-h-[85vh] rounded-3xl shadow-2xl p-6 overflow-y-auto border border-gray-200/60 dark:border-gray-700/60">
                         <button onClick={() => setShowDetailCard(false)} className="absolute top-3 right-4 text-2xl leading-none" aria-label="Kapat">×</button>
 
                         <h3 className="text-lg font-semibold mb-4">Sefer Detayları — Evrak #{detailEvrak.id}</h3>
 
                         {/* Meta */}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-                            <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
+                            <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-3">
                                 <div className="text-xs opacity-70">Tarih</div>
                                 <div className="font-medium">{new Date(detailEvrak.tarih).toLocaleDateString('tr-TR')}</div>
                             </div>
-                            <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
+                            <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-3">
                                 <div className="text-xs opacity-70">Lokasyon</div>
                                 <div className="font-medium">{lokasyonlar[detailEvrak.lokasyonid]}</div>
                             </div>
-                            <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
+                            <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-3">
                                 <div className="text-xs opacity-70">Toplam Sefer</div>
                                 <div className="font-medium">{detailEvrak.sefersayisi || 0}</div>
                             </div>
@@ -1109,13 +1165,13 @@ function TopluEvraklar() {
                                         const normalized = (s.aciklama || '').trim().toLocaleUpperCase('tr');
                                         const badgeClass =
                                             normalized === 'TARAFIMIZCA DÜZELTİLMİŞTİR'
-                                                ? 'bg-green-600 text-white'
+                                                ? 'bg-emerald-600 text-white'
                                                 : normalized === 'TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR'
-                                                    ? 'bg-blue-600 text-white'
+                                                    ? 'bg-indigo-600 text-white'
                                                     : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100';
 
                                         return (
-                                            <div key={i} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex items-start justify-between gap-3">
+                                            <div key={i} className="border border-gray-200 dark:border-gray-700 rounded-2xl p-3 flex items-start justify-between gap-3">
                                                 <div>
                                                     <div className="text-xs opacity-70">Sefer No</div>
                                                     <div className="font-medium">{s.seferno || '(Boş)'}</div>
@@ -1132,10 +1188,10 @@ function TopluEvraklar() {
 
                         {/* Actions */}
                         <div className="mt-6 flex justify-end gap-2">
-                            <button onClick={() => exportEvrakToExcel(detailEvrak)} className="px-4 py-2 rounded bg-green-600 hover:bg-green-700 text-white text-sm">
+                            <button onClick={() => exportEvrakToExcel(detailEvrak)} className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">
                                 Excel (Satır Raporu)
                             </button>
-                            <button onClick={() => setShowDetailCard(false)} className="px-4 py-2 rounded bg-gray-600 hover:bg-gray-700 text-white text-sm">
+                            <button onClick={() => setShowDetailCard(false)} className="px-4 py-2 rounded-xl bg-gray-600 hover:bg-gray-700 text-white text-sm font-semibold">
                                 Kapat
                             </button>
                         </div>
@@ -1147,15 +1203,15 @@ function TopluEvraklar() {
             {panelOpen && (
                 <div className="fixed inset-0 z-50">
                     <div className="absolute inset-0 bg-black/40" onClick={() => setPanelOpen(false)} />
-                    <div className="absolute right-0 top-0 h-full w-full sm:w-[560px] bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-2xl p-5 overflow-y-auto">
+                    <div className="absolute right-0 top-0 h-full w-full sm:w-[620px] bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-2xl p-5 overflow-y-auto">
                         <div className="flex items-center justify-between mb-3">
                             <h3 className="text-lg font-semibold">
                                 {panelTitle} — {panelRows.length} satır
                             </h3>
-                            <button onClick={() => setPanelOpen(false)} className="text-xl px-2">×</button>
+                            <button onClick={() => setPanelOpen(false)} className="text-xl px-2" aria-label="Kapat">×</button>
                         </div>
 
-                        <div className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                        <div className="rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700">
                             <table className="w-full text-sm">
                                 <thead className="bg-gray-100 dark:bg-gray-800">
                                     <tr>

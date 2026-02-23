@@ -1,4 +1,7 @@
 ﻿// src/components/ModernSidebar.jsx
+// ✅ Morumsu (violet/pink) tema ile uyumlu hale getirildi: section header, active item, hover, search focus ring,
+// ✅ icon kutuları, chipler ve footer kartı mor vurgulu + glow
+
 import React, { useMemo, useState, useCallback, useEffect } from "react";
 import {
     Box,
@@ -35,7 +38,7 @@ import ImageRoundedIcon from "@mui/icons-material/ImageRounded";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
 import StarBorderRoundedIcon from "@mui/icons-material/StarBorderRounded";
 import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
-import PushPinRoundedIcon from "@mui/icons-material/PushPinRounded"; // küçük modern dokunuş
+import PushPinRoundedIcon from "@mui/icons-material/PushPinRounded";
 
 function getInitials(name = "") {
     const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -54,7 +57,7 @@ function safeParseJSON(value, fallback) {
     }
 }
 
-function highlightText(text, query, darkMode) {
+function highlightText(text, query, darkMode, accent) {
     const q = (query ?? "").trim();
     if (!q) return text;
 
@@ -75,8 +78,12 @@ function highlightText(text, query, darkMode) {
                     py: 0.1,
                     borderRadius: 1,
                     fontWeight: 950,
-                    background: darkMode ? "rgba(255,255,255,0.14)" : "rgba(17,24,39,0.10)",
-                    border: darkMode ? "1px solid rgba(255,255,255,0.16)" : "1px solid rgba(17,24,39,0.12)",
+                    color: darkMode ? "rgba(255,255,255,0.92)" : "rgba(17,24,39,0.92)",
+                    background: darkMode ? "rgba(139,92,246,0.18)" : "rgba(139,92,246,0.12)",
+                    border: darkMode ? "1px solid rgba(167,139,250,0.30)" : "1px solid rgba(139,92,246,0.22)",
+                    boxShadow: darkMode
+                        ? "0 10px 30px rgba(139,92,246,0.10)"
+                        : "0 10px 26px rgba(139,92,246,0.12)",
                 }}
             >
                 {match}
@@ -86,14 +93,7 @@ function highlightText(text, query, darkMode) {
     );
 }
 
-export default function ModernSidebar({
-    onClose,
-    navigate,
-    currentPath,
-    darkMode,
-    user,
-    perms,
-}) {
+export default function ModernSidebar({ onClose, navigate, currentPath, darkMode, user, perms }) {
     const safeUser = user ?? { adSoyad: "Kullanıcı", usernameRaw: "" };
     const safePerms = perms ?? {
         canSeeTahakkuk: false,
@@ -101,6 +101,17 @@ export default function ModernSidebar({
         isRefika: false,
         icons: {},
     };
+
+    // 🎨 Morumsu accent palet (Anasayfa ile aynı)
+    const accent = useMemo(
+        () => ({
+            primary: "#8B5CF6",
+            primary2: "#A78BFA",
+            pink: "#EC4899",
+            cyan: "#22D3EE",
+        }),
+        []
+    );
 
     // ✅ LocalStorage keys
     const LS_FAVS = "modern_sidebar_favorites_v1";
@@ -110,12 +121,12 @@ export default function ModernSidebar({
 
     const [favorites, setFavorites] = useState(() => {
         const raw = typeof window !== "undefined" ? window.localStorage.getItem(LS_FAVS) : null;
-        return safeParseJSON(raw, []); // array of paths
+        return safeParseJSON(raw, []);
     });
 
     const [recents, setRecents] = useState(() => {
         const raw = typeof window !== "undefined" ? window.localStorage.getItem(LS_RECENTS) : null;
-        return safeParseJSON(raw, []); // array of paths
+        return safeParseJSON(raw, []);
     });
 
     useEffect(() => {
@@ -134,10 +145,10 @@ export default function ModernSidebar({
         FAVORİLER: true,
         "SON KULLANILAN": true,
         "VERİ GİRİŞİ": true,
-        "NAVİGASYON": true,
+        NAVİGASYON: true,
         EVRAK: true,
         RAPORLAR: true,
-        "DİĞER": true,
+        DİĞER: true,
         KARGO: true,
     }));
 
@@ -146,20 +157,13 @@ export default function ModernSidebar({
         []
     );
 
-    // ✅ Hover ile otomatik aç (kapatmıyoruz; istersen ekleriz)
     const openSectionOnHover = useCallback((title) => {
         setOpenSections((p) => (p[title] ? p : { ...p, [title]: true }));
     }, []);
 
-    const addRecent = useCallback(
-        (path) => {
-            setRecents((prev) => {
-                const next = [path, ...prev.filter((x) => x !== path)].slice(0, 8);
-                return next;
-            });
-        },
-        [setRecents]
-    );
+    const addRecent = useCallback((path) => {
+        setRecents((prev) => [path, ...prev.filter((x) => x !== path)].slice(0, 8));
+    }, []);
 
     const toggleFavorite = useCallback((path) => {
         setFavorites((prev) => {
@@ -196,7 +200,6 @@ export default function ModernSidebar({
                     },
                 ],
             },
-
             {
                 title: "NAVİGASYON",
                 show: safePerms.isAdminOrManager,
@@ -217,7 +220,6 @@ export default function ModernSidebar({
                     },
                 ],
             },
-
             {
                 title: "EVRAK",
                 show: safePerms.isAdminOrManager,
@@ -245,7 +247,6 @@ export default function ModernSidebar({
                     },
                 ],
             },
-
             {
                 title: "RAPORLAR",
                 show: safePerms.isAdminOrManager,
@@ -273,7 +274,6 @@ export default function ModernSidebar({
                     },
                 ],
             },
-
             {
                 title: "DİĞER",
                 show: safePerms.isAdminOrManager,
@@ -299,8 +299,6 @@ export default function ModernSidebar({
                         onClick: go("/ExcelDonusum", { newTab: true }),
                         keywords: ["excel", "word", "dönüşüm"],
                     },
-
-                    // ✅ PDF SIKIŞTIRMA kaldırıldı. Sadece JPG → PDF kaldı.
                     {
                         label: "JPG TO PDF",
                         icon: <ImageRoundedIcon />,
@@ -310,7 +308,6 @@ export default function ModernSidebar({
                     },
                 ],
             },
-
             {
                 title: "KARGO",
                 show: safePerms.isRefika,
@@ -332,19 +329,10 @@ export default function ModernSidebar({
                 ],
             },
         ];
-    }, [
-        safePerms.canSeeTahakkuk,
-        safePerms.isAdminOrManager,
-        safePerms.isRefika,
-        safePerms.icons,
-        go,
-    ]);
+    }, [safePerms.canSeeTahakkuk, safePerms.isAdminOrManager, safePerms.isRefika, safePerms.icons, go]);
 
     const allVisibleItems = useMemo(() => {
-        // show true olan sectionlardan tüm item’ları düz liste yap
-        return menuConfig
-            .filter((s) => s.show)
-            .flatMap((s) => s.items.map((it) => ({ ...it, section: s.title })));
+        return menuConfig.filter((s) => s.show).flatMap((s) => s.items.map((it) => ({ ...it, section: s.title })));
     }, [menuConfig]);
 
     const favoritesItems = useMemo(() => {
@@ -372,17 +360,44 @@ export default function ModernSidebar({
             })
             .filter((s) => s.items.length > 0);
 
-        // Arama varken: ilgili bölümler otomatik açık kalsın
         if (q) {
             const toOpen = {};
             base.forEach((s) => (toOpen[s.title] = true));
-            setTimeout(() => {
-                setOpenSections((prev) => ({ ...prev, ...toOpen }));
-            }, 0);
+            setTimeout(() => setOpenSections((prev) => ({ ...prev, ...toOpen })), 0);
         }
 
         return base;
     }, [menuConfig, query]);
+
+    // 🔮 Sidebar "glass" arkaplan + mor glow
+    const sidebarRootSx = useMemo(
+        () => ({
+            width: 340,
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            position: "relative",
+            overflow: "hidden",
+            "&:before": {
+                content: '""',
+                position: "absolute",
+                inset: -2,
+                pointerEvents: "none",
+                background: darkMode
+                    ? `
+            radial-gradient(900px circle at 20% 10%, rgba(139,92,246,0.22), transparent 55%),
+            radial-gradient(700px circle at 90% 30%, rgba(236,72,153,0.12), transparent 55%),
+            radial-gradient(700px circle at 40% 90%, rgba(34,211,238,0.10), transparent 55%)
+          `
+                    : `
+            radial-gradient(900px circle at 20% 10%, rgba(139,92,246,0.16), transparent 55%),
+            radial-gradient(700px circle at 90% 30%, rgba(236,72,153,0.10), transparent 55%)
+          `,
+                opacity: darkMode ? 0.9 : 0.8,
+            },
+        }),
+        [darkMode]
+    );
 
     const sectionHeaderSx = useMemo(
         () => ({
@@ -392,14 +407,52 @@ export default function ModernSidebar({
             px: 1.5,
             py: 0.75,
             mt: 1,
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)",
             background: darkMode
-                ? "linear-gradient(180deg, rgba(15,18,28,0.92), rgba(15,18,28,0.55))"
-                : "linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,255,255,0.55))",
-            borderTop: darkMode
-                ? "1px solid rgba(255,255,255,0.06)"
-                : "1px solid rgba(0,0,0,0.04)",
+                ? "linear-gradient(180deg, rgba(10,12,20,0.92), rgba(10,12,20,0.56))"
+                : "linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,255,255,0.58))",
+            borderTop: darkMode ? "1px solid rgba(167,139,250,0.14)" : "1px solid rgba(139,92,246,0.12)",
+            "&:after": {
+                content: '""',
+                position: "absolute",
+                inset: 0,
+                pointerEvents: "none",
+                background: darkMode
+                    ? "radial-gradient(600px circle at 10% 0%, rgba(139,92,246,0.12), transparent 55%)"
+                    : "radial-gradient(600px circle at 10% 0%, rgba(139,92,246,0.08), transparent 55%)",
+            },
+        }),
+        [darkMode]
+    );
+
+    const iconBoxSx = useMemo(
+        () => ({
+            width: 34,
+            height: 34,
+            borderRadius: 2,
+            display: "grid",
+            placeItems: "center",
+            border: darkMode ? "1px solid rgba(167,139,250,0.22)" : "1px solid rgba(139,92,246,0.16)",
+            background: darkMode
+                ? "linear-gradient(180deg, rgba(139,92,246,0.16), rgba(255,255,255,0.03))"
+                : "linear-gradient(180deg, rgba(139,92,246,0.10), rgba(17,24,39,0.02))",
+            boxShadow: darkMode ? "0 12px 34px rgba(139,92,246,0.12)" : "0 10px 24px rgba(139,92,246,0.10)",
+        }),
+        [darkMode]
+    );
+
+    const smallPillSx = useMemo(
+        () => ({
+            borderRadius: 999,
+            textTransform: "none",
+            fontWeight: 900,
+            borderColor: darkMode ? "rgba(167,139,250,0.22)" : "rgba(139,92,246,0.16)",
+            background: darkMode ? "rgba(139,92,246,0.10)" : "rgba(139,92,246,0.08)",
+            "&:hover": {
+                borderColor: darkMode ? "rgba(167,139,250,0.30)" : "rgba(139,92,246,0.22)",
+                background: darkMode ? "rgba(139,92,246,0.14)" : "rgba(139,92,246,0.10)",
+            },
         }),
         [darkMode]
     );
@@ -419,23 +472,21 @@ export default function ModernSidebar({
                     overflow: "hidden",
                     border: active
                         ? darkMode
-                            ? "1px solid rgba(255,255,255,0.16)"
-                            : "1px solid rgba(0,0,0,0.12)"
+                            ? "1px solid rgba(167,139,250,0.30)"
+                            : "1px solid rgba(139,92,246,0.22)"
                         : "1px solid transparent",
                     background: active
                         ? darkMode
-                            ? "rgba(255,255,255,0.08)"
-                            : "rgba(17,24,39,0.06)"
+                            ? "linear-gradient(90deg, rgba(139,92,246,0.18), rgba(255,255,255,0.03))"
+                            : "linear-gradient(90deg, rgba(139,92,246,0.12), rgba(255,255,255,0.60))"
                         : "transparent",
                     "&:hover": {
                         background: darkMode
-                            ? "rgba(255,255,255,0.10)"
-                            : "rgba(17,24,39,0.06)",
+                            ? "linear-gradient(90deg, rgba(139,92,246,0.12), rgba(255,255,255,0.03))"
+                            : "linear-gradient(90deg, rgba(139,92,246,0.08), rgba(255,255,255,0.65))",
                     },
                     ...(active && {
-                        boxShadow: darkMode
-                            ? "0 18px 50px rgba(0,0,0,0.45)"
-                            : "0 16px 40px rgba(0,0,0,0.10)",
+                        boxShadow: darkMode ? "0 18px 60px rgba(139,92,246,0.14)" : "0 16px 42px rgba(139,92,246,0.14)",
                         "&:before": {
                             content: '""',
                             position: "absolute",
@@ -444,21 +495,18 @@ export default function ModernSidebar({
                             bottom: 10,
                             width: 3,
                             borderRadius: 8,
-                            background: darkMode
-                                ? "linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.18))"
-                                : "linear-gradient(180deg, rgba(17,24,39,0.95), rgba(17,24,39,0.22))",
+                            background: `linear-gradient(180deg, ${accent.primary2}, ${accent.pink})`,
                         },
                         "&:after": {
                             content: '""',
                             position: "absolute",
                             inset: 0,
                             background: darkMode
-                                ? "radial-gradient(600px circle at 20% 0%, rgba(255,255,255,0.08), transparent 50%)"
-                                : "radial-gradient(600px circle at 20% 0%, rgba(17,24,39,0.08), transparent 55%)",
+                                ? "radial-gradient(700px circle at 20% 0%, rgba(139,92,246,0.18), transparent 55%)"
+                                : "radial-gradient(700px circle at 20% 0%, rgba(139,92,246,0.12), transparent 60%)",
                             pointerEvents: "none",
                         },
                     }),
-                    // ⭐ Favori ikonunu hover’da göster
                     "& .favBtn": {
                         opacity: isFav ? 1 : 0,
                         transform: isFav ? "scale(1)" : "scale(0.92)",
@@ -471,42 +519,18 @@ export default function ModernSidebar({
                 }}
             >
                 <ListItemIcon sx={{ minWidth: 44, color: "inherit" }}>
-                    <Box
-                        sx={{
-                            width: 34,
-                            height: 34,
-                            borderRadius: 2,
-                            display: "grid",
-                            placeItems: "center",
-                            border: darkMode
-                                ? "1px solid rgba(255,255,255,0.10)"
-                                : "1px solid rgba(0,0,0,0.08)",
-                            background: darkMode
-                                ? "rgba(255,255,255,0.04)"
-                                : "rgba(17,24,39,0.03)",
-                            boxShadow: darkMode
-                                ? "0 10px 30px rgba(0,0,0,0.35)"
-                                : "0 10px 24px rgba(0,0,0,0.08)",
-                        }}
-                    >
-                        {item.icon}
-                    </Box>
+                    <Box sx={iconBoxSx}>{item.icon}</Box>
                 </ListItemIcon>
 
                 <ListItemText
-                    primary={highlightText(item.label, query, darkMode)}
+                    primary={highlightText(item.label, query, darkMode, accent)}
                     primaryTypographyProps={{
                         fontWeight: active ? 950 : 760,
                         fontSize: 14,
                     }}
                 />
 
-                {/* ⭐ favori ekle/çıkar */}
-                <Tooltip
-                    title={isFav ? "Favorilerden kaldır" : "Favorilere ekle"}
-                    TransitionComponent={Zoom}
-                    arrow
-                >
+                <Tooltip title={isFav ? "Favorilerden kaldır" : "Favorilere ekle"} TransitionComponent={Zoom} arrow>
                     <IconButton
                         className="favBtn"
                         size="small"
@@ -518,19 +542,14 @@ export default function ModernSidebar({
                         sx={{
                             mr: 0.5,
                             borderRadius: 2,
-                            border: darkMode
-                                ? "1px solid rgba(255,255,255,0.10)"
-                                : "1px solid rgba(0,0,0,0.08)",
-                            background: darkMode
-                                ? "rgba(255,255,255,0.03)"
-                                : "rgba(17,24,39,0.02)",
+                            border: darkMode ? "1px solid rgba(167,139,250,0.20)" : "1px solid rgba(139,92,246,0.14)",
+                            background: darkMode ? "rgba(139,92,246,0.08)" : "rgba(139,92,246,0.06)",
+                            "&:hover": {
+                                background: darkMode ? "rgba(139,92,246,0.12)" : "rgba(139,92,246,0.09)",
+                            },
                         }}
                     >
-                        {isFav ? (
-                            <StarRoundedIcon fontSize="small" />
-                        ) : (
-                            <StarBorderRoundedIcon fontSize="small" />
-                        )}
+                        {isFav ? <StarRoundedIcon fontSize="small" /> : <StarBorderRoundedIcon fontSize="small" />}
                     </IconButton>
                 </Tooltip>
 
@@ -541,15 +560,11 @@ export default function ModernSidebar({
 
     const renderSection = (sectionTitle, items, opts = {}) => {
         const { icon, chipLabel } = opts;
-
         if (!items?.length) return null;
 
         return (
             <Box key={sectionTitle}>
-                <Box
-                    sx={sectionHeaderSx}
-                    onMouseEnter={() => openSectionOnHover(sectionTitle)}
-                >
+                <Box sx={sectionHeaderSx} onMouseEnter={() => openSectionOnHover(sectionTitle)}>
                     <Stack direction="row" alignItems="center" justifyContent="space-between">
                         <Stack direction="row" alignItems="center" spacing={1}>
                             {icon ? (
@@ -560,12 +575,9 @@ export default function ModernSidebar({
                                         borderRadius: 2,
                                         display: "grid",
                                         placeItems: "center",
-                                        border: darkMode
-                                            ? "1px solid rgba(255,255,255,0.10)"
-                                            : "1px solid rgba(0,0,0,0.08)",
-                                        background: darkMode
-                                            ? "rgba(255,255,255,0.03)"
-                                            : "rgba(17,24,39,0.02)",
+                                        border: darkMode ? "1px solid rgba(167,139,250,0.22)" : "1px solid rgba(139,92,246,0.16)",
+                                        background: darkMode ? "rgba(139,92,246,0.08)" : "rgba(139,92,246,0.06)",
+                                        boxShadow: darkMode ? "0 10px 24px rgba(139,92,246,0.10)" : "0 10px 22px rgba(139,92,246,0.08)",
                                     }}
                                 >
                                     {icon}
@@ -575,7 +587,7 @@ export default function ModernSidebar({
                             <Typography
                                 variant="overline"
                                 sx={{
-                                    opacity: 0.78,
+                                    opacity: 0.82,
                                     letterSpacing: "0.16em",
                                     fontWeight: 950,
                                 }}
@@ -589,14 +601,11 @@ export default function ModernSidebar({
                                     label={chipLabel}
                                     sx={{
                                         height: 20,
-                                        opacity: 0.9,
-                                        fontWeight: 900,
-                                        border: darkMode
-                                            ? "1px solid rgba(255,255,255,0.10)"
-                                            : "1px solid rgba(0,0,0,0.08)",
-                                        background: darkMode
-                                            ? "rgba(255,255,255,0.04)"
-                                            : "rgba(17,24,39,0.03)",
+                                        opacity: 0.95,
+                                        fontWeight: 950,
+                                        borderRadius: 999,
+                                        border: darkMode ? "1px solid rgba(167,139,250,0.22)" : "1px solid rgba(139,92,246,0.16)",
+                                        background: darkMode ? "rgba(139,92,246,0.10)" : "rgba(139,92,246,0.08)",
                                     }}
                                 />
                             ) : null}
@@ -607,19 +616,14 @@ export default function ModernSidebar({
                             onClick={() => toggleSection(sectionTitle)}
                             sx={{
                                 borderRadius: 2,
-                                border: darkMode
-                                    ? "1px solid rgba(255,255,255,0.10)"
-                                    : "1px solid rgba(0,0,0,0.08)",
-                                background: darkMode
-                                    ? "rgba(255,255,255,0.03)"
-                                    : "rgba(17,24,39,0.02)",
+                                border: darkMode ? "1px solid rgba(167,139,250,0.22)" : "1px solid rgba(139,92,246,0.16)",
+                                background: darkMode ? "rgba(139,92,246,0.08)" : "rgba(139,92,246,0.06)",
+                                "&:hover": {
+                                    background: darkMode ? "rgba(139,92,246,0.12)" : "rgba(139,92,246,0.09)",
+                                },
                             }}
                         >
-                            {openSections[sectionTitle] ? (
-                                <ExpandLessIcon fontSize="small" />
-                            ) : (
-                                <ExpandMoreIcon fontSize="small" />
-                            )}
+                            {openSections[sectionTitle] ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
                         </IconButton>
                     </Stack>
                 </Box>
@@ -636,26 +640,25 @@ export default function ModernSidebar({
     };
 
     return (
-        <Box sx={{ width: 340, height: "100%", display: "flex", flexDirection: "column" }}>
+        <Box sx={sidebarRootSx}>
             {/* Top header */}
-            <Box sx={{ px: 2, pt: 2, pb: 1.5, position: "relative" }}>
+            <Box sx={{ px: 2, pt: 2, pb: 1.5, position: "relative", zIndex: 1 }}>
                 <Box
                     sx={{
                         position: "absolute",
                         inset: 0,
                         pointerEvents: "none",
-                        background:
-                            "linear-gradient(90deg, rgba(255,255,255,0.10), rgba(255,255,255,0.04), rgba(255,255,255,0.10))",
-                        opacity: darkMode ? 0.22 : 0.10,
+                        background: darkMode
+                            ? "linear-gradient(90deg, rgba(167,139,250,0.10), rgba(255,255,255,0.03), rgba(236,72,153,0.08))"
+                            : "linear-gradient(90deg, rgba(139,92,246,0.08), rgba(255,255,255,0.35), rgba(236,72,153,0.06))",
+                        opacity: darkMode ? 0.65 : 0.55,
+                        borderBottom: darkMode ? "1px solid rgba(167,139,250,0.14)" : "1px solid rgba(139,92,246,0.10)",
                     }}
                 />
 
                 <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ position: "relative" }}>
                     <Stack spacing={0.2} sx={{ minWidth: 0 }}>
-                        <Typography
-                            variant="caption"
-                            sx={{ opacity: 0.7, fontWeight: 900, letterSpacing: "0.14em" }}
-                        >
+                        <Typography variant="caption" sx={{ opacity: 0.78, fontWeight: 950, letterSpacing: "0.14em" }}>
                             EVRAK YÖNETİMİ
                         </Typography>
                         <Typography variant="h6" fontWeight={950}>
@@ -664,7 +667,15 @@ export default function ModernSidebar({
                     </Stack>
 
                     <Tooltip title="Kapat">
-                        <IconButton onClick={onClose} size="small" sx={{ borderRadius: 2 }}>
+                        <IconButton
+                            onClick={onClose}
+                            size="small"
+                            sx={{
+                                borderRadius: 2,
+                                border: darkMode ? "1px solid rgba(167,139,250,0.20)" : "1px solid rgba(139,92,246,0.14)",
+                                background: darkMode ? "rgba(139,92,246,0.08)" : "rgba(139,92,246,0.06)",
+                            }}
+                        >
                             <CloseIcon />
                         </IconButton>
                     </Tooltip>
@@ -677,8 +688,10 @@ export default function ModernSidebar({
                             width: 38,
                             height: 38,
                             fontWeight: 950,
-                            border: darkMode ? "1px solid rgba(255,255,255,0.14)" : "1px solid rgba(0,0,0,0.10)",
-                            bgcolor: darkMode ? "rgba(255,255,255,0.06)" : "rgba(17,24,39,0.06)",
+                            border: darkMode ? "1px solid rgba(167,139,250,0.22)" : "1px solid rgba(139,92,246,0.16)",
+                            background: darkMode
+                                ? "linear-gradient(180deg, rgba(139,92,246,0.18), rgba(255,255,255,0.05))"
+                                : "linear-gradient(180deg, rgba(139,92,246,0.14), rgba(255,255,255,0.55))",
                             color: "inherit",
                         }}
                     >
@@ -689,7 +702,7 @@ export default function ModernSidebar({
                         <Typography fontWeight={950} noWrap>
                             {safeUser.adSoyad}
                         </Typography>
-                        <Typography variant="caption" sx={{ opacity: 0.7 }} noWrap>
+                        <Typography variant="caption" sx={{ opacity: 0.72 }} noWrap>
                             @{safeUser.usernameRaw || "-"}
                         </Typography>
                     </Box>
@@ -701,10 +714,11 @@ export default function ModernSidebar({
                         label="Online"
                         sx={{
                             height: 22,
-                            fontWeight: 800,
-                            opacity: 0.9,
-                            border: darkMode ? "1px solid rgba(255,255,255,0.12)" : "1px solid rgba(0,0,0,0.08)",
-                            background: darkMode ? "rgba(255,255,255,0.05)" : "rgba(17,24,39,0.03)",
+                            fontWeight: 900,
+                            opacity: 0.95,
+                            borderRadius: 999,
+                            border: darkMode ? "1px solid rgba(167,139,250,0.22)" : "1px solid rgba(139,92,246,0.16)",
+                            background: darkMode ? "rgba(139,92,246,0.10)" : "rgba(139,92,246,0.08)",
                         }}
                     />
                 </Stack>
@@ -720,13 +734,13 @@ export default function ModernSidebar({
                         mt: 1.5,
                         "& .MuiOutlinedInput-root": {
                             borderRadius: 999,
-                            background: darkMode ? "rgba(255,255,255,0.04)" : "rgba(17,24,39,0.03)",
-                            border: darkMode ? "1px solid rgba(255,255,255,0.10)" : "1px solid rgba(0,0,0,0.08)",
+                            background: darkMode ? "rgba(255,255,255,0.04)" : "rgba(139,92,246,0.05)",
+                            border: darkMode ? "1px solid rgba(167,139,250,0.18)" : "1px solid rgba(139,92,246,0.14)",
                             "& fieldset": { border: "none" },
                             "&.Mui-focused": {
                                 boxShadow: darkMode
-                                    ? "0 0 0 4px rgba(255,255,255,0.08)"
-                                    : "0 0 0 4px rgba(17,24,39,0.08)",
+                                    ? "0 0 0 4px rgba(139,92,246,0.18)"
+                                    : "0 0 0 4px rgba(139,92,246,0.14)",
                             },
                         },
                     }}
@@ -741,38 +755,16 @@ export default function ModernSidebar({
 
                 {/* Quick actions */}
                 <Stack direction="row" spacing={1} sx={{ mt: 1.25 }}>
-                    <Button
-                        size="small"
-                        variant="outlined"
-                        startIcon={<SettingsRoundedIcon />}
-                        sx={{
-                            borderRadius: 999,
-                            textTransform: "none",
-                            fontWeight: 900,
-                            borderColor: darkMode ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.10)",
-                            background: darkMode ? "rgba(255,255,255,0.03)" : "rgba(17,24,39,0.02)",
-                        }}
-                    >
+                    <Button size="small" variant="outlined" startIcon={<SettingsRoundedIcon />} sx={smallPillSx}>
                         Ayarlar
                     </Button>
 
-                    <Button
-                        size="small"
-                        variant="outlined"
-                        startIcon={<HelpOutlineRoundedIcon />}
-                        sx={{
-                            borderRadius: 999,
-                            textTransform: "none",
-                            fontWeight: 900,
-                            borderColor: darkMode ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.10)",
-                            background: darkMode ? "rgba(255,255,255,0.03)" : "rgba(17,24,39,0.02)",
-                        }}
-                    >
+                    <Button size="small" variant="outlined" startIcon={<HelpOutlineRoundedIcon />} sx={smallPillSx}>
                         Yardım
                     </Button>
 
-                    {/* mini status chips */}
                     <Box sx={{ flex: 1 }} />
+
                     {favoritesItems.length ? (
                         <Tooltip title="Favori sayısı">
                             <Chip
@@ -783,8 +775,8 @@ export default function ModernSidebar({
                                     height: 26,
                                     fontWeight: 950,
                                     borderRadius: 999,
-                                    border: darkMode ? "1px solid rgba(255,255,255,0.12)" : "1px solid rgba(0,0,0,0.08)",
-                                    background: darkMode ? "rgba(255,255,255,0.04)" : "rgba(17,24,39,0.03)",
+                                    border: darkMode ? "1px solid rgba(167,139,250,0.22)" : "1px solid rgba(139,92,246,0.16)",
+                                    background: darkMode ? "rgba(139,92,246,0.10)" : "rgba(139,92,246,0.08)",
                                 }}
                             />
                         </Tooltip>
@@ -792,32 +784,21 @@ export default function ModernSidebar({
                 </Stack>
             </Box>
 
-            <Divider sx={{ opacity: 0.12 }} />
+            <Divider sx={{ opacity: 0.12, position: "relative", zIndex: 1 }} />
 
             {/* Menu */}
-            <Box sx={{ flex: 1, overflow: "auto", py: 0.75 }}>
+            <Box sx={{ flex: 1, overflow: "auto", py: 0.75, position: "relative", zIndex: 1 }}>
                 <List disablePadding>
-                    {/* ⭐ FAVORITES */}
-                    {renderSection(
-                        "FAVORİLER",
-                        favoritesItems,
-                        {
-                            icon: <StarRoundedIcon fontSize="small" />,
-                            chipLabel: favoritesItems.length ? favoritesItems.length : null,
-                        }
-                    )}
+                    {renderSection("FAVORİLER", favoritesItems, {
+                        icon: <StarRoundedIcon fontSize="small" />,
+                        chipLabel: favoritesItems.length ? favoritesItems.length : null,
+                    })}
 
-                    {/* 🕘 RECENTS */}
-                    {renderSection(
-                        "SON KULLANILAN",
-                        recentItems,
-                        {
-                            icon: <HistoryRoundedIcon fontSize="small" />,
-                            chipLabel: recentItems.length ? recentItems.length : null,
-                        }
-                    )}
+                    {renderSection("SON KULLANILAN", recentItems, {
+                        icon: <HistoryRoundedIcon fontSize="small" />,
+                        chipLabel: recentItems.length ? recentItems.length : null,
+                    })}
 
-                    {/* Normal sections */}
                     {visibleSections.map((section) =>
                         renderSection(section.title, section.items, {
                             chipLabel: query ? section.items.length : null,
@@ -826,15 +807,18 @@ export default function ModernSidebar({
                 </List>
             </Box>
 
-            <Divider sx={{ opacity: 0.12 }} />
+            <Divider sx={{ opacity: 0.12, position: "relative", zIndex: 1 }} />
 
             {/* Footer */}
-            <Box sx={{ p: 2 }}>
+            <Box sx={{ p: 2, position: "relative", zIndex: 1 }}>
                 <Card
                     sx={{
                         p: 1.25,
-                        background: darkMode ? "rgba(255,255,255,0.04)" : "rgba(17,24,39,0.03)",
-                        border: darkMode ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.06)",
+                        border: darkMode ? "1px solid rgba(167,139,250,0.18)" : "1px solid rgba(139,92,246,0.12)",
+                        background: darkMode
+                            ? "linear-gradient(180deg, rgba(139,92,246,0.10), rgba(255,255,255,0.03))"
+                            : "linear-gradient(180deg, rgba(139,92,246,0.07), rgba(255,255,255,0.70))",
+                        boxShadow: darkMode ? "0 18px 60px rgba(139,92,246,0.10)" : "0 16px 45px rgba(139,92,246,0.12)",
                     }}
                 >
                     <Stack direction="row" alignItems="center" spacing={1.25}>
@@ -843,8 +827,10 @@ export default function ModernSidebar({
                                 width: 34,
                                 height: 34,
                                 fontWeight: 950,
-                                border: darkMode ? "1px solid rgba(255,255,255,0.14)" : "1px solid rgba(0,0,0,0.10)",
-                                bgcolor: darkMode ? "rgba(255,255,255,0.06)" : "rgba(17,24,39,0.06)",
+                                border: darkMode ? "1px solid rgba(167,139,250,0.22)" : "1px solid rgba(139,92,246,0.16)",
+                                background: darkMode
+                                    ? "linear-gradient(180deg, rgba(139,92,246,0.18), rgba(255,255,255,0.05))"
+                                    : "linear-gradient(180deg, rgba(139,92,246,0.14), rgba(255,255,255,0.55))",
                                 color: "inherit",
                             }}
                         >
@@ -855,14 +841,13 @@ export default function ModernSidebar({
                             <Typography fontWeight={950} noWrap>
                                 {safeUser.adSoyad}
                             </Typography>
-                            <Typography variant="caption" sx={{ opacity: 0.7 }} noWrap>
+                            <Typography variant="caption" sx={{ opacity: 0.72 }} noWrap>
                                 @{safeUser.usernameRaw || "-"}
                             </Typography>
                         </Box>
 
                         <Box sx={{ flex: 1 }} />
 
-                        {/* küçük modern “pin” hissi */}
                         <Tooltip title="Favoriler & Son kullanılanlar">
                             <Box
                                 sx={{
@@ -871,9 +856,9 @@ export default function ModernSidebar({
                                     borderRadius: 2,
                                     display: "grid",
                                     placeItems: "center",
-                                    border: darkMode ? "1px solid rgba(255,255,255,0.10)" : "1px solid rgba(0,0,0,0.08)",
-                                    background: darkMode ? "rgba(255,255,255,0.03)" : "rgba(17,24,39,0.02)",
-                                    opacity: 0.85,
+                                    border: darkMode ? "1px solid rgba(167,139,250,0.20)" : "1px solid rgba(139,92,246,0.14)",
+                                    background: darkMode ? "rgba(139,92,246,0.08)" : "rgba(139,92,246,0.06)",
+                                    opacity: 0.9,
                                 }}
                             >
                                 <PushPinRoundedIcon fontSize="small" />
