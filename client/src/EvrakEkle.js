@@ -711,23 +711,30 @@ export default function EvrakEkle() {
                                             {loading ? (
                                                 <Skeleton className="h-[46px]" />
                                             ) : (
-                                                <select
-                                                    name="lokasyonid"
-                                                    value={form.lokasyonid}
-                                                    onChange={handleChange}
-                                                    required
-                                                    className="w-full rounded-2xl border border-violet-200/60 bg-white/70 px-4 py-3 text-sm outline-none transition
-                            focus:ring-4 focus:ring-violet-500/15 focus:border-violet-300/70
-                            dark:bg-white/[0.04] dark:border-white/10"
-                                                >
-                                                    <option value="">Seçiniz</option>
-                                                    {lokasyonlar.map((l) => (
-                                                        <option key={l.id} value={l.id}>
-                                                            {l.lokasyon}
+                                                    <select
+                                                        name="lokasyonid"
+                                                        value={form.lokasyonid}
+                                                        onChange={handleChange}
+                                                        required
+                                                        className="w-full rounded-2xl border border-violet-200/60 bg-white/70 px-4 py-3 text-sm outline-none transition
+    text-zinc-900 dark:text-zinc-100
+    focus:ring-4 focus:ring-violet-500/15 focus:border-violet-300/70
+    dark:bg-[#0B1020] dark:border-white/10"
+                                                    >
+                                                        <option className="bg-white text-zinc-900 dark:bg-[#0B1020] dark:text-zinc-100" value="">
+                                                            Seçiniz
                                                         </option>
-                                                    ))}
-                                                </select>
-                                            )}
+
+                                                        {lokasyonlar.map((l) => (
+                                                            <option
+                                                                key={l.id}
+                                                                value={l.id}
+                                                                className="bg-white text-zinc-900 dark:bg-[#0B1020] dark:text-zinc-100"
+                                                            >
+                                                                {l.lokasyon}
+                                                            </option>
+                                                        ))}
+                                                    </select>                                            )}
                                         </div>
                                     </div>
                                 </Card>
@@ -753,21 +760,28 @@ export default function EvrakEkle() {
                                                     {loading ? (
                                                         <Skeleton className="h-[46px]" />
                                                     ) : (
-                                                        <select
-                                                            value={p.projeid}
-                                                            onChange={(e) => handleProjeChange(i, "projeid", e.target.value)}
-                                                            className="w-full rounded-2xl border border-violet-200/60 bg-white/70 px-4 py-3 text-sm outline-none transition
-                                focus:ring-4 focus:ring-violet-500/15 focus:border-violet-300/70
-                                dark:bg-white/[0.04] dark:border-white/10"
-                                                        >
-                                                            <option value="">Proje Seçiniz</option>
-                                                            {projeler.map((pr) => (
-                                                                <option key={pr.id} value={pr.id}>
-                                                                    {pr.proje}
+                                                            <select
+                                                                value={p.projeid}
+                                                                onChange={(e) => handleProjeChange(i, "projeid", e.target.value)}
+                                                                className="w-full rounded-2xl border border-violet-200/60 bg-white/70 px-4 py-3 text-sm outline-none transition
+    text-zinc-900 dark:text-zinc-100
+    focus:ring-4 focus:ring-violet-500/15 focus:border-violet-300/70
+    dark:bg-[#0B1020] dark:border-white/10"
+                                                            >
+                                                                <option className="bg-white text-zinc-900 dark:bg-[#0B1020] dark:text-zinc-100" value="">
+                                                                    Proje Seçiniz
                                                                 </option>
-                                                            ))}
-                                                        </select>
-                                                    )}
+
+                                                                {projeler.map((pr) => (
+                                                                    <option
+                                                                        key={pr.id}
+                                                                        value={pr.id}
+                                                                        className="bg-white text-zinc-900 dark:bg-[#0B1020] dark:text-zinc-100"
+                                                                    >
+                                                                        {pr.proje}
+                                                                    </option>
+                                                                ))}
+                                                            </select>                                                    )}
 
                                                     <input
                                                         type="number"
@@ -881,10 +895,10 @@ export default function EvrakEkle() {
                                                                 value={s.aciklama}
                                                                 onChange={(e) => handleSeferChange(i, "aciklama", e.target.value)}
                                                                 className="w-full rounded-2xl border border-violet-200/60 bg-white/70 px-4 py-3 text-sm outline-none transition
-                                  focus:ring-4 focus:ring-violet-500/15 focus:border-violet-300/70
-                                  dark:bg-white/[0.04] dark:border-white/10"
-                                                            >
-                                                                <option value="">Açıklama Seçiniz</option>
+    text-zinc-900 dark:text-zinc-100
+    focus:ring-4 focus:ring-violet-500/15 focus:border-violet-300/70
+    dark:bg-[#0B1020] dark:border-white/10"
+                                                            >                                                                <option value="">Açıklama Seçiniz</option>
                                                                 <option value="TARAFIMIZCA DÜZELTİLMİŞTİR">TARAFIMIZCA DÜZELTİLMİŞTİR</option>
                                                                 <option value="TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR">TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR</option>
                                                                 <option value="EKSİK TARAMA">EKSİK TARAMA</option>
