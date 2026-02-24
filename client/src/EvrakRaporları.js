@@ -1,4 +1,7 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+﻿// src/EvrakRaporları.js  (dosya adın buysa aynen böyle bırak)
+// NOT: En alttaki "DEBUG" div'i artık return içinde. Component dışına JSX YOK.
+
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
 
@@ -16,17 +19,14 @@ import {
     Legend,
 } from "recharts";
 
-import {
-    FiRefreshCw,
-    FiCalendar,
-    FiTrendingUp,
-    FiPackage,
-    FiHome, // ikon istersen
-} from "react-icons/fi";
+import { FiRefreshCw, FiCalendar, FiTrendingUp, FiPackage, FiHome, FiFilter, FiX } from "react-icons/fi";
+
+function cx(...c) {
+    return c.filter(Boolean).join(" ");
+}
 
 const COLORS = ["#8b5cf6", "#a78bfa", "#f472b6", "#fb7185", "#38bdf8", "#60a5fa", "#34d399", "#f59e0b"];
 const normalize = (str) => (str || "").trim().toLocaleUpperCase("tr").replace(/\s+/g, " ");
-// güçlü normalize
 const normalizeProject = (str) =>
     (str || "")
         .toLocaleUpperCase("tr")
@@ -34,45 +34,222 @@ const normalizeProject = (str) =>
         .replace(/\s+/g, " ")
         .trim();
 
-// iş kuralları: belli varyasyonları tek isme indir
 function canonicalProjectName(raw) {
     const n = normalizeProject(raw);
 
-    // HEDEF DIŞ TİCARET / HEDEF DIŞ TEDARİK -> HEDEF
     if (n === "HEDEF DIŞ TEDARİK" || n.startsWith("HEDEF DIŞ TİCARET")) return "HEDEF DIŞ TEDARİK";
-
-    // LEVENT OFSET (zaten aynı)
     if (n.startsWith("LEVENT OFSET")) return "LEVENT OFSET";
-
-    // PAPİKS / PAPİKS PLASTİK -> PAPİKS
     if (n.startsWith("PAPİKS")) return "PAPİKS";
-
-    // PARSİYEL / ODAK PARSİYEL -> PARSİYEL
     if (n.includes("PARSİYEL")) return "PARSİYEL";
-
-    // PEKER / PEKER TEKSTİL -> PEKER
     if (n.startsWith("PEKER")) return "PEKER";
-
-    // PETROL OFİSİ (zaten aynı; MICRo DDS vb. varsa burada ayrıca ele alabilirsin)
     if (n.startsWith("PETROL OFİSİ")) return "PETROL OFİSİ";
-
-    // SARUHAN / SARUHAN/NİLCO -> SARUHAN
     if (n.startsWith("SARUHAN")) return "SARUHAN";
-
-    // SGS (zaten aynı)
     if (n === "SGS") return "SGS";
 
-    // diğerleri: normalize edilmiş adı kullan
     return n;
 }
+
 const fmt = (n) => Number(n || 0).toLocaleString("tr-TR");
+
+function Pill({ tone = "neutral", children }) {
+    const tones = {
+        neutral:
+            "bg-black/5 text-gray-800 dark:bg-white/10 dark:text-white border border-black/10 dark:border-white/10",
+        purple:
+            "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-200 border border-violet-200/70 dark:border-violet-800/40",
+    };
+    return (
+        <span className={cx("inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-extrabold", tones[tone])}>
+            {children}
+        </span>
+    );
+}
+
+function MiniStat({ icon, label, value, tone = "purple" }) {
+    const tones = {
+        purple: "bg-violet-600/10 border-violet-500/20 text-violet-800 dark:text-violet-200",
+        indigo: "bg-indigo-600/10 border-indigo-500/20 text-indigo-800 dark:text-indigo-200",
+        emerald: "bg-emerald-600/10 border-emerald-500/20 text-emerald-800 dark:text-emerald-200",
+    };
+    return (
+        <div className={cx("inline-flex items-center gap-2 rounded-2xl px-3 py-2 border", tones[tone])}>
+            <span className="opacity-90">{icon}</span>
+            <div className="leading-tight">
+                <div className="text-[11px] font-extrabold opacity-70">{label}</div>
+                <div className="text-sm font-extrabold tabular-nums">{value}</div>
+            </div>
+        </div>
+    );
+}
+
+function Card({ title, right, children, className }) {
+    return (
+        <div
+            className={cx(
+                "rounded-[28px] border border-black/10 dark:border-white/10 bg-white/70 dark:bg-zinc-950/55 backdrop-blur-2xl shadow-sm overflow-hidden",
+                className
+            )}
+        >
+            {(title || right) && (
+                <div className="px-5 py-4 border-b border-black/5 dark:border-white/10 flex items-center justify-between">
+                    <div className="font-extrabold">{title}</div>
+                    {right}
+                </div>
+            )}
+            <div className="p-5">{children}</div>
+        </div>
+    );
+}
+
+function SkeletonBlock({ h = 56 }) {
+    return (
+        <div
+            style={{ height: h }}
+            className="rounded-2xl border border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5 animate-pulse"
+        />
+    );
+}
+
+function SelectNative({ label, value, onChange, options, placeholder = "Seçiniz", widthClass = "w-[320px]" }) {
+    return (
+        <div className="space-y-1.5">
+            <div className="text-xs font-extrabold text-gray-600 dark:text-gray-300">{label}</div>
+            <div className="relative">
+                <select
+                    value={value}
+                    onChange={onChange}
+                    className={cx(
+                        "appearance-none w-full px-3 py-2.5 rounded-2xl",
+                        "bg-white/85 dark:bg-zinc-900/60",
+                        "border border-black/10 dark:border-white/10",
+                        "outline-none focus:ring-4 focus:ring-violet-200/70 dark:focus:ring-violet-900/30",
+                        widthClass
+                    )}
+                >
+                    <option value="">{placeholder}</option>
+                    {options.map((o) => (
+                        <option key={o.id} value={o.id}>
+                            {o.ad}
+                        </option>
+                    ))}
+                </select>
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 opacity-70">▾</span>
+            </div>
+        </div>
+    );
+}
+
+/* ---- explain builders ---- */
+function buildLokasyonExplain(list, selectedLokasyonId, lokasyonlar) {
+    if (!selectedLokasyonId) return null;
+    let totalSefer = 0;
+    const counts = {};
+    list.forEach((e) => {
+        totalSefer += e.sefersayisi || 0;
+        (e.evrakseferler || []).forEach((s) => {
+            const key = (s.aciklama || "").trim() || "(Boş)";
+            counts[key] = (counts[key] || 0) + 1;
+        });
+    });
+    const rows = Object.entries(counts)
+        .map(([name, value]) => ({
+            name,
+            value,
+            pct: totalSefer ? +((value * 100) / totalSefer).toFixed(1) : 0,
+        }))
+        .sort((a, b) => b.value - a.value);
+    return { group: lokasyonlar[selectedLokasyonId], totalSefer, rows };
+}
+
+function buildProjeExplain(list, selectedProjeKey, projeKeyById, projeNameByKey) {
+    if (!selectedProjeKey) return null;
+
+    let totalSefer = 0;
+    list.forEach((e) => {
+        (e.evrakproje || []).forEach((p) => {
+            if (projeKeyById[p.projeid] === selectedProjeKey) totalSefer += p.sefersayisi || 0;
+        });
+    });
+
+    const counts = {};
+    list.forEach((e) => {
+        const projelerThis = (e.evrakproje || [])
+            .map((p) => ({ key: projeKeyById[p.projeid], sefer: p.sefersayisi || 0 }))
+            .filter((x) => x.sefer > 0);
+        const toplamSeferEvrak = projelerThis.reduce((s, x) => s + x.sefer, 0);
+        if (toplamSeferEvrak <= 0) return;
+
+        const shareForSelected = projelerThis.find((x) => x.key === selectedProjeKey)?.sefer || 0;
+        const weight = shareForSelected / toplamSeferEvrak;
+        if (!weight) return;
+
+        (e.evrakseferler || []).forEach((s) => {
+            const key = (s.aciklama || "").trim() || "(Boş)";
+            counts[key] = (counts[key] || 0) + weight;
+        });
+    });
+
+    const rows = Object.entries(counts)
+        .map(([name, value]) => ({
+            name,
+            value: +value.toFixed(1),
+            pct: totalSefer ? +((value * 100) / totalSefer).toFixed(1) : 0,
+        }))
+        .sort((a, b) => b.value - a.value);
+
+    return { group: projeNameByKey[selectedProjeKey] || selectedProjeKey, totalSefer, rows };
+}
+
+function ExplainList({ title, explain, emptyText }) {
+    return (
+        <Card
+            title={title}
+            right={
+                explain ? (
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Seçim: <b className="text-gray-700 dark:text-gray-200">{explain.group}</b> · Toplam:{" "}
+                        <b className="tabular-nums text-gray-700 dark:text-gray-200">{fmt(explain.totalSefer)}</b>
+                    </div>
+                ) : null
+            }
+        >
+            {!explain ? (
+                <div className="text-sm text-gray-600 dark:text-gray-400">{emptyText}</div>
+            ) : (
+                <div className="space-y-2">
+                    {(explain.rows || []).map((r, idx) => (
+                        <div
+                            key={r.name + idx}
+                            className="flex items-center justify-between gap-3 rounded-2xl border border-black/5 dark:border-white/10 bg-white/50 dark:bg-white/5 px-4 py-3"
+                        >
+                            <div className="flex items-center gap-2 min-w-0">
+                                <span className="inline-block w-3 h-3 rounded" style={{ background: COLORS[idx % COLORS.length] }} />
+                                <span className="truncate font-semibold" title={r.name}>
+                                    {r.name}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <span className="px-2 py-0.5 rounded-full bg-violet-600/10 border border-violet-500/20 text-violet-800 dark:text-violet-200 tabular-nums text-xs font-extrabold">
+                                    %{r.pct}
+                                </span>
+                                <span className="tabular-nums font-extrabold">{fmt(r.value)}</span>
+                            </div>
+                        </div>
+                    ))}
+                    {(!explain.rows || explain.rows.length === 0) && (
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Gösterilecek açıklama yok.</div>
+                    )}
+                </div>
+            )}
+        </Card>
+    );
+}
 
 export default function EvrakRaporlari() {
     const navigate = useNavigate();
+
     const [evraklar, setEvraklar] = useState([]);
     const [lokasyonlar, setLokasyonlar] = useState({});
-    // Proje tekilleştirme için iki harita:
-    // id -> key   ve   key -> görünen ad
     const [projeKeyById, setProjeKeyById] = useState({});
     const [projeNameByKey, setProjeNameByKey] = useState({});
     const [loading, setLoading] = useState(true);
@@ -84,23 +261,22 @@ export default function EvrakRaporlari() {
     const [selectedLokasyonId, setSelectedLokasyonId] = useState("");
     const [selectedProjeKey, setSelectedProjeKey] = useState("");
 
-    // Hover state
-    // ...
     const [activeIndex, setActiveIndex] = useState(null);
+    const [filtersOpen, setFiltersOpen] = useState(true);
 
-    // --- KAYDEDİLMEMİŞ DEĞİŞİKLİK KORUMASI (sayfadan ayrılma/yeniden yükleme uyarısı) ---
+    // --- KAYDEDİLMEMİŞ DEĞİŞİKLİK KORUMASI ---
     const [originalFilters] = useState({
         startDate: "",
         endDate: "",
         selectedLokasyonId: "",
         selectedProjeKey: "",
     });
+
     const hasDirtyFilters = useMemo(() => {
         const now = { startDate, endDate, selectedLokasyonId, selectedProjeKey };
         try {
             return JSON.stringify(now) !== JSON.stringify(originalFilters);
         } catch {
-            // JSON stringify bir sebeple patlarsa, basit kontrol:
             return !!(startDate || endDate || selectedLokasyonId || selectedProjeKey);
         }
     }, [startDate, endDate, selectedLokasyonId, selectedProjeKey, originalFilters]);
@@ -128,12 +304,10 @@ export default function EvrakRaporlari() {
                 const lokasyonMap = {};
                 lokasyonData?.forEach((l) => (lokasyonMap[l.id] = l.lokasyon));
 
-                // Projeleri tekilleştir (kanonik isimle)
                 const _projeKeyById = {};
                 const _projeNameByKey = {};
                 projeData?.forEach((p) => {
-                    const key = canonicalProjectName(p.proje); // <-- önemli değişiklik
-                    // Görünen adı istersen kanonik de yapabilirsin: _projeNameByKey[key] = key;
+                    const key = canonicalProjectName(p.proje);
                     if (!_projeNameByKey[key]) _projeNameByKey[key] = (p.proje || "").trim();
                     _projeKeyById[p.id] = key;
                 });
@@ -156,7 +330,7 @@ export default function EvrakRaporlari() {
         const handler = (e) => {
             if (!hasDirtyFilters) return;
             e.preventDefault();
-            e.returnValue = ""; // Chrome/Safari/Edge için gerekli — varsayılan uyarıyı gösterir
+            e.returnValue = "";
         };
         if (hasDirtyFilters) window.addEventListener("beforeunload", handler);
         return () => window.removeEventListener("beforeunload", handler);
@@ -168,11 +342,8 @@ export default function EvrakRaporlari() {
             const a = e.target.closest("a");
             if (!a) return;
 
-            // Aynı origin ve _blank değilse SPA içi gezinme olarak kabul edip soralım
             if (a.origin === window.location.origin && a.target !== "_blank") {
-                const ok = window.confirm(
-                    "Kaydedilmemiş değişiklikler var. Sayfadan ayrılmak istiyor musunuz?"
-                );
+                const ok = window.confirm("Kaydedilmemiş değişiklikler var. Sayfadan ayrılmak istiyor musunuz?");
                 if (!ok) {
                     e.preventDefault();
                     e.stopPropagation();
@@ -184,12 +355,15 @@ export default function EvrakRaporlari() {
         return () => document.removeEventListener("click", onAnchorClick, true);
     }, [hasDirtyFilters]);
 
-
     // Seçenek listeleri
     const lokasyonOptions = useMemo(
-        () => Object.entries(lokasyonlar).map(([id, ad]) => ({ id, ad })).sort((a, b) => a.ad.localeCompare(b.ad, "tr")),
+        () =>
+            Object.entries(lokasyonlar)
+                .map(([id, ad]) => ({ id, ad }))
+                .sort((a, b) => a.ad.localeCompare(b.ad, "tr")),
         [lokasyonlar]
     );
+
     const projeOptions = useMemo(
         () =>
             Object.entries(projeNameByKey)
@@ -221,22 +395,22 @@ export default function EvrakRaporlari() {
 
     // KPI
     const toplamSefer = useMemo(() => scopedEvraklar.reduce((s, e) => s + (e.sefersayisi || 0), 0), [scopedEvraklar]);
+
     const duzeltilmis = useMemo(
         () =>
             scopedEvraklar.reduce(
                 (sum, e) =>
-                    sum +
-                    (e.evrakseferler?.filter((s) => normalize(s.aciklama) === "TARAFIMIZCA DÜZELTİLMİŞTİR").length || 0),
+                    sum + (e.evrakseferler?.filter((s) => normalize(s.aciklama) === "TARAFIMIZCA DÜZELTİLMİŞTİR").length || 0),
                 0
             ),
         [scopedEvraklar]
     );
+
     const orjinaleCekilmis = useMemo(
         () =>
             scopedEvraklar.reduce(
                 (sum, e) =>
-                    sum +
-                    (e.evrakseferler?.filter((s) => normalize(s.aciklama) === "TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR").length || 0),
+                    sum + (e.evrakseferler?.filter((s) => normalize(s.aciklama) === "TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR").length || 0),
                 0
             ),
         [scopedEvraklar]
@@ -244,7 +418,7 @@ export default function EvrakRaporlari() {
 
     // Seriler
     const projeSeries = useMemo(() => {
-        const cnt = {}; // key -> toplam sefer
+        const cnt = {};
         (scopedEvraklar || []).forEach((e) =>
             e.evrakproje?.forEach((p) => {
                 const key = projeKeyById[p.projeid];
@@ -287,348 +461,338 @@ export default function EvrakRaporlari() {
         setEndDate("");
         setSelectedLokasyonId("");
         setSelectedProjeKey("");
-        // Not: originalFilters başlangıç boş değerlerdi. ResetAll aynı hâle döndürdüğü için
-        // hasDirtyFilters otomatik olarak false olacaktır.
     };
 
+    const explainLok = useMemo(
+        () => buildLokasyonExplain(scopedEvraklar, selectedLokasyonId, lokasyonlar),
+        [scopedEvraklar, selectedLokasyonId, lokasyonlar]
+    );
+
+    const explainProj = useMemo(
+        () => buildProjeExplain(scopedEvraklar, selectedProjeKey, projeKeyById, projeNameByKey),
+        [scopedEvraklar, selectedProjeKey, projeKeyById, projeNameByKey]
+    );
+
+    const hasAnyFilter = !!(startDate || endDate || selectedLokasyonId || selectedProjeKey);
+
     return (
-        <div className="min-h-screen w-full bg-[#0a0a0f] text-gray-100">
-            {/* Modern görünüm için küçük global stiller */}
-            <style>{`
-        *{ -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
-        /* Native select açılır menü okunaklı olsun */
-        select option { color:#0b0b10; background:#ffffff; }
-        select optgroup { color:#0b0b10; background:#ffffff; }
-        /* Date input placeholder rengi */
-        input[type="date"]::-webkit-datetime-edit { color:#e5e7eb; }
-        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.9); opacity:.8 }
-      `}</style>
+        <div className="min-h-screen w-full bg-zinc-50 text-gray-900 dark:bg-[#0a0a0f] dark:text-white">
+            {/* Premium background */}
+            <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+                <div className="absolute -top-40 left-1/2 h-[32rem] w-[60rem] -translate-x-1/2 rounded-full bg-gradient-to-r from-violet-500/25 via-purple-500/20 to-indigo-500/25 blur-3xl" />
+                <div className="absolute bottom-[-8rem] right-[-6rem] h-[26rem] w-[26rem] rounded-full bg-gradient-to-tr from-purple-400/15 to-indigo-400/10 blur-3xl" />
+                <div className="absolute bottom-24 left-6 h-[18rem] w-[18rem] rounded-full bg-gradient-to-tr from-fuchsia-400/10 to-violet-400/10 blur-3xl" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(0,0,0,.06)_1px,transparent_0)] dark:bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,.06)_1px,transparent_0)] [background-size:20px_20px] opacity-40 dark:opacity-20" />
+            </div>
 
-            <div className="w-full px-6 py-6">
-                {/* Başlık */}
-                <div className="mb-6 rounded-3xl bg-gradient-to-r from-purple-600/20 via-fuchsia-500/10 to-pink-500/20 border border-white/10 p-6 shadow-[0_10px_40px_rgba(100,80,255,.15)]">
-                    <h1 className="text-2xl font-semibold tracking-tight">Evrak Raporları</h1>
-                    <p className="text-sm opacity-80">Proje ve lokasyon seçin; tüm göstergeler seçiminize göre güncellensin.</p>
-                </div>
+            {/* Page */}
+            <div className="mx-auto max-w-7xl px-4 py-6">
+                {/* Sticky header */}
+                <div className="sticky top-0 z-20 mb-6 rounded-[28px] border border-black/10 dark:border-white/10 bg-white/70 dark:bg-zinc-950/60 backdrop-blur-2xl shadow-sm overflow-hidden">
+                    <div className="px-6 py-5">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <div className="inline-flex items-center gap-2 rounded-2xl bg-violet-600/10 dark:bg-violet-500/10 px-3 py-2 border border-violet-500/20">
+                                        <span className="text-lg">📊</span>
+                                        <span className="font-extrabold tracking-tight text-violet-700 dark:text-violet-200">
+                                            Evrak Raporları
+                                        </span>
+                                    </div>
 
-                {/* Üst Filtreler */}
-                <div className="flex flex-wrap items-end gap-4 mb-6">
-                    <button
-                        onClick={() => navigate("/anasayfa")}
-                        className="flex items-center gap-2 px-4 h-[44px] rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 transition-colors"
-                        title="Anasayfaya dön"
-                    >
-                        Anasayfaya Dön
-                    </button>
-                    {/* Tarih */}
-                    <div className="flex items-center gap-2 bg-white/[0.03] backdrop-blur-md p-3 rounded-2xl border border-white/10 shadow-inner">
-                        <FiCalendar className="opacity-80" />
-                        <input
-                            type="date"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            placeholder="gg.aa.yyyy"
-                            className="px-3 py-2 rounded-lg bg-transparent border border-gray-700/60 text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
-                        />
-                        <span className="text-sm opacity-70">-</span>
-                        <input
-                            type="date"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                            placeholder="gg.aa.yyyy"
-                            className="px-3 py-2 rounded-lg bg-transparent border border-gray-700/60 text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
-                        />
-                    </div>
+                                    <Pill tone={hasAnyFilter ? "purple" : "neutral"}>{hasAnyFilter ? "Filtre aktif" : "Filtre yok"}</Pill>
 
-                    {/* Proje */}
-                    <div className="flex flex-col gap-1 bg-white/[0.03] backdrop-blur-md p-3 rounded-2xl border border-white/10">
-                        <span className="text-xs opacity-80">Proje</span>
-                        <div className="relative">
-                            <select
-                                value={selectedProjeKey}
-                                onChange={(e) => setSelectedProjeKey(e.target.value)}
-                                className="appearance-none w-[320px] px-3 py-2 rounded-lg bg-[#151523] text-gray-100 border border-gray-700/60 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
-                            >
-                                <option value="">Tüm Projeler</option>
-                                {projeOptions.map((o) => (
-                                    <option key={o.id} value={o.id}>{o.ad}</option>
-                                ))}
-                            </select>
-                            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 opacity-70">▾</span>
+                                    {hasDirtyFilters && (
+                                        <span className="text-xs font-extrabold text-amber-700 dark:text-amber-200 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full">
+                                            Kaydedilmemiş değişiklik
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                    Tarih / proje / lokasyon seçin — KPI ve grafikler anında güncellenir.
+                                </div>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    onClick={() => navigate("/anasayfa")}
+                                    className="inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 font-semibold border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5"
+                                >
+                                    <FiHome /> Anasayfa
+                                </button>
+
+                                <button
+                                    onClick={() => setFiltersOpen((v) => !v)}
+                                    className={cx(
+                                        "inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 font-semibold border",
+                                        filtersOpen
+                                            ? "border-violet-500/30 bg-violet-600/10 text-violet-800 dark:text-violet-200 dark:bg-violet-500/10"
+                                            : "border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5"
+                                    )}
+                                >
+                                    <FiFilter /> {filtersOpen ? "Filtreyi Gizle" : "Filtreyi Göster"}
+                                </button>
+
+                                <button
+                                    onClick={resetAll}
+                                    disabled={!hasAnyFilter}
+                                    className={cx(
+                                        "inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 font-semibold",
+                                        hasAnyFilter
+                                            ? "bg-zinc-950 text-white hover:opacity-90 dark:bg-white dark:text-zinc-950"
+                                            : "bg-gray-200 text-gray-500 cursor-not-allowed dark:bg-zinc-800 dark:text-gray-400"
+                                    )}
+                                >
+                                    <FiX /> Temizle
+                                </button>
+
+                                <button
+                                    onClick={() => window.location.reload()}
+                                    className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2.5 text-white font-semibold shadow-sm hover:opacity-95"
+                                >
+                                    <FiRefreshCw /> Yenile
+                                </button>
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Lokasyon */}
-                    <div className="flex flex-col gap-1 bg-white/[0.03] backdrop-blur-md p-3 rounded-2xl border border-white/10">
-                        <span className="text-xs opacity-80">Lokasyon</span>
-                        <div className="relative">
-                            <select
-                                value={selectedLokasyonId}
-                                onChange={(e) => setSelectedLokasyonId(e.target.value)}
-                                className="appearance-none w-[320px] px-3 py-2 rounded-lg bg-[#151523] text-gray-100 border border-gray-700/60 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
-                            >
-                                <option value="">Tüm Lokasyonlar</option>
-                                {lokasyonOptions.map((o) => (
-                                    <option key={o.id} value={o.id}>{o.ad}</option>
-                                ))}
-                            </select>
-                            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 opacity-70">▾</span>
+                        {/* KPI mini row */}
+                        <div className="mt-5 flex flex-wrap gap-2">
+                            <MiniStat icon={<FiTrendingUp />} label="Toplam Sefer" value={fmt(toplamSefer)} tone="purple" />
+                            <MiniStat icon={<FiPackage />} label="Düzeltilmiş" value={fmt(duzeltilmis)} tone="indigo" />
+                            <MiniStat icon={<FiPackage />} label="Orijinale Çekilmiş" value={fmt(orjinaleCekilmis)} tone="emerald" />
                         </div>
+
+                        {/* Error / Loading */}
+                        {(error || loading) && (
+                            <div className="mt-4">
+                                {error && (
+                                    <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-200">
+                                        {error}
+                                    </div>
+                                )}
+                                {loading && !error && (
+                                    <div className="mt-3 grid gap-3">
+                                        <SkeletonBlock h={52} />
+                                        <SkeletonBlock h={52} />
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
-
-                    <button
-                        onClick={resetAll}
-                        className="px-4 h-[44px] rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 transition-colors"
-                    >
-                        Temizle
-                    </button>
-
-                    <button
-                        onClick={() => window.location.reload()}
-                        className="ml-auto flex items-center gap-2 px-4 h-[44px] rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 transition-colors"
-                    >
-                        <FiRefreshCw /> Yenile
-                    </button>
                 </div>
 
-                {/* Hata/Yükleniyor */}
-                {error && (
-                    <div className="mb-6 p-4 rounded-2xl bg-red-900/30 text-red-100 border border-red-800/50">
-                        {error}
-                    </div>
-                )}
-                {loading && (
-                    <div className="mb-6 p-4 rounded-2xl bg-white/[0.03] border border-white/10 animate-pulse">
-                        Veriler yükleniyor…
-                    </div>
-                )}
+                {/* Main grid: Filters + Content */}
+                <div className="grid grid-cols-1 gap-5 lg:grid-cols-[360px_1fr]">
+                    {/* Filters */}
+                    <div className={cx(filtersOpen ? "block" : "hidden", "lg:block")}>
+                        <Card
+                            title="Filtreler"
+                            right={<Pill tone={hasAnyFilter ? "purple" : "neutral"}>{hasAnyFilter ? "Aktif" : "Pasif"}</Pill>}
+                        >
+                            <div className="grid gap-4">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1.5">
+                                        <div className="text-xs font-extrabold text-gray-600 dark:text-gray-300 flex items-center gap-2">
+                                            <FiCalendar /> Başlangıç
+                                        </div>
+                                        <input
+                                            type="date"
+                                            value={startDate}
+                                            onChange={(e) => setStartDate(e.target.value)}
+                                            className="w-full rounded-2xl border border-black/10 dark:border-white/10 bg-white/85 dark:bg-zinc-900/60 px-3 py-2.5 outline-none focus:ring-4 focus:ring-violet-200/70 dark:focus:ring-violet-900/30"
+                                        />
+                                    </div>
 
-                {/* KPI’lar */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                    <KpiCard icon={<FiTrendingUp />} title="Toplam Sefer" value={fmt(toplamSefer)} />
-                    <KpiCard icon={<FiPackage />} title="Düzeltilmiş" value={fmt(duzeltilmis)} subtitle="TARAFIMIZCA DÜZELTİLMİŞTİR" />
-                    <KpiCard icon={<FiPackage />} title="Orijinale Çekilmiş" value={fmt(orjinaleCekilmis)} subtitle="TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR" />
-                </div>
+                                    <div className="space-y-1.5">
+                                        <div className="text-xs font-extrabold text-gray-600 dark:text-gray-300 flex items-center gap-2">
+                                            <FiCalendar /> Bitiş
+                                        </div>
+                                        <input
+                                            type="date"
+                                            value={endDate}
+                                            onChange={(e) => setEndDate(e.target.value)}
+                                            className="w-full rounded-2xl border border-black/10 dark:border-white/10 bg-white/85 dark:bg-zinc-900/60 px-3 py-2.5 outline-none focus:ring-4 focus:ring-violet-200/70 dark:focus:ring-violet-900/30"
+                                        />
+                                    </div>
+                                </div>
 
-                {/* Grafikler */}
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mb-8">
-                    {/* Donut */}
-                    <div className="col-span-1 rounded-3xl bg-[#121223] border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,.25)] p-6">
-                        <h3 className="text-lg font-semibold mb-4">Açıklama Dağılımı</h3>
-                        <div className="h-80">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <ReTooltip
-                                        contentStyle={{ background: "#151529", border: "1px solid #2b2b45", color: "#e5e7eb" }}
-                                        formatter={(value, name, props) => [`${value} adet — %${props.payload.percentOfTotal}`, name]}
-                                    />
-                                    <Pie
-                                        data={aciklamaSeries}
-                                        dataKey="value"
-                                        nameKey="name"
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={70}
-                                        outerRadius={104}
-                                        paddingAngle={2}
-                                        onMouseEnter={(_, i) => setActiveIndex(i)}
-                                        onMouseLeave={() => setActiveIndex(null)}
+                                <SelectNative
+                                    label="Proje"
+                                    value={selectedProjeKey}
+                                    onChange={(e) => setSelectedProjeKey(e.target.value)}
+                                    options={projeOptions}
+                                    placeholder="Tüm Projeler"
+                                    widthClass="w-full"
+                                />
+
+                                <SelectNative
+                                    label="Lokasyon"
+                                    value={selectedLokasyonId}
+                                    onChange={(e) => setSelectedLokasyonId(e.target.value)}
+                                    options={lokasyonOptions}
+                                    placeholder="Tüm Lokasyonlar"
+                                    widthClass="w-full"
+                                />
+
+                                <div className="grid grid-cols-2 gap-2 pt-1">
+                                    <button
+                                        onClick={resetAll}
+                                        disabled={!hasAnyFilter}
+                                        className={cx(
+                                            "inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 font-extrabold border",
+                                            hasAnyFilter
+                                                ? "border-violet-500/30 bg-violet-600/10 text-violet-800 dark:text-violet-200 dark:bg-violet-500/10 hover:opacity-90"
+                                                : "border-black/10 dark:border-white/10 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                                        )}
                                     >
-                                        {aciklamaSeries.map((_, i) => (
-                                            <Cell
-                                                key={i}
-                                                fill={COLORS[i % COLORS.length]}
-                                                stroke="#0a0a0f"
-                                                outerRadius={activeIndex === i ? 110 : 104}
+                                        <FiX /> Temizle
+                                    </button>
+
+                                    <button
+                                        onClick={() => window.location.reload()}
+                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2.5 text-white font-extrabold hover:opacity-95"
+                                    >
+                                        <FiRefreshCw /> Yenile
+                                    </button>
+                                </div>
+
+                                <div className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                                    Not: Filtre değişiklikleri otomatik uygulanır. Sayfadan ayrılırsan tarayıcı uyarı verir.
+                                </div>
+                            </div>
+                        </Card>
+                    </div>
+
+                    {/* Content */}
+                    <div className="min-w-0 grid gap-5">
+                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+                            <Card
+                                title="Açıklama Dağılımı"
+                                right={<span className="text-xs text-gray-500 dark:text-gray-400">Donut</span>}
+                                className="xl:col-span-1"
+                            >
+                                <div className="h-80">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <ReTooltip
+                                                contentStyle={{
+                                                    background: "rgba(9,9,11,.95)",
+                                                    border: "1px solid rgba(255,255,255,.12)",
+                                                    color: "#e5e7eb",
+                                                    borderRadius: 14,
+                                                }}
+                                                formatter={(value, name, props) => [`${value} adet — %${props.payload.percentOfTotal}`, name]}
                                             />
-                                        ))}
-                                    </Pie>
-                                    <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" fill="#f1f5f9">
-                                        <tspan fontSize="13" opacity="0.75">Toplam</tspan>
-                                        <tspan x="50%" dy="18" fontSize="22" fontWeight="700">
-                                            {fmt(aciklamaSeries.reduce((s, x) => s + x.value, 0))}
-                                        </tspan>
-                                    </text>
-                                </PieChart>
-                            </ResponsiveContainer>
+                                            <Pie
+                                                data={aciklamaSeries}
+                                                dataKey="value"
+                                                nameKey="name"
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={72}
+                                                outerRadius={106}
+                                                paddingAngle={2}
+                                                onMouseEnter={(_, i) => setActiveIndex(i)}
+                                                onMouseLeave={() => setActiveIndex(null)}
+                                            >
+                                                {aciklamaSeries.map((_, i) => (
+                                                    <Cell
+                                                        key={i}
+                                                        fill={COLORS[i % COLORS.length]}
+                                                        stroke="rgba(9,9,11,.65)"
+                                                        strokeWidth={2}
+                                                        opacity={activeIndex === null ? 1 : activeIndex === i ? 1 : 0.45}
+                                                    />
+                                                ))}
+                                            </Pie>
+                                            <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" fill="#e5e7eb">
+                                                <tspan fontSize="12" opacity="0.7">
+                                                    Toplam
+                                                </tspan>
+                                                <tspan x="50%" dy="18" fontSize="22" fontWeight="800">
+                                                    {fmt(aciklamaSeries.reduce((s, x) => s + x.value, 0))}
+                                                </tspan>
+                                            </text>
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </Card>
+
+                            <BarCard title="Proje Bazlı Seferler" subtitle="Top 10" data={projeSeries.slice(0, 10)} gradId="barGradProj" />
+                            <BarCard
+                                title="Lokasyon Bazlı Seferler"
+                                subtitle="Top 10"
+                                data={lokasyonSeries.slice(0, 10)}
+                                gradId="barGradLok"
+                            />
                         </div>
+
+                        <ExplainList
+                            title="Lokasyon Bazlı Açıklama"
+                            explain={explainLok}
+                            emptyText="Lokasyon seçiniz; sadece o lokasyona ait açıklamalar listelenecektir."
+                        />
+
+                        <ExplainList
+                            title="Proje Bazlı Açıklama"
+                            explain={explainProj}
+                            emptyText="Proje seçiniz; sadece o projeye ait açıklamalar listelenecektir."
+                        />
                     </div>
-
-                    {/* Proje/Lokasyon chartları */}
-                    <ChartCard title="Proje Bazlı Seferler (Top 10)" data={projeSeries.slice(0, 10)} gradId="barGradProj" />
-                    <ChartCard title="Lokasyon Bazlı Seferler (Top 10)" data={lokasyonSeries.slice(0, 10)} gradId="barGradLok" />
                 </div>
+            </div>
 
-                {/* Seçilen Lokasyon için Açıklamalar */}
-                <SingleExplain
-                    kind="Lokasyon"
-                    explain={buildLokasyonExplain(scopedEvraklar, selectedLokasyonId, lokasyonlar)}
-                    emptyText="Lokasyon seçiniz; sadece o lokasyona ait açıklamalar listelenecektir."
-                />
-
-                {/* Seçilen Proje için Açıklamalar */}
-                <SingleExplain
-                    kind="Proje"
-                    explain={buildProjeExplain(scopedEvraklar, selectedProjeKey, projeKeyById, projeNameByKey)}
-                    emptyText="Proje seçiniz; sadece o projeye ait açıklamalar listelenecektir."
-                />
+            {/* ✅ DEBUG (GEÇİCİ) - return İÇİNDE */}
+            <div className="fixed bottom-4 right-4 z-50 rounded-xl px-3 py-2 text-xs font-bold bg-white text-black dark:bg-black dark:text-white border border-black/10 dark:border-white/10">
+                HTML dark mı? {document.documentElement.classList.contains("dark") ? "EVET" : "HAYIR"}
             </div>
         </div>
     );
 }
 
-/* ---- helpers ---- */
-function buildLokasyonExplain(list, selectedLokasyonId, lokasyonlar) {
-    if (!selectedLokasyonId) return null;
-    let totalSefer = 0;
-    const counts = {};
-    list.forEach((e) => {
-        totalSefer += e.sefersayisi || 0;
-        (e.evrakseferler || []).forEach((s) => {
-            const key = (s.aciklama || "").trim() || "(Boş)";
-            counts[key] = (counts[key] || 0) + 1;
-        });
-    });
-    const rows = Object.entries(counts)
-        .map(([name, value]) => ({
-            name,
-            value,
-            pct: totalSefer ? +((value * 100) / totalSefer).toFixed(1) : 0,
-        }))
-        .sort((a, b) => b.value - a.value);
-    return { group: lokasyonlar[selectedLokasyonId], totalSefer, rows };
-}
-
-function buildProjeExplain(list, selectedProjeKey, projeKeyById, projeNameByKey) {
-    if (!selectedProjeKey) return null;
-
-    // Seçilen projenin toplam seferi (tüm evraklarda)
-    let totalSefer = 0;
-    list.forEach((e) => {
-        (e.evrakproje || []).forEach((p) => {
-            if (projeKeyById[p.projeid] === selectedProjeKey) totalSefer += p.sefersayisi || 0;
-        });
-    });
-
-    // Açıklama paylarını, evrak içindeki proje paylaşımına göre ağırlıkla
-    const counts = {};
-    list.forEach((e) => {
-        const projelerThis = (e.evrakproje || [])
-            .map((p) => ({ key: projeKeyById[p.projeid], sefer: p.sefersayisi || 0 }))
-            .filter((x) => x.sefer > 0);
-        const toplamSeferEvrak = projelerThis.reduce((s, x) => s + x.sefer, 0);
-        if (toplamSeferEvrak <= 0) return;
-
-        const shareForSelected = projelerThis.find((x) => x.key === selectedProjeKey)?.sefer || 0;
-        const weight = shareForSelected / toplamSeferEvrak;
-        if (!weight) return;
-
-        (e.evrakseferler || []).forEach((s) => {
-            const key = (s.aciklama || "").trim() || "(Boş)";
-            counts[key] = (counts[key] || 0) + weight;
-        });
-    });
-
-    const rows = Object.entries(counts)
-        .map(([name, value]) => ({
-            name,
-            value: +value.toFixed(1),
-            pct: totalSefer ? +(((value) * 100) / totalSefer).toFixed(1) : 0,
-        }))
-        .sort((a, b) => b.value - a.value);
-
-    return { group: projeNameByKey[selectedProjeKey] || selectedProjeKey, totalSefer, rows };
-}
-
-/* ---- UI parçaları ---- */
-function SingleExplain({ kind, explain, emptyText }) {
+function BarCard({ title, subtitle, data, gradId }) {
     return (
-        <div className="rounded-3xl bg-[#121223] border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,.25)] p-6 mb-8">
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">{kind} Bazlı Açıklama</h3>
-                {explain && (
-                    <div className="text-xs opacity-80">
-                        {kind}: <span className="font-medium">{explain.group}</span> · Toplam Sefer:{" "}
-                        <span className="tabular-nums">{fmt(explain.totalSefer)}</span>
-                    </div>
-                )}
-            </div>
-
-            {!explain && <div className="text-sm opacity-70">{emptyText}</div>}
-
-            {explain && (
-                <div className="space-y-2">
-                    {(explain.rows || []).map((r, idx) => (
-                        <div key={r.name + idx} className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-2 min-w-0">
-                                <span className="inline-block w-3 h-3 rounded" style={{ background: COLORS[idx % COLORS.length] }} />
-                                <span className="truncate" title={r.name}>{r.name}</span>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                                <span className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 tabular-nums">%{r.pct}</span>
-                                <span className="tabular-nums opacity-90">{fmt(r.value)}</span>
-                            </div>
-                        </div>
-                    ))}
-                    {(!explain.rows || explain.rows.length === 0) && (
-                        <div className="text-sm opacity-70">Gösterilecek açıklama yok.</div>
-                    )}
-                </div>
-            )}
-        </div>
-    );
-}
-
-function KpiCard({ icon, title, value, subtitle }) {
-    return (
-        <div className="rounded-2xl bg-gradient-to-br from-[#1b1830] to-[#161326] border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,.25)] p-5">
-            <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-fuchsia-500 to-violet-600 text-white flex items-center justify-center text-xl shadow-[0_0_20px_rgba(168,85,247,0.35)]">
-                    {icon}
-                </div>
-                <div>
-                    <div className="text-xs opacity-80">{title}</div>
-                    <div className="text-2xl font-semibold tracking-tight">{value}</div>
-                </div>
-            </div>
-            {subtitle && <div className="text-[11px] opacity-70">{subtitle}</div>}
-        </div>
-    );
-}
-
-function ChartCard({ title, data, gradId = "barGrad" }) {
-    return (
-        <div className="col-span-1 rounded-3xl bg-[#121223] border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,.25)] p-6">
-            <h3 className="text-lg font-semibold mb-4">{title}</h3>
+        <Card
+            title={title}
+            right={<span className="text-xs text-gray-500 dark:text-gray-400">{subtitle}</span>}
+            className="xl:col-span-1"
+        >
             <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data} margin={{ left: 8, right: 8 }}>
+                    <BarChart data={data} margin={{ left: 6, right: 6 }}>
                         <defs>
                             <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="0%" stopColor="#f472b6" stopOpacity={1} />
                                 <stop offset="100%" stopColor="#8b5cf6" stopOpacity={1} />
                             </linearGradient>
                         </defs>
-                        <CartesianGrid stroke="#23233a" strokeDasharray="3 3" />
+
+                        <CartesianGrid stroke="rgba(255,255,255,.10)" strokeDasharray="3 3" />
                         <XAxis
                             dataKey="name"
-                            tick={{ fontSize: 12, fill: "#e5e7eb" }}
+                            tick={{ fontSize: 12, fill: "#cbd5e1" }}
                             interval={0}
                             angle={-22}
                             textAnchor="end"
                             height={56}
-                            stroke="#9ca3af"
+                            stroke="rgba(255,255,255,.20)"
                         />
-                        <YAxis tick={{ fill: "#e5e7eb" }} stroke="#9ca3af" />
+                        <YAxis tick={{ fill: "#cbd5e1" }} stroke="rgba(255,255,255,.20)" />
                         <ReTooltip
-                            contentStyle={{ background: "#151529", border: "1px solid #2b2b45", color: "#e5e7eb" }}
+                            contentStyle={{
+                                background: "rgba(9,9,11,.95)",
+                                border: "1px solid rgba(255,255,255,.12)",
+                                color: "#e5e7eb",
+                                borderRadius: 14,
+                            }}
                             formatter={(v) => `${fmt(v)} sefer`}
                         />
-                        <Bar dataKey="value" radius={[10, 10, 0, 0]} fill={`url(#${gradId})`} />
-                        <Legend wrapperStyle={{ color: "#e5e7eb" }} />
+                        <Bar dataKey="value" radius={[12, 12, 0, 0]} fill={`url(#${gradId})`} />
+                        <Legend wrapperStyle={{ color: "#cbd5e1" }} />
                     </BarChart>
                 </ResponsiveContainer>
             </div>
-        </div>
+        </Card>
     );
 }

@@ -66,7 +66,12 @@ function Lokasyonlar() {
     };
 
     const existingNames = useMemo(
-        () => new Set((lokasyonlar || []).map((l) => (l.lokasyon || "").trim().toLocaleLowerCase("tr"))),
+        () =>
+            new Set(
+                (lokasyonlar || []).map((l) =>
+                    (l.lokasyon || "").trim().toLocaleLowerCase("tr")
+                )
+            ),
         [lokasyonlar]
     );
 
@@ -75,7 +80,9 @@ function Lokasyonlar() {
         let list = [...(lokasyonlar || [])];
 
         if (term) {
-            list = list.filter((l) => (l.lokasyon || "").toLocaleLowerCase("tr").includes(term));
+            list = list.filter((l) =>
+                (l.lokasyon || "").toLocaleLowerCase("tr").includes(term)
+            );
         }
 
         list.sort((a, b) => {
@@ -96,7 +103,10 @@ function Lokasyonlar() {
             return showToast("error", "Bu lokasyon zaten sistemde kayıtlı.");
         }
 
-        const { error } = await supabase.from("lokasyonlar").insert([{ lokasyon: normalized }]);
+        const { error } = await supabase
+            .from("lokasyonlar")
+            .insert([{ lokasyon: normalized }]);
+
         if (error) {
             showToast("error", "Ekleme sırasında bir hata oluştu.");
         } else {
@@ -112,11 +122,17 @@ function Lokasyonlar() {
         const clash = lokasyonlar.find(
             (l) =>
                 l.id !== id &&
-                (l.lokasyon || "").trim().toLocaleLowerCase("tr") === normalized.toLocaleLowerCase("tr")
+                (l.lokasyon || "")
+                    .trim()
+                    .toLocaleLowerCase("tr") === normalized.toLocaleLowerCase("tr")
         );
         if (clash) return showToast("error", "Bu isimde başka bir kayıt mevcut.");
 
-        const { error } = await supabase.from("lokasyonlar").update({ lokasyon: normalized }).eq("id", id);
+        const { error } = await supabase
+            .from("lokasyonlar")
+            .update({ lokasyon: normalized })
+            .eq("id", id);
+
         if (error) {
             showToast("error", "Güncelleme yapılamadı.");
         } else {
@@ -135,18 +151,17 @@ function Lokasyonlar() {
         }
     };
 
-    // ✅ FIX: Root "/" sizde login'e gidiyor. Anasayfa dosyanız client/src/Anasayfa ise
-    // route'unuz büyük ihtimalle "/Anasayfa" veya "/anasayfa".
-    // Burayı router'daki gerçek path ile aynı yap.
-    const HOME_PATH = "/Anasayfa"; // <-- eğer route /anasayfa ise bunu "/anasayfa" yap
-
-    const goHome = () => {
-        navigate(HOME_PATH, { replace: false });
-    };
+    const HOME_PATH = "/Anasayfa"; // sizde /anasayfa ise değiştir
+    const goHome = () => navigate(HOME_PATH, { replace: false });
 
     return (
         <Layout>
-            <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+            {/* ✅ Morumsu koyu tema uyumu */}
+            <div className="min-h-screen text-zinc-950 dark:text-zinc-50 transition-colors duration-300
+        bg-[#F7F5FF] dark:bg-[#070A13]
+        [background-image:radial-gradient(900px_circle_at_18%_10%,rgba(139,92,246,0.14),transparent_55%),radial-gradient(850px_circle_at_82%_40%,rgba(236,72,153,0.10),transparent_60%)]
+        dark:[background-image:radial-gradient(900px_circle_at_18%_10%,rgba(139,92,246,0.18),transparent_55%),radial-gradient(850px_circle_at_82%_40%,rgba(236,72,153,0.10),transparent_60%),radial-gradient(700px_circle_at_50%_85%,rgba(34,211,238,0.08),transparent_55%)]
+      ">
                 <div className="max-w-6xl mx-auto px-4 py-8">
                     {/* --- Navigation & Header --- */}
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
@@ -154,20 +169,26 @@ function Lokasyonlar() {
                             <button
                                 onClick={goHome}
                                 type="button"
-                                className="group flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-blue-600 transition-colors"
+                                className="group flex items-center gap-2 text-sm font-semibold text-zinc-600 dark:text-zinc-300 hover:text-violet-400 transition-colors"
                             >
                                 <FiArrowLeft className="group-hover:-translate-x-1 transition-transform" />
                                 Ana Sayfaya Dön
                             </button>
 
                             <div className="flex items-center gap-4">
-                                <div className="p-3 rounded-2xl bg-blue-600 shadow-lg shadow-blue-200 dark:shadow-none text-white">
+                                <div className="p-3 rounded-2xl bg-violet-600/90 shadow-lg shadow-violet-200/60 dark:shadow-none text-white">
                                     <FiMap size={28} />
                                 </div>
                                 <div>
-                                    <h1 className="text-3xl font-extrabold tracking-tight">Lokasyonlar</h1>
-                                    <p className="text-gray-500 dark:text-gray-400 font-medium">
-                                        Sistemde tanımlı <span className="text-blue-600">{lokasyonlar.length}</span> adet bölge bulunuyor.
+                                    <h1 className="text-3xl font-extrabold tracking-tight">
+                                        Lokasyonlar
+                                    </h1>
+                                    <p className="text-zinc-600 dark:text-zinc-300 font-medium">
+                                        Sistemde tanımlı{" "}
+                                        <span className="text-violet-600 dark:text-violet-300 font-extrabold">
+                                            {lokasyonlar.length}
+                                        </span>{" "}
+                                        adet bölge bulunuyor.
                                     </p>
                                 </div>
                             </div>
@@ -175,27 +196,37 @@ function Lokasyonlar() {
 
                         <button
                             onClick={() => setAddOpen(true)}
-                            className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-6 py-3 rounded-xl font-semibold shadow-md transition-all"
+                            className="flex items-center justify-center gap-2
+                bg-violet-600 hover:bg-violet-700 active:scale-95
+                text-white px-6 py-3 rounded-xl font-extrabold
+                shadow-md shadow-violet-200/60 dark:shadow-none transition-all"
                         >
                             <FiPlus strokeWidth={3} /> Yeni Lokasyon Tanımla
                         </button>
                     </div>
 
                     {/* --- Search & Filter Bar --- */}
-                    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-2 rounded-2xl shadow-sm flex flex-col sm:flex-row gap-2 mb-8">
+                    <div className="bg-white/70 dark:bg-white/[0.04] border border-violet-200/60 dark:border-white/10
+            p-2 rounded-2xl shadow-sm backdrop-blur-xl flex flex-col sm:flex-row gap-2 mb-8">
                         <div className="relative flex-1">
-                            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <FiSearch
+                                className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400"
+                                size={18}
+                            />
                             <input
                                 value={q}
                                 onChange={(e) => setQ(e.target.value)}
                                 placeholder="Lokasyon ismine göre filtrele..."
-                                className="w-full pl-11 pr-4 py-3 bg-transparent border-none focus:ring-0 text-sm font-medium"
+                                className="w-full pl-11 pr-4 py-3 bg-transparent border-none focus:ring-0 text-sm font-semibold"
                             />
                         </div>
-                        <div className="h-8 w-[1px] bg-gray-200 dark:bg-gray-800 hidden sm:block self-center"></div>
+                        <div className="h-8 w-[1px] bg-violet-200/70 dark:bg-white/10 hidden sm:block self-center" />
                         <button
                             onClick={() => setSortAsc((v) => !v)}
-                            className="flex items-center justify-center gap-2 px-6 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-colors text-sm font-bold text-gray-600 dark:text-gray-300"
+                            className="flex items-center justify-center gap-2 px-6 py-3
+                hover:bg-violet-50/70 dark:hover:bg-white/[0.06]
+                rounded-xl transition-colors text-sm font-extrabold
+                text-zinc-700 dark:text-zinc-200"
                         >
                             {sortAsc ? <FiChevronDown /> : <FiChevronUp />}
                             {sortAsc ? "A'dan Z'ye" : "Z'den A'ya"}
@@ -204,9 +235,11 @@ function Lokasyonlar() {
 
                     {/* --- Content Area --- */}
                     {errorMsg && (
-                        <div className="mb-6 animate-in fade-in slide-in-from-top-4 flex items-center gap-3 p-4 rounded-xl bg-red-50 border border-red-100 text-red-700 dark:bg-red-900/20 dark:border-red-900/30 dark:text-red-400">
+                        <div className="mb-6 animate-in fade-in slide-in-from-top-4 flex items-center gap-3 p-4 rounded-xl
+              bg-red-50 border border-red-100 text-red-700
+              dark:bg-red-900/20 dark:border-red-900/30 dark:text-red-400">
                             <FiAlertTriangle className="flex-shrink-0" />
-                            <p className="text-sm font-medium">{errorMsg}</p>
+                            <p className="text-sm font-semibold">{errorMsg}</p>
                         </div>
                     )}
 
@@ -215,7 +248,8 @@ function Lokasyonlar() {
                             {[...Array(6)].map((_, i) => (
                                 <div
                                     key={i}
-                                    className="h-32 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 animate-pulse"
+                                    className="h-32 rounded-2xl bg-white/70 dark:bg-white/[0.04]
+                    border border-violet-200/60 dark:border-white/10 animate-pulse"
                                 />
                             ))}
                         </div>
@@ -224,24 +258,38 @@ function Lokasyonlar() {
                             {filtered.map((lok) => (
                                 <div
                                     key={lok.id}
-                                    className="group relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5 rounded-2xl shadow-sm hover:shadow-xl hover:border-blue-300 dark:hover:border-blue-900 transition-all duration-300"
+                                    className="group relative
+                    bg-white/70 dark:bg-white/[0.04]
+                    border border-violet-200/60 dark:border-white/10
+                    p-5 rounded-2xl shadow-sm backdrop-blur-xl
+                    hover:shadow-xl hover:border-violet-300/70 dark:hover:border-violet-400/25
+                    transition-all duration-300"
                                 >
                                     <div className="flex items-start justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30 transition-colors">
-                                                <FiMapPin className="text-gray-400 group-hover:text-blue-500" />
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="p-2.5 rounded-xl
+                        bg-violet-50/80 dark:bg-white/[0.06]
+                        group-hover:bg-violet-100/80 dark:group-hover:bg-violet-500/10
+                        transition-colors"
+                                            >
+                                                <FiMapPin className="text-zinc-400 group-hover:text-violet-400" />
                                             </div>
-                                            <h3 className="font-bold text-lg truncate pr-4">{lok.lokasyon}</h3>
+                                            <h3 className="font-extrabold text-lg truncate pr-4">
+                                                {lok.lokasyon}
+                                            </h3>
                                         </div>
                                     </div>
 
-                                    <div className="mt-8 flex items-center gap-2 border-t border-gray-50 dark:border-gray-800 pt-4">
+                                    <div className="mt-8 flex items-center gap-2 border-t border-violet-100/70 dark:border-white/10 pt-4">
                                         <button
                                             onClick={() => {
                                                 setSelected(lok);
                                                 setEditOpen(true);
                                             }}
-                                            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold bg-gray-50 dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/40 hover:text-blue-600 transition-all"
+                                            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-extrabold
+                        bg-violet-50/80 dark:bg-white/[0.06]
+                        hover:bg-violet-100/80 dark:hover:bg-violet-500/10
+                        hover:text-violet-700 dark:hover:text-violet-300 transition-all"
                                         >
                                             <FiEdit2 /> Düzenle
                                         </button>
@@ -250,7 +298,9 @@ function Lokasyonlar() {
                                                 setToDelete(lok);
                                                 setConfirmOpen(true);
                                             }}
-                                            className="p-2 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 transition-all"
+                                            className="p-2 rounded-lg text-zinc-400
+                        hover:bg-red-50 hover:text-red-600
+                        dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-all"
                                         >
                                             <FiTrash2 />
                                         </button>
@@ -259,12 +309,15 @@ function Lokasyonlar() {
                             ))}
                         </div>
                     ) : (
-                        <div className="bg-white dark:bg-gray-900 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-3xl p-12 text-center">
-                            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-blue-50 dark:bg-gray-800 text-blue-600 mb-4">
+                        <div className="bg-white/70 dark:bg-white/[0.04]
+              border-2 border-dashed border-violet-200/70 dark:border-white/10
+              rounded-3xl p-12 text-center backdrop-blur-xl">
+                            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full
+                bg-violet-50/80 dark:bg-white/[0.06] text-violet-600 dark:text-violet-300 mb-4">
                                 <FiMapPin size={32} />
                             </div>
-                            <h3 className="text-xl font-bold mb-1">Kayıt Bulunamadı</h3>
-                            <p className="text-gray-500 max-w-xs mx-auto mb-6">
+                            <h3 className="text-xl font-extrabold mb-1">Kayıt Bulunamadı</h3>
+                            <p className="text-zinc-600 dark:text-zinc-300 max-w-xs mx-auto mb-6">
                                 Aradığınız kriterlere uygun bir lokasyon bulamadık veya henüz hiç ekleme yapmadınız.
                             </p>
                         </div>
@@ -317,17 +370,22 @@ function Lokasyonlar() {
                     />
                 )}
 
-                {/* --- Animated Toast --- */}
+                {/* --- Toast --- */}
                 {toast && (
                     <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-10 fade-in duration-300">
                         <div
-                            className={`flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border ${toast.type === "success"
-                                    ? "bg-white dark:bg-gray-900 border-green-500 text-green-600"
-                                    : "bg-white dark:bg-gray-900 border-red-500 text-red-600"
+                            className={`flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border backdrop-blur-xl
+                ${toast.type === "success"
+                                    ? "bg-white/70 dark:bg-white/[0.06] border-violet-200/60 dark:border-white/10 text-violet-700 dark:text-violet-200"
+                                    : "bg-white/70 dark:bg-white/[0.06] border-red-200/60 dark:border-red-900/30 text-red-700 dark:text-red-300"
                                 }`}
                         >
-                            {toast.type === "success" ? <FiCheckCircle size={20} /> : <FiAlertTriangle size={20} />}
-                            <span className="text-sm font-bold">{toast.msg}</span>
+                            {toast.type === "success" ? (
+                                <FiCheckCircle size={20} />
+                            ) : (
+                                <FiAlertTriangle size={20} />
+                            )}
+                            <span className="text-sm font-extrabold">{toast.msg}</span>
                         </div>
                     </div>
                 )}
@@ -340,11 +398,14 @@ function Lokasyonlar() {
 
 function Modal({ title, onClose, children }) {
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-                <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-gray-800">
-                    <h3 className="text-xl font-bold">{title}</h3>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="w-full max-w-md bg-white/85 dark:bg-[#0b1020]/90 rounded-3xl shadow-2xl overflow-hidden border border-violet-200/60 dark:border-white/10 animate-in zoom-in-95 duration-200">
+                <div className="flex items-center justify-between px-6 py-5 border-b border-violet-100/70 dark:border-white/10">
+                    <h3 className="text-xl font-extrabold">{title}</h3>
+                    <button
+                        onClick={onClose}
+                        className="p-2 hover:bg-violet-50/70 dark:hover:bg-white/[0.06] rounded-xl transition-colors"
+                    >
                         <FiX size={20} />
                     </button>
                 </div>
@@ -356,23 +417,28 @@ function Modal({ title, onClose, children }) {
 
 function ConfirmDialog({ title, message, confirmLabel, onConfirm, onCancel }) {
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="w-full max-w-sm bg-white dark:bg-gray-900 rounded-3xl shadow-2xl p-6 animate-in zoom-in-95 duration-200">
-                <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-900/20 text-red-600 flex items-center justify-center mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="w-full max-w-sm bg-white/85 dark:bg-[#0b1020]/90 rounded-3xl shadow-2xl p-6 border border-red-200/60 dark:border-red-900/30 animate-in zoom-in-95 duration-200">
+                <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 flex items-center justify-center mb-4">
                     <FiTrash2 size={24} />
                 </div>
-                <h3 className="text-xl font-bold mb-2">{title}</h3>
-                <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed mb-6">{message}</p>
+                <h3 className="text-xl font-extrabold mb-2">{title}</h3>
+                <p className="text-zinc-600 dark:text-zinc-300 text-sm leading-relaxed mb-6">
+                    {message}
+                </p>
                 <div className="flex gap-3">
                     <button
                         onClick={onCancel}
-                        className="flex-1 px-4 py-3 rounded-xl font-bold text-sm bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 transition-colors"
+                        className="flex-1 px-4 py-3 rounded-xl font-extrabold text-sm
+              bg-violet-50/80 dark:bg-white/[0.06]
+              hover:bg-violet-100/80 dark:hover:bg-white/[0.08]
+              transition-colors"
                     >
                         Vazgeç
                     </button>
                     <button
                         onClick={onConfirm}
-                        className="flex-1 px-4 py-3 rounded-xl font-bold text-sm bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-200 dark:shadow-none transition-all"
+                        className="flex-1 px-4 py-3 rounded-xl font-extrabold text-sm bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-200/60 dark:shadow-none transition-all"
                     >
                         {confirmLabel}
                     </button>
@@ -398,28 +464,37 @@ function LocationForm({ defaultValue = "", submitLabel = "Kaydet", onSubmit, onC
             className="space-y-5"
         >
             <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2 ml-1">Lokasyon İsmi</label>
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2 ml-1">
+                    Lokasyon İsmi
+                </label>
                 <input
                     autoFocus
                     type="text"
                     value={value}
                     onChange={(e) => setValue(e.target.value)}
                     placeholder="Örn: Merkez Depo A1"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-medium"
+                    className="w-full px-4 py-3 rounded-xl border
+            border-violet-200/70 dark:border-white/10
+            bg-violet-50/50 dark:bg-black/20
+            focus:ring-2 focus:ring-violet-500/40 focus:border-transparent outline-none transition-all font-semibold"
                 />
             </div>
             <div className="flex gap-3 pt-2">
                 <button
                     type="button"
                     onClick={onCancel}
-                    className="flex-1 px-4 py-3 rounded-xl font-bold text-sm border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                    className="flex-1 px-4 py-3 rounded-xl font-extrabold text-sm
+            border border-violet-200/70 dark:border-white/10
+            hover:bg-violet-50/70 dark:hover:bg-white/[0.06] transition-colors"
                 >
                     İptal
                 </button>
                 <button
                     type="submit"
                     disabled={saving || !value.trim()}
-                    className="flex-[2] bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-bold text-sm shadow-lg shadow-blue-200 dark:shadow-none transition-all"
+                    className="flex-[2] bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white
+            px-4 py-3 rounded-xl font-extrabold text-sm
+            shadow-lg shadow-violet-200/60 dark:shadow-none transition-all"
                 >
                     {saving ? "İşleniyor..." : submitLabel}
                 </button>

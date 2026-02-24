@@ -1,5 +1,6 @@
 ﻿// src/pages/Anasayfa.jsx
-// ✅ Modern dashboard (hero + gradient KPI + sparkline + modern chart card) + ModernSidebar entegre + morumsu tema
+// ✅ ETS Modern (sade) Dashboard: sadece EVRAK + 1 büyük trend grafiği + mini Top 5 + KPI
+// ModernSidebar entegre + morumsu koyu tema
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -41,6 +42,7 @@ import {
     ToggleButtonGroup,
     CircularProgress,
     CssBaseline,
+    Divider,
 } from "@mui/material";
 
 import { ThemeProvider, createTheme } from "@mui/material/styles";
@@ -56,11 +58,47 @@ import FolderRoundedIcon from "@mui/icons-material/FolderRounded";
 import AssessmentRoundedIcon from "@mui/icons-material/AssessmentRounded";
 import LocalShippingRoundedIcon from "@mui/icons-material/LocalShippingRounded";
 import GridViewRoundedIcon from "@mui/icons-material/GridViewRounded";
-import BusinessIcon from "@mui/icons-material/Business";
-import Inventory2Icon from "@mui/icons-material/Inventory2";
 import PersonIcon from "@mui/icons-material/Person";
+import BoltIcon from "@mui/icons-material/Bolt";
+import AutoGraphIcon from "@mui/icons-material/AutoGraph";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 
-function Anasayfa() {
+function ETSMark({ size = 28 }) {
+    return (
+        <Box
+            sx={{
+                width: size,
+                height: size,
+                borderRadius: 2.2,
+                display: "grid",
+                placeItems: "center",
+                border: "1px solid rgba(216,180,254,0.22)",
+                background:
+                    "radial-gradient(120% 120% at 10% 10%, rgba(139,92,246,0.26), rgba(0,0,0,0) 60%), rgba(255,255,255,0.04)",
+                boxShadow: "0 12px 40px rgba(0,0,0,0.35)",
+            }}
+            aria-hidden="true"
+        >
+            <svg viewBox="0 0 24 24" width={size * 0.62} height={size * 0.62} fill="none">
+                <path
+                    d="M8 4h7l3 3v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"
+                    stroke="rgba(233,213,255,0.85)"
+                    strokeWidth="1.6"
+                    strokeLinejoin="round"
+                />
+                <path d="M15 4v3h3" stroke="rgba(233,213,255,0.85)" strokeWidth="1.6" strokeLinejoin="round" />
+                <path
+                    d="M9 11h6M9 14h6M9 17h4"
+                    stroke="rgba(233,213,255,0.55)"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                />
+            </svg>
+        </Box>
+    );
+}
+
+export default function Anasayfa() {
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -77,22 +115,25 @@ function Anasayfa() {
         return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ?? false;
     });
 
-    // 🎨 Morumsu accent palet
     const accent = useMemo(
         () => ({
-            primary: "#8B5CF6", // violet-500
-            primary2: "#A78BFA", // violet-400
-            pink: "#EC4899", // pink-500
-            cyan: "#22D3EE", // cyan-400
+            primary: "#8B5CF6",
+            primary2: "#A78BFA",
+            pink: "#EC4899",
+            cyan: "#22D3EE",
         }),
         []
     );
 
-    const [dailyData, setDailyData] = useState([]);
-    const [loading, setLoading] = useState(true);
+    // SADE: sadece evrak
+    const metricLabel = "Evrak";
 
-    const [metric, setMetric] = useState("kargo");
-    const [chartType, setChartType] = useState("bar");
+    const [chartType, setChartType] = useState("area"); // area | line | bar (opsiyon)
+    const [rangeDays, setRangeDays] = useState(14); // 7 | 14 | 30
+
+    const [loading, setLoading] = useState(true);
+    const [dailyData, setDailyData] = useState([]);
+    const [firmTotals, setFirmTotals] = useState([]);
     const [firmalar, setFirmalar] = useState(["Hepsi"]);
     const [selectedFirma, setSelectedFirma] = useState("Hepsi");
 
@@ -104,9 +145,6 @@ function Anasayfa() {
     const tahakkukBlockedUsers = ["yaren", "ozge", "refika", "mehmet"];
     const canSeeTahakkuk =
         tahakkukAllowedUsers.includes(usernameLower) && !tahakkukBlockedUsers.includes(usernameLower);
-
-    const metricLabel = metric === "kargo" ? "Kargo" : "Evrak";
-    const totalCount = useMemo(() => dailyData.reduce((s, i) => s + (i.count || 0), 0), [dailyData]);
 
     const mode = darkMode ? "dark" : "light";
 
@@ -127,25 +165,22 @@ function Anasayfa() {
                     }),
             },
             shape: { borderRadius: 16 },
-            typography: {
-                fontFamily: `"Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif`,
-            },
+            typography: { fontFamily: `"Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif` },
             components: {
-                MuiCssBaseline: {
+                MuiAppBar: {
                     styleOverrides: {
-                        body: {
-                            WebkitFontSmoothing: "antialiased",
-                            MozOsxFontSmoothing: "grayscale",
+                        root: {
+                            background: mode === "dark" ? "rgba(10,12,20,0.72)" : "rgba(255,255,255,0.78)",
+                            backdropFilter: "blur(14px)",
+                            borderBottom: mode === "dark" ? "1px solid rgba(167,139,250,0.16)" : "1px solid rgba(139,92,246,0.12)",
+                            boxShadow: mode === "dark" ? "0 10px 40px rgba(139,92,246,0.10)" : "0 10px 30px rgba(139,92,246,0.12)",
                         },
                     },
                 },
                 MuiCard: {
                     styleOverrides: {
                         root: {
-                            border:
-                                mode === "dark"
-                                    ? "1px solid rgba(167,139,250,0.20)"
-                                    : "1px solid rgba(139,92,246,0.18)",
+                            border: mode === "dark" ? "1px solid rgba(167,139,250,0.18)" : "1px solid rgba(139,92,246,0.16)",
                             background:
                                 mode === "dark"
                                     ? "linear-gradient(180deg, rgba(139,92,246,0.10) 0%, rgba(255,255,255,0.04) 55%, rgba(0,0,0,0.12) 120%)"
@@ -155,26 +190,7 @@ function Anasayfa() {
                         },
                     },
                 },
-                MuiAppBar: {
-                    styleOverrides: {
-                        root: {
-                            background: mode === "dark" ? "rgba(10,12,20,0.72)" : "rgba(255,255,255,0.78)",
-                            color: mode === "dark" ? "rgba(255,255,255,0.92)" : "rgba(17,24,39,0.92)",
-                            backdropFilter: "blur(14px)",
-                            borderBottom:
-                                mode === "dark" ? "1px solid rgba(167,139,250,0.18)" : "1px solid rgba(139,92,246,0.14)",
-                            boxShadow:
-                                mode === "dark"
-                                    ? "0 10px 40px rgba(139,92,246,0.10)"
-                                    : "0 10px 30px rgba(139,92,246,0.12)",
-                        },
-                    },
-                },
-                MuiButton: {
-                    styleOverrides: {
-                        root: { textTransform: "none", borderRadius: 14, fontWeight: 800 },
-                    },
-                },
+                MuiButton: { styleOverrides: { root: { textTransform: "none", borderRadius: 14, fontWeight: 900 } } },
                 MuiToggleButton: {
                     styleOverrides: {
                         root: {
@@ -183,9 +199,6 @@ function Anasayfa() {
                             "&.Mui-selected": {
                                 backgroundColor: mode === "dark" ? "rgba(139,92,246,0.22)" : "rgba(139,92,246,0.16)",
                                 borderColor: mode === "dark" ? "rgba(167,139,250,0.35)" : "rgba(139,92,246,0.25)",
-                            },
-                            "&.Mui-selected:hover": {
-                                backgroundColor: mode === "dark" ? "rgba(139,92,246,0.28)" : "rgba(139,92,246,0.20)",
                             },
                         },
                     },
@@ -199,13 +212,23 @@ function Anasayfa() {
     }, [darkMode]);
 
     const toggleTheme = useCallback(() => setDarkMode((p) => !p), []);
-
     const handleLogout = useCallback(() => {
         localStorage.clear();
         navigate("/login");
     }, [navigate]);
 
-    // --- Firmalar ---
+    const drawerPaperSx = useMemo(
+        () => ({
+            bgcolor: darkMode ? "rgba(10,12,20,0.78)" : "rgba(255,255,255,0.92)",
+            color: darkMode ? "rgba(255,255,255,0.92)" : "rgba(17,24,39,0.92)",
+            backdropFilter: "blur(16px)",
+            borderRight: darkMode ? "1px solid rgba(167,139,250,0.16)" : "1px solid rgba(139,92,246,0.12)",
+            boxShadow: darkMode ? "0 30px 90px rgba(0,0,0,0.60)" : "0 18px 60px rgba(139,92,246,0.14)",
+        }),
+        [darkMode]
+    );
+
+    // firmalar
     useEffect(() => {
         (async () => {
             try {
@@ -227,20 +250,20 @@ function Anasayfa() {
         })();
     }, []);
 
-    // --- Günlük veri ---
+    // daily + firm totals (ONLY evrak)
     useEffect(() => {
         (async () => {
             setLoading(true);
             try {
                 const today = new Date();
-                const oneWeekAgo = new Date();
-                oneWeekAgo.setDate(today.getDate() - 6);
+                const start = new Date();
+                start.setDate(today.getDate() - (rangeDays - 1));
 
                 const gunIsimleri = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
 
                 const dayMap = {};
-                for (let i = 0; i < 7; i++) {
-                    const d = new Date(oneWeekAgo);
+                for (let i = 0; i < rangeDays; i++) {
+                    const d = new Date(start);
                     d.setDate(d.getDate() + i);
                     const key = d.toISOString().split("T")[0];
                     const label = gunIsimleri[d.getDay()];
@@ -250,7 +273,7 @@ function Anasayfa() {
                 let query = supabase
                     .from("kargo_bilgileri")
                     .select("tarih, kargo_firmasi, evrak_adedi")
-                    .gte("tarih", oneWeekAgo.toISOString().split("T")[0])
+                    .gte("tarih", start.toISOString().split("T")[0])
                     .lte("tarih", today.toISOString().split("T")[0]);
 
                 if (selectedFirma !== "Hepsi") query = query.ilike("kargo_firmasi", selectedFirma);
@@ -258,56 +281,70 @@ function Anasayfa() {
                 const { data, error } = await query;
                 if (error) throw error;
 
-                (data ?? []).forEach(({ tarih, evrak_adedi }) => {
-                    if (dayMap[tarih]) {
-                        if (metric === "kargo") dayMap[tarih].count += 1;
-                        else dayMap[tarih].count += evrak_adedi || 0;
-                    }
+                const firmMap = new Map();
+                (data ?? []).forEach(({ tarih, kargo_firmasi, evrak_adedi }) => {
+                    const val = Number(evrak_adedi || 0);
+                    if (dayMap[tarih]) dayMap[tarih].count += val;
+
+                    const firm = (kargo_firmasi || "BİLİNMİYOR").trim().toUpperCase();
+                    firmMap.set(firm, (firmMap.get(firm) || 0) + val);
                 });
 
-                setDailyData(Object.values(dayMap));
+                const daily = Object.values(dayMap);
+                setDailyData(daily);
+
+                const firmsSorted = Array.from(firmMap.entries())
+                    .map(([name, value]) => ({ name, value }))
+                    .sort((a, b) => b.value - a.value);
+
+                setFirmTotals(firmsSorted);
             } catch (e) {
                 console.error("Veri alınamadı", e);
             } finally {
                 setLoading(false);
             }
         })();
-    }, [metric, selectedFirma]);
+    }, [rangeDays, selectedFirma]);
 
-    const drawerPaperSx = useMemo(
-        () => ({
-            bgcolor: darkMode ? "rgba(10,12,20,0.78)" : "rgba(255,255,255,0.92)",
-            color: darkMode ? "rgba(255,255,255,0.92)" : "rgba(17,24,39,0.92)",
-            backdropFilter: "blur(16px)",
-            WebkitBackdropFilter: "blur(16px)",
-            borderRight: darkMode ? "1px solid rgba(167,139,250,0.16)" : "1px solid rgba(139,92,246,0.12)",
-            boxShadow: darkMode ? "0 30px 90px rgba(0,0,0,0.60)" : "0 18px 60px rgba(139,92,246,0.14)",
-        }),
-        [darkMode]
-    );
+    // KPIs
+    const totalCount = useMemo(() => dailyData.reduce((s, i) => s + (i.count || 0), 0), [dailyData]);
+    const todayCount = useMemo(() => {
+        const todayKey = new Date().toISOString().split("T")[0];
+        return dailyData.find((d) => d.date === todayKey)?.count ?? 0;
+    }, [dailyData]);
+    const avgCount = useMemo(() => (dailyData.length ? Math.round((totalCount / dailyData.length) * 10) / 10 : 0), [dailyData, totalCount]);
+    const maxDay = useMemo(() => (dailyData.length ? dailyData.reduce((a, b) => (b.count > a.count ? b : a), dailyData[0]) : null), [dailyData]);
 
-    const Chart = () => {
+    const top5 = useMemo(() => firmTotals.slice(0, 5).reverse(), [firmTotals]);
+
+    const dateRangeText = useMemo(() => {
+        if (!dailyData.length) return `Son ${rangeDays} gün`;
+        const first = dailyData[0].date;
+        const last = dailyData[dailyData.length - 1].date;
+        return `${first} → ${last}`;
+    }, [dailyData, rangeDays]);
+
+    const MainChart = useCallback(() => {
         const ChartComp = chartType === "bar" ? BarChart : chartType === "line" ? LineChart : AreaChart;
 
         return (
-            <ResponsiveContainer width="100%" height={340}>
-                <ChartComp data={dailyData} margin={{ top: 10, right: 24, bottom: 0, left: 0 }}>
+            <ResponsiveContainer width="100%" height="100%">
+                <ChartComp data={dailyData} margin={{ top: 12, right: 26, bottom: 0, left: 0 }}>
                     <defs>
                         <linearGradient id="mainGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={darkMode ? accent.primary2 : accent.primary} stopOpacity={0.9} />
-                            <stop offset="55%" stopColor={darkMode ? accent.primary : accent.pink} stopOpacity={0.35} />
-                            <stop offset="100%" stopColor={darkMode ? accent.cyan : accent.primary2} stopOpacity={0.18} />
+                            <stop offset="0%" stopColor={darkMode ? accent.primary2 : accent.primary} stopOpacity={0.95} />
+                            <stop offset="55%" stopColor={darkMode ? accent.primary : accent.pink} stopOpacity={0.30} />
+                            <stop offset="100%" stopColor={darkMode ? accent.cyan : accent.primary2} stopOpacity={0.12} />
                         </linearGradient>
                     </defs>
 
-                    <CartesianGrid strokeDasharray="3 3" strokeOpacity={darkMode ? 0.12 : 0.35} vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" strokeOpacity={darkMode ? 0.12 : 0.28} vertical={false} />
                     <XAxis dataKey="label" tick={{ fill: darkMode ? "#c4b5fd" : "#6b7280", fontSize: 12 }} />
                     <YAxis allowDecimals={false} tick={{ fill: darkMode ? "#c4b5fd" : "#6b7280", fontSize: 12 }} />
                     <Tooltip
                         contentStyle={{
                             background: darkMode ? "rgba(10,12,20,0.94)" : "rgba(255,255,255,0.94)",
-                            border: `1px solid ${darkMode ? "rgba(167,139,250,0.18)" : "rgba(139,92,246,0.16)"
-                                }`,
+                            border: `1px solid ${darkMode ? "rgba(167,139,250,0.18)" : "rgba(139,92,246,0.16)"}`,
                             borderRadius: 14,
                             backdropFilter: "blur(10px)",
                         }}
@@ -316,28 +353,12 @@ function Anasayfa() {
                     />
 
                     {chartType === "bar" && <Bar dataKey="count" fill="url(#mainGrad)" radius={[10, 10, 0, 0]} />}
-                    {chartType === "line" && (
-                        <Line
-                            type="monotone"
-                            dataKey="count"
-                            stroke={darkMode ? accent.primary2 : accent.primary}
-                            strokeWidth={3}
-                            dot={false}
-                        />
-                    )}
-                    {chartType === "area" && (
-                        <Area
-                            type="monotone"
-                            dataKey="count"
-                            stroke={darkMode ? accent.primary2 : accent.primary}
-                            strokeWidth={2}
-                            fill="url(#mainGrad)"
-                        />
-                    )}
+                    {chartType === "line" && <Line type="monotone" dataKey="count" stroke={accent.primary2} strokeWidth={3} dot={false} />}
+                    {chartType === "area" && <Area type="monotone" dataKey="count" stroke={accent.primary2} strokeWidth={2} fill="url(#mainGrad)" />}
                 </ChartComp>
             </ResponsiveContainer>
         );
-    };
+    }, [chartType, dailyData, darkMode, accent, metricLabel]);
 
     return (
         <ThemeProvider theme={theme}>
@@ -359,15 +380,36 @@ function Anasayfa() {
               `,
                     }}
                 >
+                    {/* AppBar */}
                     <AppBar position="sticky" elevation={0}>
-                        <Toolbar sx={{ maxWidth: 1280, width: "100%", mx: "auto", gap: 1.5 }}>
+                        <Toolbar sx={{ maxWidth: 1400, width: "100%", mx: "auto", gap: 1.5 }}>
                             <IconButton onClick={() => setMenuOpen(true)} edge="start">
                                 <MenuIcon />
                             </IconButton>
 
-                            <Typography variant="h6" fontWeight={950} sx={{ flex: 1 }}>
-                                Evrak Yönetimi
-                            </Typography>
+                            <Stack direction="row" spacing={1.2} alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
+                                <ETSMark />
+                                <Box sx={{ minWidth: 0 }}>
+                                    <Typography
+                                        variant="h6"
+                                        fontWeight={980}
+                                        noWrap
+                                        sx={{
+                                            lineHeight: 1.05,
+                                            background: darkMode
+                                                ? "linear-gradient(90deg, rgba(233,213,255,0.95), rgba(167,139,250,0.95), rgba(34,211,238,0.85))"
+                                                : "linear-gradient(90deg, rgba(76,29,149,1), rgba(124,58,237,1))",
+                                            WebkitBackgroundClip: "text",
+                                            WebkitTextFillColor: "transparent",
+                                        }}
+                                    >
+                                        ETS • Evrak Dashboard
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ opacity: 0.72 }} noWrap>
+                                        {dateRangeText} • {selectedFirma === "Hepsi" ? "Tüm firmalar" : selectedFirma}
+                                    </Typography>
+                                </Box>
+                            </Stack>
 
                             <Chip
                                 icon={<PersonIcon />}
@@ -379,7 +421,7 @@ function Anasayfa() {
                                 }}
                             />
 
-                            <IconButton onClick={toggleTheme} title="Tema">
+                            <IconButton onClick={() => setDarkMode((p) => !p)} title="Tema">
                                 {darkMode ? <DarkModeIcon /> : <LightModeIcon />}
                             </IconButton>
 
@@ -389,6 +431,7 @@ function Anasayfa() {
                         </Toolbar>
                     </AppBar>
 
+                    {/* Drawer */}
                     <Drawer
                         open={menuOpen}
                         onClose={() => setMenuOpen(false)}
@@ -418,211 +461,112 @@ function Anasayfa() {
                         />
                     </Drawer>
 
-                    {/* ✅ DASHBOARD (DAHA MODERN) */}
-                    <Box sx={{ maxWidth: 1280, mx: "auto", px: 2, py: 3 }}>
+                    {/* Content */}
+                    <Box sx={{ maxWidth: 1400, mx: "auto", px: 2, py: 3 }}>
                         {(isRefika || isAdminOrManager) && (
-                            <Stack spacing={2.5}>
-                                {/* HERO */}
-                                <Card
-                                    sx={{
-                                        position: "relative",
-                                        overflow: "hidden",
-                                        borderRadius: 4,
-                                        "&:before": {
-                                            content: '""',
-                                            position: "absolute",
-                                            inset: 0,
-                                            background: darkMode
-                                                ? `
-                          radial-gradient(900px circle at 10% 20%, rgba(139,92,246,0.28), transparent 60%),
-                          radial-gradient(700px circle at 90% 30%, rgba(236,72,153,0.16), transparent 60%),
-                          radial-gradient(700px circle at 60% 120%, rgba(34,211,238,0.12), transparent 55%)
-                        `
-                                                : `
-                          radial-gradient(900px circle at 10% 20%, rgba(139,92,246,0.20), transparent 60%),
-                          radial-gradient(700px circle at 90% 30%, rgba(236,72,153,0.14), transparent 60%)
-                        `,
-                                            opacity: 1,
-                                            pointerEvents: "none",
-                                        },
-                                        "&:after": {
-                                            content: '""',
-                                            position: "absolute",
-                                            inset: 0,
-                                            background: darkMode
-                                                ? "linear-gradient(180deg, rgba(0,0,0,0.20), rgba(0,0,0,0.45))"
-                                                : "linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.85))",
-                                            pointerEvents: "none",
-                                        },
-                                    }}
-                                >
-                                    <CardContent sx={{ position: "relative", zIndex: 1, py: 3 }}>
-                                        <Stack
-                                            direction={{ xs: "column", md: "row" }}
-                                            spacing={2.5}
-                                            alignItems={{ md: "center" }}
-                                            justifyContent="space-between"
-                                        >
-                                            <Box sx={{ minWidth: 0 }}>
+                            <Stack spacing={2.2}>
+                                {/* Header card (sade) */}
+                                <Card sx={{ borderRadius: 4, overflow: "hidden" }}>
+                                    <CardContent sx={{ position: "relative" }}>
+                                        <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }} justifyContent="space-between">
+                                            <Box>
                                                 <Typography
                                                     variant="overline"
-                                                    sx={{
-                                                        letterSpacing: "0.18em",
-                                                        fontWeight: 950,
-                                                        opacity: 0.85,
-                                                    }}
+                                                    sx={{ letterSpacing: "0.22em", fontWeight: 950, opacity: 0.9, display: "inline-flex", alignItems: "center", gap: 1 }}
                                                 >
-                                                    DASHBOARD
+                                                    <CalendarMonthIcon sx={{ fontSize: 18, opacity: 0.9 }} />
+                                                    SADE ANALİZ
                                                 </Typography>
-
-                                                <Typography variant="h4" fontWeight={980} sx={{ mt: 0.25, lineHeight: 1.1 }}>
+                                                <Typography variant="h5" fontWeight={980} sx={{ mt: 0.25 }}>
                                                     Hoş geldin, {adSoyad}
                                                 </Typography>
-
-                                                <Typography sx={{ mt: 0.8, opacity: 0.82, maxWidth: 680 }}>
-                                                    Son 7 güne ait genel durum, firma bazlı filtre ve hızlı aksiyonlar.
+                                                <Typography sx={{ mt: 0.6, opacity: 0.75 }}>
+                                                    Evrak trendini hızlıca gör, firma filtresiyle incele.
                                                 </Typography>
-
-                                                <Stack direction="row" spacing={1} sx={{ mt: 1.6, flexWrap: "wrap", rowGap: 1 }}>
-                                                    <Chip
-                                                        label={`Tema: ${darkMode ? "Dark" : "Light"}`}
-                                                        sx={{
-                                                            fontWeight: 900,
-                                                            border: "1px solid",
-                                                            borderColor: darkMode ? "rgba(167,139,250,0.25)" : "rgba(139,92,246,0.20)",
-                                                            bgcolor: darkMode ? "rgba(139,92,246,0.10)" : "rgba(139,92,246,0.08)",
-                                                        }}
-                                                    />
-                                                    <Chip
-                                                        label={`Firma: ${selectedFirma}`}
-                                                        sx={{
-                                                            fontWeight: 900,
-                                                            border: "1px solid",
-                                                            borderColor: darkMode ? "rgba(236,72,153,0.22)" : "rgba(236,72,153,0.18)",
-                                                            bgcolor: darkMode ? "rgba(236,72,153,0.10)" : "rgba(236,72,153,0.07)",
-                                                        }}
-                                                    />
-                                                    <Chip
-                                                        label={`Metrik: ${metric}`}
-                                                        sx={{
-                                                            fontWeight: 900,
-                                                            border: "1px solid",
-                                                            borderColor: darkMode ? "rgba(34,211,238,0.22)" : "rgba(34,211,238,0.18)",
-                                                            bgcolor: darkMode ? "rgba(34,211,238,0.10)" : "rgba(34,211,238,0.07)",
-                                                        }}
-                                                    />
-                                                </Stack>
                                             </Box>
 
                                             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
+                                                <FormControl size="small" sx={{ minWidth: 160 }}>
+                                                    <InputLabel>Aralık</InputLabel>
+                                                    <Select value={rangeDays} label="Aralık" onChange={(e) => setRangeDays(Number(e.target.value))}>
+                                                        <MenuItem value={7}>Son 7 gün</MenuItem>
+                                                        <MenuItem value={14}>Son 14 gün</MenuItem>
+                                                        <MenuItem value={30}>Son 30 gün</MenuItem>
+                                                    </Select>
+                                                </FormControl>
+
+                                                <FormControl size="small" sx={{ minWidth: 220 }}>
+                                                    <InputLabel>Firma</InputLabel>
+                                                    <Select value={selectedFirma} label="Firma" onChange={(e) => setSelectedFirma(e.target.value)}>
+                                                        {firmalar.map((f) => (
+                                                            <MenuItem key={f} value={f}>
+                                                                {f}
+                                                            </MenuItem>
+                                                        ))}
+                                                    </Select>
+                                                </FormControl>
+
+                                                <ToggleButtonGroup
+                                                    value={chartType}
+                                                    exclusive
+                                                    onChange={(_, v) => v && setChartType(v)}
+                                                    size="small"
+                                                    sx={{ bgcolor: "rgba(255,255,255,0.03)", borderRadius: 999, p: 0.25 }}
+                                                >
+                                                    <ToggleButton value="area" sx={{ borderRadius: 999, px: 2 }}>
+                                                        Area
+                                                    </ToggleButton>
+                                                    <ToggleButton value="line" sx={{ borderRadius: 999, px: 2 }}>
+                                                        Line
+                                                    </ToggleButton>
+                                                    <ToggleButton value="bar" sx={{ borderRadius: 999, px: 2 }}>
+                                                        Bar
+                                                    </ToggleButton>
+                                                </ToggleButtonGroup>
+
                                                 <Button
                                                     variant="outlined"
                                                     onClick={() => setSelectedFirma("Hepsi")}
-                                                    sx={{
-                                                        borderRadius: 999,
-                                                        fontWeight: 950,
-                                                        borderColor: darkMode ? "rgba(167,139,250,0.26)" : "rgba(139,92,246,0.18)",
-                                                        bgcolor: darkMode ? "rgba(139,92,246,0.08)" : "rgba(139,92,246,0.06)",
-                                                    }}
+                                                    sx={{ borderRadius: 999, borderColor: "rgba(167,139,250,0.26)", bgcolor: "rgba(139,92,246,0.08)" }}
                                                 >
-                                                    Filtreyi Sıfırla
-                                                </Button>
-
-                                                <Button
-                                                    variant="contained"
-                                                    onClick={() => setChartType("area")}
-                                                    sx={{
-                                                        borderRadius: 999,
-                                                        fontWeight: 950,
-                                                        bgcolor: darkMode ? "rgba(139,92,246,0.90)" : accent.primary,
-                                                        color: "#fff",
-                                                        boxShadow: darkMode
-                                                            ? "0 18px 60px rgba(139,92,246,0.18)"
-                                                            : "0 18px 55px rgba(139,92,246,0.22)",
-                                                        "&:hover": { bgcolor: accent.primary2 },
-                                                    }}
-                                                >
-                                                    Modern Grafik
+                                                    Sıfırla
                                                 </Button>
                                             </Stack>
                                         </Stack>
+
+                                        <Box
+                                            sx={{
+                                                position: "absolute",
+                                                inset: 0,
+                                                pointerEvents: "none",
+                                                background:
+                                                    "radial-gradient(900px circle at 10% 10%, rgba(139,92,246,0.18), transparent 60%), radial-gradient(900px circle at 90% 60%, rgba(236,72,153,0.10), transparent 60%)",
+                                                opacity: 0.9,
+                                            }}
+                                        />
                                     </CardContent>
                                 </Card>
 
-                                {/* KPI GRID */}
+                                {/* KPI row */}
                                 <Box
                                     sx={{
                                         display: "grid",
-                                        gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(3, 1fr)" },
+                                        gridTemplateColumns: { xs: "1fr", sm: "repeat(4, 1fr)" },
                                         gap: 2,
                                     }}
                                 >
                                     {[
-                                        {
-                                            title: "Bugünkü Kargo (Örnek)",
-                                            value: "12",
-                                            icon: <Inventory2Icon />,
-                                            tint: darkMode ? "rgba(139,92,246,0.30)" : "rgba(139,92,246,0.22)",
-                                            grad: `linear-gradient(90deg, ${accent.primary2}, ${accent.pink})`,
-                                        },
-                                        {
-                                            title: "Toplam Firma",
-                                            value: `${Math.max(0, firmalar.length - 1)}`,
-                                            icon: <BusinessIcon />,
-                                            tint: darkMode ? "rgba(236,72,153,0.24)" : "rgba(236,72,153,0.18)",
-                                            grad: `linear-gradient(90deg, ${accent.pink}, ${accent.primary})`,
-                                        },
-                                        {
-                                            title: "Kullanıcı",
-                                            value: `${adSoyad}`,
-                                            icon: <PersonIcon />,
-                                            tint: darkMode ? "rgba(34,211,238,0.22)" : "rgba(34,211,238,0.16)",
-                                            grad: `linear-gradient(90deg, ${accent.cyan}, ${accent.primary2})`,
-                                        },
+                                        { title: "Bugün", value: todayCount, icon: <DescriptionRoundedIcon />, sub: "evrak" },
+                                        { title: `Toplam (${rangeDays}g)`, value: totalCount, icon: <AssessmentRoundedIcon />, sub: "evrak" },
+                                        { title: "Ortalama", value: avgCount, icon: <BoltIcon />, sub: "evrak/gün" },
+                                        { title: "Pik Gün", value: maxDay ? `${maxDay.label} • ${maxDay.count}` : "-", icon: <AutoGraphIcon />, sub: "en yoğun" },
                                     ].map((k) => (
-                                        <Card
-                                            key={k.title}
-                                            sx={{
-                                                position: "relative",
-                                                overflow: "hidden",
-                                                borderRadius: 4,
-                                                transition: "transform .18s ease, box-shadow .18s ease",
-                                                "&:before": {
-                                                    content: '""',
-                                                    position: "absolute",
-                                                    inset: 0,
-                                                    padding: "1px",
-                                                    borderRadius: "inherit",
-                                                    background: k.grad,
-                                                    WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
-                                                    WebkitMaskComposite: "xor",
-                                                    maskComposite: "exclude",
-                                                    opacity: darkMode ? 0.55 : 0.45,
-                                                    pointerEvents: "none",
-                                                },
-                                                "&:after": {
-                                                    content: '""',
-                                                    position: "absolute",
-                                                    inset: 0,
-                                                    background: darkMode
-                                                        ? `radial-gradient(600px circle at 10% 0%, ${k.tint}, transparent 55%)`
-                                                        : `radial-gradient(600px circle at 10% 0%, ${k.tint}, transparent 60%)`,
-                                                    pointerEvents: "none",
-                                                },
-                                                "&:hover": {
-                                                    transform: "translateY(-2px)",
-                                                    boxShadow: darkMode
-                                                        ? "0 22px 80px rgba(139,92,246,0.14)"
-                                                        : "0 18px 60px rgba(139,92,246,0.18)",
-                                                },
-                                            }}
-                                        >
+                                        <Card key={k.title} sx={{ borderRadius: 4, overflow: "hidden", position: "relative" }}>
                                             <CardContent sx={{ position: "relative", zIndex: 1 }}>
                                                 <Stack direction="row" alignItems="center" justifyContent="space-between">
-                                                    <Typography variant="overline" sx={{ opacity: 0.8, fontWeight: 950 }}>
+                                                    <Typography variant="overline" sx={{ opacity: 0.84, fontWeight: 950 }}>
                                                         {k.title}
                                                     </Typography>
-
                                                     <Box
                                                         sx={{
                                                             width: 40,
@@ -630,207 +574,149 @@ function Anasayfa() {
                                                             borderRadius: 3,
                                                             display: "grid",
                                                             placeItems: "center",
-                                                            border: darkMode ? "1px solid rgba(167,139,250,0.22)" : "1px solid rgba(139,92,246,0.14)",
-                                                            bgcolor: darkMode ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.65)",
-                                                            boxShadow: darkMode ? "0 14px 40px rgba(0,0,0,0.35)" : "0 10px 24px rgba(0,0,0,0.08)",
+                                                            border: "1px solid rgba(167,139,250,0.18)",
+                                                            bgcolor: "rgba(255,255,255,0.03)",
                                                         }}
                                                     >
-                                                        {React.cloneElement(k.icon, {
-                                                            style: { color: darkMode ? "rgba(196,181,253,0.95)" : accent.primary },
-                                                        })}
+                                                        {React.cloneElement(k.icon, { style: { color: "rgba(196,181,253,0.95)" } })}
                                                     </Box>
                                                 </Stack>
 
-                                                <Typography
-                                                    variant={k.title === "Kullanıcı" ? "h6" : "h3"}
-                                                    fontWeight={980}
-                                                    sx={{ mt: 1.2, lineHeight: 1.1 }}
-                                                    noWrap={k.title === "Kullanıcı"}
-                                                >
+                                                <Typography variant={k.title === "Pik Gün" ? "h6" : "h3"} fontWeight={980} sx={{ mt: 1.1, lineHeight: 1.1 }} noWrap>
                                                     {k.value}
                                                 </Typography>
 
-                                                {k.title !== "Kullanıcı" && (
-                                                    <Box sx={{ mt: 1.2, height: 46, opacity: 0.95 }}>
-                                                        <ResponsiveContainer width="100%" height="100%">
-                                                            <LineChart data={dailyData}>
-                                                                <Line
-                                                                    type="monotone"
-                                                                    dataKey="count"
-                                                                    stroke={darkMode ? accent.primary2 : accent.primary}
-                                                                    strokeWidth={2}
-                                                                    dot={false}
-                                                                />
-                                                            </LineChart>
-                                                        </ResponsiveContainer>
-                                                    </Box>
-                                                )}
+                                                <Typography variant="caption" sx={{ opacity: 0.72 }}>
+                                                    {k.sub}
+                                                </Typography>
                                             </CardContent>
+
+                                            <Box
+                                                sx={{
+                                                    position: "absolute",
+                                                    inset: 0,
+                                                    pointerEvents: "none",
+                                                    background: "radial-gradient(520px circle at 10% 0%, rgba(139,92,246,0.18), transparent 55%)",
+                                                }}
+                                            />
                                         </Card>
                                     ))}
                                 </Box>
 
-                                {/* CHART + FILTERS */}
-                                <Card sx={{ borderRadius: 4, overflow: "hidden" }}>
-                                    <CardContent sx={{ pb: 2.5 }}>
-                                        <Stack
-                                            direction={{ xs: "column", md: "row" }}
-                                            spacing={1.5}
-                                            alignItems={{ md: "center" }}
-                                            justifyContent="space-between"
-                                            sx={{ mb: 1.5 }}
-                                        >
-                                            <Box sx={{ minWidth: 0 }}>
-                                                <Typography variant="h6" fontWeight={980}>
-                                                    {metric === "kargo" ? "Günlük Kargo Sayısı" : "Günlük Evrak Adedi"}{" "}
-                                                    <Typography component="span" sx={{ opacity: 0.72, fontWeight: 600 }}>
-                                                        (Son 7 Gün)
-                                                    </Typography>
-                                                </Typography>
-                                                <Typography sx={{ opacity: 0.72, mt: 0.25 }}>
-                                                    Filtre ve grafik tipi değiştirerek hızlı analiz yap.
-                                                </Typography>
-                                            </Box>
-
-                                            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
-                                                <Chip
-                                                    label={`TOPLAM: ${totalCount} kayıt`}
-                                                    sx={{
-                                                        fontWeight: 950,
-                                                        border: "1px solid",
-                                                        borderColor: darkMode ? "rgba(167,139,250,0.35)" : "rgba(139,92,246,0.25)",
-                                                        bgcolor: darkMode ? "rgba(139,92,246,0.14)" : "rgba(139,92,246,0.10)",
-                                                    }}
-                                                />
-
-                                                <ToggleButtonGroup
-                                                    value={chartType}
-                                                    exclusive
-                                                    onChange={(_, v) => v && setChartType(v)}
-                                                    size="small"
-                                                    sx={{
-                                                        bgcolor: darkMode ? "rgba(255,255,255,0.03)" : "rgba(139,92,246,0.05)",
-                                                        borderRadius: 999,
-                                                        p: 0.25,
-                                                    }}
-                                                >
-                                                    <ToggleButton value="bar" sx={{ borderRadius: 999, px: 2 }}>
-                                                        Bar
-                                                    </ToggleButton>
-                                                    <ToggleButton value="line" sx={{ borderRadius: 999, px: 2 }}>
-                                                        Line
-                                                    </ToggleButton>
-                                                    <ToggleButton value="area" sx={{ borderRadius: 999, px: 2 }}>
-                                                        Area
-                                                    </ToggleButton>
-                                                </ToggleButtonGroup>
-                                            </Stack>
-                                        </Stack>
-
-                                        <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ mb: 1.5 }}>
-                                            <FormControl size="small" sx={{ minWidth: 160 }}>
-                                                <InputLabel>Metrik</InputLabel>
-                                                <Select value={metric} label="Metrik" onChange={(e) => setMetric(e.target.value)}>
-                                                    <MenuItem value="kargo">kargo</MenuItem>
-                                                    <MenuItem value="evrak">evrak</MenuItem>
-                                                </Select>
-                                            </FormControl>
-
-                                            <FormControl size="small" sx={{ minWidth: 220 }}>
-                                                <InputLabel>Firma</InputLabel>
-                                                <Select value={selectedFirma} label="Firma" onChange={(e) => setSelectedFirma(e.target.value)}>
-                                                    {firmalar.map((f) => (
-                                                        <MenuItem key={f} value={f}>
-                                                            {f}
-                                                        </MenuItem>
-                                                    ))}
-                                                </Select>
-                                            </FormControl>
-
-                                            <Box sx={{ flex: 1 }} />
-
-                                            <Button
-                                                variant="outlined"
-                                                onClick={() => setSelectedFirma("Hepsi")}
-                                                sx={{
-                                                    borderRadius: 999,
-                                                    fontWeight: 950,
-                                                    borderColor: darkMode ? "rgba(167,139,250,0.26)" : "rgba(139,92,246,0.18)",
-                                                    bgcolor: darkMode ? "rgba(139,92,246,0.08)" : "rgba(139,92,246,0.06)",
-                                                }}
-                                            >
-                                                Firma Sıfırla
-                                            </Button>
-                                        </Stack>
-
-                                        <Box
-                                            sx={{
-                                                height: 380,
-                                                position: "relative",
-                                                borderRadius: 4,
-                                                overflow: "hidden",
-                                                border: darkMode ? "1px solid rgba(167,139,250,0.16)" : "1px solid rgba(139,92,246,0.12)",
-                                                bgcolor: darkMode ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.75)",
-                                            }}
-                                        >
-                                            {loading ? (
-                                                <Stack alignItems="center" justifyContent="center" sx={{ height: "100%" }} spacing={1.5}>
-                                                    <CircularProgress />
-                                                    <Typography sx={{ opacity: 0.82 }}>{metricLabel} verileri yükleniyor...</Typography>
-                                                </Stack>
-                                            ) : (
-                                                <Box sx={{ p: 1.5 }}>
-                                                    <Chart />
-                                                </Box>
-                                            )}
-                                        </Box>
-                                    </CardContent>
-                                </Card>
-
-                                {/* DAILY TILES */}
+                                {/* Main chart + mini Top5 (tek satır, sade) */}
                                 <Box
                                     sx={{
                                         display: "grid",
-                                        gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(4, 1fr)", md: "repeat(7, 1fr)" },
-                                        gap: 1.5,
+                                        gridTemplateColumns: { xs: "1fr", lg: "2fr 1fr" },
+                                        gap: 2,
+                                        alignItems: "stretch",
                                     }}
                                 >
-                                    {dailyData.map((item) => (
-                                        <Card
-                                            key={item.date}
-                                            sx={{
-                                                borderRadius: 4,
-                                                overflow: "hidden",
-                                                position: "relative",
-                                                transition: "transform .18s ease, box-shadow .18s ease",
-                                                "&:after": {
-                                                    content: '""',
-                                                    position: "absolute",
-                                                    inset: 0,
-                                                    background: darkMode
-                                                        ? "radial-gradient(300px circle at 20% 0%, rgba(139,92,246,0.16), transparent 60%)"
-                                                        : "radial-gradient(300px circle at 20% 0%, rgba(139,92,246,0.10), transparent 65%)",
-                                                    pointerEvents: "none",
-                                                },
-                                                "&:hover": {
-                                                    transform: "translateY(-2px)",
-                                                    boxShadow: darkMode ? "0 18px 60px rgba(139,92,246,0.12)" : "0 18px 55px rgba(139,92,246,0.16)",
-                                                },
-                                            }}
-                                        >
-                                            <CardContent sx={{ position: "relative", zIndex: 1, py: 1.6 }}>
-                                                <Typography fontWeight={950} sx={{ opacity: 0.85 }}>
-                                                    {item.label}
-                                                </Typography>
-                                                <Typography variant="h5" fontWeight={980} sx={{ mt: 0.6, lineHeight: 1.1 }}>
-                                                    {item.count}
-                                                </Typography>
-                                                <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                                                    {metricLabel.toLowerCase()}
-                                                </Typography>
-                                            </CardContent>
-                                        </Card>
-                                    ))}
+                                    {/* Main Chart */}
+                                    <Card sx={{ borderRadius: 4, overflow: "hidden" }}>
+                                        <CardContent sx={{ pb: 2.5 }}>
+                                            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.2 }}>
+                                                <Box>
+                                                    <Typography variant="h6" fontWeight={980}>
+                                                        Evrak Trend
+                                                    </Typography>
+                                                    <Typography sx={{ opacity: 0.72 }}>Günlük toplam evrak adedi</Typography>
+                                                </Box>
+                                                <Chip
+                                                    label={`TOPLAM: ${totalCount}`}
+                                                    sx={{ fontWeight: 950, border: "1px solid rgba(167,139,250,0.35)", bgcolor: "rgba(139,92,246,0.14)" }}
+                                                />
+                                            </Stack>
+
+                                            <Box
+                                                sx={{
+                                                    height: { xs: 380, md: 460 },
+                                                    position: "relative",
+                                                    borderRadius: 4,
+                                                    overflow: "hidden",
+                                                    border: "1px solid rgba(167,139,250,0.16)",
+                                                    bgcolor: "rgba(255,255,255,0.02)",
+                                                }}
+                                            >
+                                                <Box
+                                                    sx={{
+                                                        position: "absolute",
+                                                        inset: 0,
+                                                        pointerEvents: "none",
+                                                        background:
+                                                            "radial-gradient(900px circle at 10% 10%, rgba(139,92,246,0.16), transparent 60%), radial-gradient(900px circle at 90% 60%, rgba(236,72,153,0.10), transparent 60%)",
+                                                    }}
+                                                />
+
+                                                {loading ? (
+                                                    <Stack alignItems="center" justifyContent="center" sx={{ height: "100%", position: "relative" }} spacing={1.5}>
+                                                        <CircularProgress />
+                                                        <Typography sx={{ opacity: 0.82 }}>Evrak verileri yükleniyor...</Typography>
+                                                    </Stack>
+                                                ) : (
+                                                    <Box sx={{ p: 1.5, height: "100%", position: "relative" }}>
+                                                        <MainChart />
+                                                    </Box>
+                                                )}
+                                            </Box>
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Mini Top 5 */}
+                                    <Card sx={{ borderRadius: 4, overflow: "hidden" }}>
+                                        <CardContent>
+                                            <Typography variant="h6" fontWeight={980}>
+                                                Top 5 Firma
+                                            </Typography>
+                                            <Typography sx={{ opacity: 0.72, mt: 0.2 }}>Evrak toplamı</Typography>
+
+                                            <Divider sx={{ my: 1.6, borderColor: "rgba(167,139,250,0.14)" }} />
+
+                                            <Box sx={{ height: { xs: 260, lg: 360 } }}>
+                                                {loading ? (
+                                                    <Stack alignItems="center" justifyContent="center" sx={{ height: "100%" }} spacing={1.2}>
+                                                        <CircularProgress size={26} />
+                                                        <Typography sx={{ opacity: 0.82 }}>Yükleniyor...</Typography>
+                                                    </Stack>
+                                                ) : top5.length === 0 ? (
+                                                    <Stack alignItems="center" justifyContent="center" sx={{ height: "100%" }}>
+                                                        <Typography sx={{ opacity: 0.82 }}>Veri yok</Typography>
+                                                    </Stack>
+                                                ) : (
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <BarChart data={top5} layout="vertical" margin={{ top: 6, right: 18, bottom: 6, left: 12 }}>
+                                                            <defs>
+                                                                <linearGradient id="miniGrad" x1="0" y1="0" x2="1" y2="0">
+                                                                    <stop offset="0%" stopColor={accent.primary2} stopOpacity={0.9} />
+                                                                    <stop offset="65%" stopColor={accent.pink} stopOpacity={0.26} />
+                                                                    <stop offset="100%" stopColor={accent.cyan} stopOpacity={0.18} />
+                                                                </linearGradient>
+                                                            </defs>
+                                                            <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.12} horizontal={false} />
+                                                            <XAxis type="number" tick={{ fill: "#c4b5fd", fontSize: 12 }} />
+                                                            <YAxis type="category" dataKey="name" width={120} tick={{ fill: "#c4b5fd", fontSize: 12 }} />
+                                                            <Tooltip
+                                                                contentStyle={{
+                                                                    background: "rgba(10,12,20,0.94)",
+                                                                    border: "1px solid rgba(167,139,250,0.18)",
+                                                                    borderRadius: 14,
+                                                                }}
+                                                                formatter={(v) => [`${v} evrak`, "Toplam"]}
+                                                            />
+                                                            <Bar dataKey="value" fill="url(#miniGrad)" radius={[10, 10, 10, 10]} />
+                                                        </BarChart>
+                                                    </ResponsiveContainer>
+                                                )}
+                                            </Box>
+
+                                            <Box sx={{ mt: 1.2 }}>
+                                                <Chip
+                                                    label={selectedFirma === "Hepsi" ? "Tüm firmalar" : `Filtre: ${selectedFirma}`}
+                                                    sx={{ fontWeight: 900, border: "1px solid rgba(167,139,250,0.22)", bgcolor: "rgba(139,92,246,0.10)" }}
+                                                />
+                                            </Box>
+                                        </CardContent>
+                                    </Card>
                                 </Box>
                             </Stack>
                         )}
@@ -840,5 +726,3 @@ function Anasayfa() {
         </ThemeProvider>
     );
 }
-
-export default Anasayfa;

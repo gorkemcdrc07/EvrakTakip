@@ -1,5 +1,6 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
-import { supabase } from './supabaseClient';
+﻿// TopluEvraklar.jsx (Güncel - Modern UI + tema uyumlu HERO + modern butonlar + filtre paneli düzeltildi)
+import React, { useEffect, useMemo, useState } from "react";
+import { supabase } from "./supabaseClient";
 import {
     FiFile,
     FiHome,
@@ -10,13 +11,94 @@ import {
     FiEdit2,
     FiInfo,
     FiSearch,
-} from 'react-icons/fi';
-import Layout from './components/Layout';
-import * as XLSX from 'xlsx';
-import { useNavigate } from 'react-router-dom';
-import EditEvrakModal from './components/EditEvrakModal';
+    FiChevronRight,
+} from "react-icons/fi";
+import Layout from "./components/Layout";
+import * as XLSX from "xlsx";
+import { useNavigate } from "react-router-dom";
+import EditEvrakModal from "./components/EditEvrakModal";
 import ModernSummary from "./components/ModernSummary";
 
+/* ---------- mini ui kit (bu sayfaya özel) ---------- */
+const cx = (...a) => a.filter(Boolean).join(" ");
+
+function Btn({ variant = "primary", size = "md", leftIcon: L, rightIcon: R, className, ...props }) {
+    const sizes = { sm: "h-10 px-4 text-xs", md: "h-11 px-5 text-sm", lg: "h-12 px-6 text-sm" };
+    const base =
+        "inline-flex items-center justify-center gap-2 rounded-2xl font-extrabold transition-all duration-200 " +
+        "active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed " +
+        "focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-500/20";
+    const variants = {
+        primary:
+            "text-white bg-gradient-to-r from-violet-600 via-fuchsia-600 to-violet-600 " +
+            "border border-white/10 shadow-[0_18px_60px_rgba(139,92,246,0.24)] hover:brightness-[1.05]",
+        secondary:
+            "text-zinc-900 dark:text-zinc-100 bg-white/75 dark:bg-white/[0.05] backdrop-blur-xl " +
+            "border border-violet-200/60 dark:border-white/10 hover:bg-violet-50/70 dark:hover:bg-white/[0.08]",
+        ghost:
+            "text-violet-700 dark:text-violet-200 bg-transparent border border-transparent " +
+            "hover:bg-violet-50/70 dark:hover:bg-white/[0.06]",
+        danger:
+            "text-white bg-gradient-to-r from-rose-600 via-red-600 to-rose-600 border border-white/10 " +
+            "shadow-[0_18px_55px_rgba(239,68,68,0.22)] hover:brightness-[1.05]",
+        emerald:
+            "text-white bg-gradient-to-r from-emerald-600 via-emerald-600 to-teal-600 border border-white/10 " +
+            "shadow-[0_18px_55px_rgba(16,185,129,0.22)] hover:brightness-[1.05]",
+    };
+    return (
+        <button className={cx(base, sizes[size], variants[variant], className)} {...props}>
+            {L ? <L /> : null}
+            {props.children}
+            {R ? <R /> : null}
+        </button>
+    );
+}
+
+function IconBtn({ title, onClick, children, variant = "secondary", className, ...props }) {
+    const v =
+        variant === "danger"
+            ? "text-white bg-rose-600 hover:bg-rose-700 border border-white/10"
+            : "text-zinc-800 dark:text-zinc-100 bg-white/75 dark:bg-white/[0.05] border border-violet-200/60 dark:border-white/10 hover:bg-violet-50/70 dark:hover:bg-white/[0.08]";
+    return (
+        <button
+            type="button"
+            title={title}
+            onClick={onClick}
+            className={cx(
+                "grid h-10 w-10 place-items-center rounded-2xl transition-all duration-200 active:scale-[0.98] " +
+                "focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-500/20",
+                v,
+                className
+            )}
+            {...props}
+        >
+            {children}
+        </button>
+    );
+}
+
+function Tag({ tone = "neutral", children }) {
+    const tones = {
+        neutral:
+            "bg-white/75 border border-violet-200/60 text-zinc-700 dark:bg-white/[0.05] dark:border-white/10 dark:text-zinc-200",
+        info:
+            "bg-violet-50 border border-violet-200 text-violet-800 dark:bg-white/[0.05] dark:border-white/10 dark:text-violet-200",
+        ok: "bg-emerald-50 border border-emerald-200 text-emerald-800 dark:bg-emerald-900/20 dark:border-emerald-900/30 dark:text-emerald-200",
+        warn: "bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-900/20 dark:border-amber-900/30 dark:text-amber-200",
+        danger: "bg-red-50 border border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-900/30 dark:text-red-200",
+    };
+    return (
+        <span className={cx("inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-extrabold", tones[tone])}>
+            {children}
+        </span>
+    );
+}
+
+function SkeletonRow() {
+    return <div className="h-12 rounded-2xl bg-zinc-200/70 dark:bg-white/[0.06] animate-pulse" />;
+}
+
+/* ---------- component ---------- */
 function TopluEvraklar() {
     const navigate = useNavigate();
 
@@ -27,29 +109,24 @@ function TopluEvraklar() {
 
     // kart -> panel
     const [panelOpen, setPanelOpen] = useState(false);
-    const [panelTitle, setPanelTitle] = useState('');
+    const [panelTitle, setPanelTitle] = useState("");
     const [panelRows, setPanelRows] = useState([]);
 
     // filtre state'leri
     const initialFilterState = {
-        startDate: '',
-        endDate: '',
+        startDate: "",
+        endDate: "",
         lokasyon: [],
         proje: [],
-        aciklama: '',
-        seferno: ''
+        aciklama: "",
+        seferno: "",
     };
     const [filters, setFilters] = useState(initialFilterState);
     const [showFilters, setShowFilters] = useState(false);
     const [draft, setDraft] = useState(initialFilterState);
 
     const hasActiveFilters = Boolean(
-        filters.startDate ||
-        filters.endDate ||
-        filters.lokasyon?.length ||
-        filters.proje?.length ||
-        filters.aciklama ||
-        filters.seferno
+        filters.startDate || filters.endDate || filters.lokasyon?.length || filters.proje?.length || filters.aciklama || filters.seferno
     );
 
     const [selectedEvrak, setSelectedEvrak] = useState(null);
@@ -60,8 +137,11 @@ function TopluEvraklar() {
     const deepClone = (x) => JSON.parse(JSON.stringify(x));
     const hasUnsavedEdit = useMemo(() => {
         if (!showEditModal || !selectedEvrak || !originalEvrak) return false;
-        try { return JSON.stringify(selectedEvrak) !== JSON.stringify(originalEvrak); }
-        catch { return true; }
+        try {
+            return JSON.stringify(selectedEvrak) !== JSON.stringify(originalEvrak);
+        } catch {
+            return true;
+        }
     }, [showEditModal, selectedEvrak, originalEvrak]);
 
     const [deletingId, setDeletingId] = useState(null);
@@ -71,30 +151,28 @@ function TopluEvraklar() {
     const [detailEvrak, setDetailEvrak] = useState(null);
     const [showDetailCard, setShowDetailCard] = useState(false);
 
-    const normalize = (str) => (str || '').trim().toLocaleUpperCase('tr').replace(/\s+/g, ' ');
+    const normalize = (str) => (str || "").trim().toLocaleUpperCase("tr").replace(/\s+/g, " ");
     const toplamSefer = evraklar.reduce((sum, evrak) => sum + (evrak.sefersayisi || 0), 0);
 
     const duzeltilmis = evraklar.reduce(
         (sum, evrak) =>
             sum +
-            (evrak.evrakseferler?.filter(
-                (s) => normalize(s.aciklama) === 'TARAFIMIZCA DÜZELTİLMİŞTİR'
-            ).length || 0),
+            (evrak.evrakseferler?.filter((s) => normalize(s.aciklama) === "TARAFIMIZCA DÜZELTİLMİŞTİR").length || 0),
         0
     );
 
     const orjinaleCekilmis = evraklar.reduce(
         (sum, evrak) =>
             sum +
-            (evrak.evrakseferler?.filter(
-                (s) => normalize(s.aciklama) === 'TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR'
-            ).length || 0),
+            (evrak.evrakseferler?.filter((s) => normalize(s.aciklama) === "TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR").length || 0),
         0
     );
 
-    const oran = (value) => (toplamSefer ? ((value / toplamSefer) * 100).toFixed(1) : '0.0');
+    const oran = (value) => (toplamSefer ? ((value / toplamSefer) * 100).toFixed(1) : "0.0");
 
-    useEffect(() => { fetchVeriler(); }, []);
+    useEffect(() => {
+        fetchVeriler();
+    }, []);
 
     // Modal açılınca orijinali yakala, kapanınca sıfırla
     useEffect(() => {
@@ -107,30 +185,33 @@ function TopluEvraklar() {
         const handler = (e) => {
             if (!hasUnsavedEdit) return;
             e.preventDefault();
-            e.returnValue = '';
+            e.returnValue = "";
         };
-        if (hasUnsavedEdit) window.addEventListener('beforeunload', handler);
-        return () => window.removeEventListener('beforeunload', handler);
+        if (hasUnsavedEdit) window.addEventListener("beforeunload", handler);
+        return () => window.removeEventListener("beforeunload", handler);
     }, [hasUnsavedEdit]);
 
     // SPA içinde anchor/Link tıklamalarını engelle
     useEffect(() => {
         const onAnchorClick = (e) => {
             if (!hasUnsavedEdit) return;
-            const a = e.target.closest('a');
+            const a = e.target.closest("a");
             if (!a) return;
-            if (a.origin === window.location.origin && a.target !== '_blank') {
-                const ok = window.confirm('Kaydedilmemiş değişiklikler var. Sayfadan ayrılmak istiyor musunuz?');
-                if (!ok) { e.preventDefault(); e.stopPropagation(); }
+            if (a.origin === window.location.origin && a.target !== "_blank") {
+                const ok = window.confirm("Kaydedilmemiş değişiklikler var. Sayfadan ayrılmak istiyor musunuz?");
+                if (!ok) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
             }
         };
-        if (hasUnsavedEdit) document.addEventListener('click', onAnchorClick, true);
-        return () => document.removeEventListener('click', onAnchorClick, true);
+        if (hasUnsavedEdit) document.addEventListener("click", onAnchorClick, true);
+        return () => document.removeEventListener("click", onAnchorClick, true);
     }, [hasUnsavedEdit]);
 
     const fetchVeriler = async () => {
         const { data: evrakData, error } = await supabase
-            .from('evraklar')
+            .from("evraklar")
             .select(
                 `
         id,
@@ -149,16 +230,14 @@ function TopluEvraklar() {
             );
 
         if (error) {
-            console.error('❌ Hata:', error);
+            console.error("❌ Hata:", error);
             return;
         }
 
-        const sortedEvraklar = (evrakData || []).sort(
-            (a, b) => new Date(b.tarih) - new Date(a.tarih)
-        );
+        const sortedEvraklar = (evrakData || []).sort((a, b) => new Date(b.tarih) - new Date(a.tarih));
 
-        const { data: lokasyonData } = await supabase.from('lokasyonlar').select('*');
-        const { data: projeData } = await supabase.from('projeler').select('*');
+        const { data: lokasyonData } = await supabase.from("lokasyonlar").select("*");
+        const { data: projeData } = await supabase.from("projeler").select("*");
 
         const lokasyonMap = {};
         lokasyonData?.forEach((l) => (lokasyonMap[l.id] = l.lokasyon));
@@ -174,15 +253,15 @@ function TopluEvraklar() {
 
     const goHome = () => {
         if (hasUnsavedEdit) {
-            const ok = window.confirm('Kaydedilmemiş değişiklikler var. Yine de anasayfaya dönülsün mü?');
+            const ok = window.confirm("Kaydedilmemiş değişiklikler var. Yine de anasayfaya dönülsün mü?");
             if (!ok) return;
         }
-        navigate('/Anasayfa');
+        navigate("/Anasayfa");
     };
 
     const handleCloseEditModal = () => {
         if (hasUnsavedEdit) {
-            const ok = window.confirm('Kaydedilmemiş değişiklikler var. Kapatmak istiyor musunuz?');
+            const ok = window.confirm("Kaydedilmemiş değişiklikler var. Kapatmak istiyor musunuz?");
             if (!ok) return;
         }
         setShowEditModal(false);
@@ -191,23 +270,21 @@ function TopluEvraklar() {
     };
 
     const handleEvrakSil = async (evrak) => {
-        const onay = window.confirm(
-            `#${evrak.id} numaralı evrağı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`
-        );
+        const onay = window.confirm(`#${evrak.id} numaralı evrağı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`);
         if (!onay) return;
 
         try {
             setDeletingId(evrak.id);
 
-            await supabase.from('evrakseferler').delete().eq('evrakid', evrak.id);
-            await supabase.from('evrakproje').delete().eq('evrakid', evrak.id);
-            const { error } = await supabase.from('evraklar').delete().eq('id', evrak.id);
+            await supabase.from("evrakseferler").delete().eq("evrakid", evrak.id);
+            await supabase.from("evrakproje").delete().eq("evrakid", evrak.id);
+            const { error } = await supabase.from("evraklar").delete().eq("id", evrak.id);
             if (error) throw error;
 
             setEvraklar((prev) => prev.filter((e) => e.id !== evrak.id));
         } catch (err) {
-            console.error('Silme hatası:', err);
-            alert('Silme sırasında bir hata oluştu.');
+            console.error("Silme hatası:", err);
+            alert("Silme sırasında bir hata oluştu.");
         } finally {
             setDeletingId(null);
         }
@@ -215,21 +292,17 @@ function TopluEvraklar() {
 
     // "Diğer" gibi birden fazla etiketi de açabilmek için:
     const openCardPanel = (arg) => {
-        const norm = (v) => (v || '').trim().toLocaleUpperCase('tr');
-        const labelOf = (v) => (norm(v) || '(BOŞ)');
+        const norm = (v) => (v || "").trim().toLocaleUpperCase("tr");
+        const labelOf = (v) => norm(v) || "(BOŞ)";
 
         let targetLabels = [];
-        if (typeof arg === 'string') {
-            targetLabels = [labelOf(arg)];
-        } else if (arg && Array.isArray(arg.names)) {
-            targetLabels = arg.names.map(labelOf);
-        } else {
-            return;
-        }
+        if (typeof arg === "string") targetLabels = [labelOf(arg)];
+        else if (arg && Array.isArray(arg.names)) targetLabels = arg.names.map(labelOf);
+        else return;
 
         const rows = [];
         evraklar.forEach((e) => {
-            const lok = lokasyonlar[e.lokasyonid] || '';
+            const lok = lokasyonlar[e.lokasyonid] || "";
             (e.evrakseferler || []).forEach((s) => {
                 const lbl = labelOf(s.aciklama);
                 if (targetLabels.includes(lbl)) {
@@ -237,22 +310,22 @@ function TopluEvraklar() {
                         evrakId: e.id,
                         tarih: e.tarih,
                         lokasyon: lok,
-                        seferno: (s.seferno || '').trim() || '(Boş)',
-                        aciklama: s.aciklama || '',
+                        seferno: (s.seferno || "").trim() || "(Boş)",
+                        aciklama: s.aciklama || "",
                     });
                 }
             });
         });
 
         rows.sort((a, b) => new Date(b.tarih) - new Date(a.tarih));
-        const title = targetLabels.length === 1 ? (arg?.name || arg || 'Detay') : 'Diğer';
+        const title = targetLabels.length === 1 ? arg?.name || arg || "Detay" : "Diğer";
 
         setPanelRows(rows);
         setPanelTitle(title);
         setPanelOpen(true);
     };
 
-    // 🔧 GÜNCELLEME: payload opsiyonel, yoksa selectedEvrak kullan
+    // 🔧 payload opsiyonel
     const handleEvrakGuncelle = async (payload) => {
         const evrakObj = payload || selectedEvrak;
         if (!evrakObj) return;
@@ -265,7 +338,7 @@ function TopluEvraklar() {
             ? evrakObj.evrakproje.filter((p) => p.projeid && !isNaN(p.projeid))
             : [];
 
-        const toplamSefer = evrakproje.reduce((sum, p) => sum + Number(p.sefersayisi || 0), 0);
+        const toplamSeferLocal = evrakproje.reduce((sum, p) => sum + Number(p.sefersayisi || 0), 0);
 
         const evrakseferler = Array.isArray(evrakObj.evrakseferler)
             ? evrakObj.evrakseferler.filter((s) => s.seferno && s.aciklama)
@@ -284,45 +357,37 @@ function TopluEvraklar() {
 
         try {
             const { error: errEvrak } = await supabase
-                .from('evraklar')
-                .update({ tarih, lokasyonid, sefersayisi: toplamSefer })
-                .eq('id', evrakId);
+                .from("evraklar")
+                .update({ tarih, lokasyonid, sefersayisi: toplamSeferLocal })
+                .eq("id", evrakId);
             if (errEvrak) throw errEvrak;
 
-            const { error: errProjDel } = await supabase.from('evrakproje').delete().eq('evrakid', evrakId);
+            const { error: errProjDel } = await supabase.from("evrakproje").delete().eq("evrakid", evrakId);
             if (errProjDel) throw errProjDel;
 
             if (evrakproje.length > 0) {
-                const { error: errProjIns } = await supabase.from('evrakproje').insert(
+                const { error: errProjIns } = await supabase.from("evrakproje").insert(
                     evrakproje.map((p) => ({
                         evrakid: evrakId,
                         projeid: Number(p.projeid),
-                        sefersayisi: Number(p.sefersayisi || 0)
+                        sefersayisi: Number(p.sefersayisi || 0),
                     }))
                 );
                 if (errProjIns) throw errProjIns;
             }
 
-            const { error: errSeferDel } = await supabase.from('evrakseferler').delete().eq('evrakid', evrakId);
+            const { error: errSeferDel } = await supabase.from("evrakseferler").delete().eq("evrakid", evrakId);
             if (errSeferDel) throw errSeferDel;
 
             if (uniqueSeferler.length > 0) {
-                const { error: errSeferIns } = await supabase.from('evrakseferler').insert(
+                const { error: errSeferIns } = await supabase.from("evrakseferler").insert(
                     uniqueSeferler.map((s) => ({
                         evrakid: evrakId,
                         seferno: s.seferno,
-                        aciklama: s.aciklama
+                        aciklama: s.aciklama,
                     }))
                 );
-                if (errSeferIns) {
-                    console.error('Insert error (evrakseferler):', {
-                        message: errSeferIns.message,
-                        details: errSeferIns.details,
-                        hint: errSeferIns.hint,
-                        code: errSeferIns.code,
-                    });
-                    throw errSeferIns;
-                }
+                if (errSeferIns) throw errSeferIns;
             }
 
             await fetchVeriler();
@@ -330,8 +395,8 @@ function TopluEvraklar() {
             setShowEditModal(false);
             setSelectedEvrak(null);
         } catch (error) {
-            console.error('Evrak güncelleme hatası:', error);
-            alert('Güncelleme sırasında bir hata oluştu.');
+            console.error("Evrak güncelleme hatası:", error);
+            alert("Güncelleme sırasında bir hata oluştu.");
         }
     };
 
@@ -339,34 +404,26 @@ function TopluEvraklar() {
         const sheetData = [];
         const merges = [];
 
-        const headers = ['Tarih', 'Lokasyon', 'Projeler', 'Toplam Sefer Sayısı', 'Sefer No', 'Açıklama'];
+        const headers = ["Tarih", "Lokasyon", "Projeler", "Toplam Sefer Sayısı", "Sefer No", "Açıklama"];
         sheetData.push(headers);
 
         let currentRow = 1;
 
         evraklar.forEach((evrak) => {
-            const tarih = new Date(evrak.tarih).toLocaleDateString('tr-TR');
-            const lokasyon = lokasyonlar[evrak.lokasyonid] || 'Bilinmeyen Lokasyon';
-            const projeList =
-                evrak.evrakproje?.map((p) => `${projeler[p.projeid]} (${p.sefersayisi})`).join(', ') || 'Yok';
-            const toplamSefer = evrak.sefersayisi || 0;
+            const tarih = new Date(evrak.tarih).toLocaleDateString("tr-TR");
+            const lokasyon = lokasyonlar[evrak.lokasyonid] || "Bilinmeyen Lokasyon";
+            const projeList = evrak.evrakproje?.map((p) => `${projeler[p.projeid]} (${p.sefersayisi})`).join(", ") || "Yok";
+            const toplam = evrak.sefersayisi || 0;
 
             const seferler = evrak.evrakseferler?.length
                 ? evrak.evrakseferler
-                : [{ seferno: 'Yok', aciklama: 'Sefer kaydı bulunamadı' }];
+                : [{ seferno: "Yok", aciklama: "Sefer kaydı bulunamadı" }];
 
             const rowStart = currentRow;
             const rowEnd = currentRow + seferler.length - 1;
 
             seferler.forEach((sefer) => {
-                sheetData.push([
-                    tarih,
-                    lokasyon,
-                    projeList,
-                    toplamSefer,
-                    sefer.seferno || 'Yok',
-                    sefer.aciklama || 'Yok'
-                ]);
+                sheetData.push([tarih, lokasyon, projeList, toplam, sefer.seferno || "Yok", sefer.aciklama || "Yok"]);
                 currentRow++;
             });
 
@@ -381,87 +438,68 @@ function TopluEvraklar() {
         });
 
         const ws = XLSX.utils.aoa_to_sheet(sheetData);
-        ws['!merges'] = merges;
-
-        ws['!cols'] = [{ wch: 15 }, { wch: 25 }, { wch: 40 }, { wch: 22 }, { wch: 18 }, { wch: 40 }];
+        ws["!merges"] = merges;
+        ws["!cols"] = [{ wch: 15 }, { wch: 25 }, { wch: 40 }, { wch: 22 }, { wch: 18 }, { wch: 40 }];
 
         const borderStyle = {
-            top: { style: 'thin', color: { rgb: 'CCCCCC' } },
-            bottom: { style: 'thin', color: { rgb: 'CCCCCC' } },
-            left: { style: 'thin', color: { rgb: 'CCCCCC' } },
-            right: { style: 'thin', color: { rgb: 'CCCCCC' } }
+            top: { style: "thin", color: { rgb: "CCCCCC" } },
+            bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+            left: { style: "thin", color: { rgb: "CCCCCC" } },
+            right: { style: "thin", color: { rgb: "CCCCCC" } },
         };
 
         const headerStyle = {
-            font: { bold: true, color: { rgb: 'FFFFFF' } },
-            alignment: { horizontal: 'center', vertical: 'center' },
-            fill: { fgColor: { rgb: '3B82F6' } },
-            border: borderStyle
+            font: { bold: true, color: { rgb: "FFFFFF" } },
+            alignment: { horizontal: "center", vertical: "center" },
+            fill: { fgColor: { rgb: "7C3AED" } },
+            border: borderStyle,
         };
 
-        const rowStyleLight = { fill: { fgColor: { rgb: 'F9FAFB' } }, border: borderStyle };
-        const rowStyleDark = { fill: { fgColor: { rgb: 'EDF2F7' } }, border: borderStyle };
+        const rowStyleLight = { fill: { fgColor: { rgb: "F9FAFB" } }, border: borderStyle };
+        const rowStyleDark = { fill: { fgColor: { rgb: "EEF2FF" } }, border: borderStyle };
         const plainCell = { border: borderStyle };
 
-        const range = XLSX.utils.decode_range(ws['!ref']);
+        const range = XLSX.utils.decode_range(ws["!ref"]);
         for (let R = range.s.r; R <= range.e.r; ++R) {
             for (let C = range.s.c; C <= range.e.c; ++C) {
-                const cellAddress = { c: C, r: R };
-                const cellRef = XLSX.utils.encode_cell(cellAddress);
+                const cellRef = XLSX.utils.encode_cell({ c: C, r: R });
                 if (!ws[cellRef]) continue;
-
-                if (R === 0) {
-                    ws[cellRef].s = headerStyle;
-                } else {
-                    const isEven = R % 2 === 0;
-                    ws[cellRef].s = { ...plainCell, ...(isEven ? rowStyleDark : rowStyleLight) };
-                }
+                ws[cellRef].s = R === 0 ? headerStyle : { ...plainCell, ...(R % 2 === 0 ? rowStyleDark : rowStyleLight) };
             }
         }
 
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Evraklar');
-        XLSX.writeFile(wb, 'Toplu_Evraklar_Rapor.xlsx');
+        XLSX.utils.book_append_sheet(wb, ws, "Evraklar");
+        XLSX.writeFile(wb, "Toplu_Evraklar_Rapor.xlsx");
     };
 
     const exportFilteredExcel = () => {
         const allAciklamalar = new Set();
         filteredEvraklar.forEach((evrak) => {
-            evrak.evrakseferler?.forEach((s) => {
-                if (s.aciklama && s.aciklama.trim()) {
-                    allAciklamalar.add(s.aciklama.trim());
-                }
-            });
+            evrak.evrakseferler?.forEach((s) => s.aciklama?.trim() && allAciklamalar.add(s.aciklama.trim()));
         });
 
         const aciklamaListesi = [...allAciklamalar];
-
         const headers = ["TARİH", "LOKASYON", "TOPLAM SEFER", ...aciklamaListesi];
         const sheetData = [headers];
 
         filteredEvraklar.forEach((evrak) => {
             const tarih = new Date(evrak.tarih).toLocaleDateString("tr-TR");
             const lokasyon = lokasyonlar[evrak.lokasyonid] || "—";
-            const toplamSefer = evrak.sefersayisi || 0;
+            const toplam = evrak.sefersayisi || 0;
 
             const counter = {};
             aciklamaListesi.forEach((a) => (counter[a] = 0));
-
             evrak.evrakseferler?.forEach((s) => {
                 const a = (s.aciklama || "").trim();
                 if (counter[a] !== undefined) counter[a]++;
             });
 
-            sheetData.push([
-                tarih,
-                lokasyon,
-                toplamSefer,
-                ...aciklamaListesi.map((a) => counter[a]),
-            ]);
+            sheetData.push([tarih, lokasyon, toplam, ...aciklamaListesi.map((a) => counter[a])]);
         });
 
         const ws = XLSX.utils.aoa_to_sheet(sheetData);
-        ws["!cols"] = headers.map((h) => ({ wch: Math.max(20, h.length + 5) }));
+        ws["!cols"] = headers.map((h) => ({ wch: Math.max(18, h.length + 6) }));
 
         const border = {
             top: { style: "thin", color: { rgb: "999999" } },
@@ -472,13 +510,13 @@ function TopluEvraklar() {
 
         const headerStyle = {
             font: { bold: true, color: { rgb: "ffffff" } },
-            fill: { fgColor: { rgb: "1E3A8A" } },
+            fill: { fgColor: { rgb: "7C3AED" } },
             alignment: { horizontal: "center", vertical: "center" },
             border,
         };
 
-        const rowLight = { fill: { fgColor: { rgb: "F3F4F6" } }, border };
-        const rowDark = { fill: { fgColor: { rgb: "E5E7EB" } }, border };
+        const rowLight = { fill: { fgColor: { rgb: "F8FAFC" } }, border };
+        const rowDark = { fill: { fgColor: { rgb: "EEF2FF" } }, border };
 
         const range = XLSX.utils.decode_range(ws["!ref"]);
         for (let R = range.s.r; R <= range.e.r; R++) {
@@ -486,9 +524,7 @@ function TopluEvraklar() {
                 const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
                 const cell = ws[cellRef];
                 if (!cell) continue;
-
-                if (R === 0) cell.s = headerStyle;
-                else cell.s = R % 2 === 0 ? rowDark : rowLight;
+                cell.s = R === 0 ? headerStyle : R % 2 === 0 ? rowDark : rowLight;
             }
         }
 
@@ -498,78 +534,36 @@ function TopluEvraklar() {
     };
 
     const exportEvrakToExcel = (evrak) => {
-        const tarih = new Date(evrak.tarih).toLocaleDateString('tr-TR');
-        const lokasyon = lokasyonlar[evrak.lokasyonid] || 'Bilinmeyen Lokasyon';
-        const toplamSefer = evrak.sefersayisi || 0;
+        const tarih = new Date(evrak.tarih).toLocaleDateString("tr-TR");
+        const lokasyon = lokasyonlar[evrak.lokasyonid] || "Bilinmeyen Lokasyon";
+        const toplam = evrak.sefersayisi || 0;
 
         const sheetData = [];
-        sheetData.push(['TARİH', 'LOKASYON', 'TOPLAM SEFER']);
-        sheetData.push([tarih, lokasyon, toplamSefer]);
+        sheetData.push(["TARİH", "LOKASYON", "TOPLAM SEFER"]);
+        sheetData.push([tarih, lokasyon, toplam]);
         sheetData.push([]);
 
-        sheetData.push(['PROJE', 'SEFER SAYISI']);
+        sheetData.push(["PROJE", "SEFER SAYISI"]);
         (evrak.evrakproje || []).forEach((p) => {
-            const projeAd = projeler[p.projeid] || 'Bilinmeyen Proje';
+            const projeAd = projeler[p.projeid] || "Bilinmeyen Proje";
             sheetData.push([projeAd, p.sefersayisi]);
         });
         sheetData.push([]);
 
         const aciklamaSayaci = {};
         (evrak.evrakseferler || []).forEach((s) => {
-            const aciklama = s.aciklama || 'Bilinmeyen';
+            const aciklama = s.aciklama || "Bilinmeyen";
             aciklamaSayaci[aciklama] = (aciklamaSayaci[aciklama] || 0) + 1;
         });
 
-        sheetData.push(['AÇIKLAMA ÖZETİ']);
-        Object.entries(aciklamaSayaci).forEach(([aciklama, count]) => {
-            sheetData.push([`${aciklama}: ${count}`]);
-        });
+        sheetData.push(["AÇIKLAMA ÖZETİ"]);
+        Object.entries(aciklamaSayaci).forEach(([aciklama, count]) => sheetData.push([`${aciklama}: ${count}`]));
 
         const ws = XLSX.utils.aoa_to_sheet(sheetData);
-        ws['!cols'] = [{ wch: 40 }, { wch: 25 }, { wch: 20 }];
-
-        const borderAll = {
-            top: { style: 'thin', color: { rgb: '000000' } },
-            bottom: { style: 'thin', color: { rgb: '000000' } },
-            left: { style: 'thin', color: { rgb: '000000' } },
-            right: { style: 'thin', color: { rgb: '000000' } }
-        };
-
-        const styles = {
-            header: {
-                font: { bold: true, color: { rgb: '000000' } },
-                fill: { fgColor: { rgb: 'D9D9D9' } },
-                border: borderAll
-            },
-            subHeader: {
-                font: { bold: true },
-                fill: { fgColor: { rgb: 'BDD7EE' } },
-                border: borderAll
-            },
-            summaryHeader: {
-                font: { bold: true },
-                fill: { fgColor: { rgb: 'C6EFCE' } },
-                border: borderAll
-            },
-            cell: { border: borderAll }
-        };
-
-        const range = XLSX.utils.decode_range(ws['!ref']);
-        for (let R = range.s.r; R <= range.e.r; ++R) {
-            for (let C = range.s.c; C <= range.e.c; ++C) {
-                const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
-                const cell = ws[cellAddress];
-                if (!cell) continue;
-
-                if (R === 0) cell.s = styles.header;
-                else if (R === 3) cell.s = styles.subHeader;
-                else if (sheetData[R] && sheetData[R][0] === 'AÇIKLAMA ÖZETİ') cell.s = styles.summaryHeader;
-                else cell.s = styles.cell;
-            }
-        }
+        ws["!cols"] = [{ wch: 40 }, { wch: 25 }, { wch: 20 }];
 
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Evrak Raporu');
+        XLSX.utils.book_append_sheet(wb, ws, "Evrak Raporu");
         XLSX.writeFile(wb, `evrak_raporu_${evrak.id}.xlsx`);
     };
 
@@ -579,27 +573,21 @@ function TopluEvraklar() {
             (!filters.startDate || new Date(evrak.tarih) >= new Date(filters.startDate)) &&
             (!filters.endDate || new Date(evrak.tarih) <= new Date(filters.endDate));
 
-        const lokasyonMatch =
-            filters.lokasyon.length === 0 || filters.lokasyon.includes(String(evrak.lokasyonid));
+        const lokasyonMatch = filters.lokasyon.length === 0 || filters.lokasyon.includes(String(evrak.lokasyonid));
 
         const evrakProjeIds = evrak.evrakproje?.map((p) => String(p.projeid)) || [];
-        const projeMatch =
-            filters.proje.length === 0 || evrakProjeIds.some((pid) => filters.proje.includes(pid));
+        const projeMatch = filters.proje.length === 0 || evrakProjeIds.some((pid) => filters.proje.includes(pid));
 
-        const seferAciklamalari = (evrak.evrakseferler || []).map((s) => s.aciklama).join(', ');
+        const seferAciklamalari = (evrak.evrakseferler || []).map((s) => s.aciklama).join(", ");
         const aciklamaMatch = filters.aciklama
-            ? seferAciklamalari
-                .toLocaleLowerCase('tr')
-                .includes(filters.aciklama.toLocaleLowerCase('tr'))
+            ? seferAciklamalari.toLocaleLowerCase("tr").includes(filters.aciklama.toLocaleLowerCase("tr"))
             : true;
 
         const seferNoMatch = filters.seferno
-            ? filters.seferno === '(Boş)'
+            ? filters.seferno === "(Boş)"
                 ? (evrak.evrakseferler || []).some((s) => !s.seferno?.trim())
                 : (evrak.evrakseferler || []).some((s) =>
-                    (s.seferno || '')
-                        .toLocaleLowerCase('tr')
-                        .includes(filters.seferno.toLocaleLowerCase('tr'))
+                    (s.seferno || "").toLocaleLowerCase("tr").includes(filters.seferno.toLocaleLowerCase("tr"))
                 )
             : true;
 
@@ -610,17 +598,14 @@ function TopluEvraklar() {
         const counts = {};
         filteredEvraklar.forEach((evrak) => {
             evrak.evrakseferler?.forEach((sefer) => {
-                const key = sefer.aciklama || '(Boş)';
+                const key = sefer.aciklama || "(Boş)";
                 counts[key] = (counts[key] || 0) + 1;
             });
         });
         return Object.entries(counts).map(([name, value]) => ({ name, value }));
     };
 
-    const filteredToplamSefer = filteredEvraklar.reduce(
-        (sum, evrak) => sum + (evrak.sefersayisi || 0),
-        0
-    );
+    const filteredToplamSefer = filteredEvraklar.reduce((sum, evrak) => sum + (evrak.sefersayisi || 0), 0);
 
     // panel için bağımlı seçenekler
     const candidateEvraklar = useMemo(() => {
@@ -639,31 +624,23 @@ function TopluEvraklar() {
     const projeOptions = useMemo(() => {
         const ids = new Set();
         candidateEvraklar.forEach((e) => e.evrakproje?.forEach((p) => ids.add(String(p.projeid))));
-        return [...ids]
-            .map((id) => ({ id, name: projeler?.[id] }))
-            .filter((x) => x.name);
+        return [...ids].map((id) => ({ id, name: projeler?.[id] })).filter((x) => x.name);
     }, [candidateEvraklar, projeler]);
 
     const lokasyonOptions = useMemo(() => {
         const ids = new Set(candidateEvraklar.map((e) => String(e.lokasyonid)));
-        return [...ids]
-            .map((id) => ({ id, name: lokasyonlar?.[id] }))
-            .filter((x) => x.name);
+        return [...ids].map((id) => ({ id, name: lokasyonlar?.[id] })).filter((x) => x.name);
     }, [candidateEvraklar, lokasyonlar]);
 
     const aciklamaOptions = useMemo(() => {
         const s = new Set();
-        candidateEvraklar.forEach((e) =>
-            e.evrakseferler?.forEach((x) => x.aciklama?.trim() && s.add(x.aciklama.trim()))
-        );
+        candidateEvraklar.forEach((e) => e.evrakseferler?.forEach((x) => x.aciklama?.trim() && s.add(x.aciklama.trim())));
         return [...s];
     }, [candidateEvraklar]);
 
     const seferOptions = useMemo(() => {
         const s = new Set();
-        candidateEvraklar.forEach((e) =>
-            e.evrakseferler?.forEach((x) => s.add(x.seferno?.trim() || '(Boş)'))
-        );
+        candidateEvraklar.forEach((e) => e.evrakseferler?.forEach((x) => s.add(x.seferno?.trim() || "(Boş)")));
         return [...s];
     }, [candidateEvraklar]);
 
@@ -672,15 +649,11 @@ function TopluEvraklar() {
         setShowDetailCard(true);
     };
 
-    // ✅ Modern mini skeleton
+    // ✅ modern table skeleton
     const TableSkeleton = () => (
-        <div className="rounded-2xl border border-gray-200/70 dark:border-gray-700/60 bg-white/70 dark:bg-gray-900/50 p-5 shadow-sm backdrop-blur-xl">
-            <div className="h-6 w-48 rounded bg-gray-200/70 dark:bg-gray-700/40 animate-pulse mb-4" />
-            <div className="space-y-3">
-                {[...Array(8)].map((_, i) => (
-                    <div key={i} className="h-12 rounded-xl bg-gray-200/70 dark:bg-gray-700/40 animate-pulse" />
-                ))}
-            </div>
+        <div className="rounded-3xl border border-violet-200/60 dark:border-white/10 bg-white/70 dark:bg-white/[0.05] p-5 shadow-sm backdrop-blur-xl">
+            <div className="h-6 w-52 rounded bg-zinc-200/70 dark:bg-white/[0.06] animate-pulse mb-4" />
+            <div className="space-y-3">{[...Array(8)].map((_, i) => <SkeletonRow key={i} />)}</div>
         </div>
     );
 
@@ -697,552 +670,594 @@ function TopluEvraklar() {
             )}
 
             <Layout>
-                {/* Arkaplan glow */}
-                <div className="pointer-events-none fixed inset-0 -z-10">
-                    <div className="absolute -top-24 left-1/2 h-72 w-[44rem] -translate-x-1/2 rounded-full bg-gradient-to-r from-indigo-400/25 via-violet-400/20 to-fuchsia-400/25 blur-3xl" />
-                    <div className="absolute bottom-0 right-0 h-64 w-64 rounded-full bg-gradient-to-tr from-emerald-400/15 to-sky-400/10 blur-3xl" />
-                </div>
+                {/* Modern arkaplan (light'ta panelin siyah kalması düzeltildi -> artık hero tema duyarlı) */}
+                <div
+                    className="min-h-screen bg-[#F7F5FF] dark:bg-[#070A13]
+            [background-image:radial-gradient(900px_circle_at_18%_10%,rgba(139,92,246,0.14),transparent_55%),radial-gradient(850px_circle_at_82%_40%,rgba(236,72,153,0.10),transparent_60%)]
+            dark:[background-image:radial-gradient(900px_circle_at_18%_10%,rgba(139,92,246,0.18),transparent_55%),radial-gradient(850px_circle_at_82%_40%,rgba(236,72,153,0.10),transparent_60%),radial-gradient(700px_circle_at_50%_85%,rgba(34,211,238,0.08),transparent_55%)]
+            text-zinc-950 dark:text-zinc-50 transition-colors duration-300"
+                >
+                    <div className="mx-auto max-w-7xl px-4 py-8">
+                        {/* HERO (✅ artık light tema'da siyah değil) */}
+                        <div className="mb-6 overflow-hidden rounded-[28px] border border-violet-200/60 bg-white/70 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.05]">
+                            <div className="px-6 py-5">
+                                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                    <div>
+                                        <Tag tone="info">
+                                            <FiSearch /> Liste • Filtre • Excel
+                                        </Tag>
 
-                <div className="mx-auto max-w-7xl px-4 py-8">
-                    {/* HERO */}
-                    <div className="mb-6 overflow-hidden rounded-[28px] border border-gray-200/70 bg-white/60 shadow-sm backdrop-blur-xl dark:border-gray-700/60 dark:bg-gray-900/50">
-                        <div className="bg-gradient-to-r from-gray-950 via-gray-900 to-gray-950 px-6 py-5 text-white dark:from-black dark:via-gray-950 dark:to-black">
-                            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                                <div>
-                                    <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold ring-1 ring-white/15">
-                                        <FiSearch /> Liste • Filtre • Excel
+                                        <h2 className="mt-3 text-2xl font-extrabold tracking-tight">📚 Toplu Evraklar</h2>
+                                        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+                                            Toplam Evrak: <b className="text-zinc-950 dark:text-white">{filteredEvraklar.length}</b> • Toplam Sefer:{" "}
+                                            <b className="text-zinc-950 dark:text-white">{filteredToplamSefer}</b>
+                                        </p>
+
+                                        {hasActiveFilters && (
+                                            <div className="mt-2 flex flex-wrap gap-2">
+                                                <Tag tone="warn">Filtre aktif</Tag>
+                                                <Tag tone="neutral">
+                                                    Tarih: {filters.startDate || "—"} <FiChevronRight /> {filters.endDate || "—"}
+                                                </Tag>
+                                            </div>
+                                        )}
                                     </div>
-                                    <h2 className="mt-3 text-2xl font-bold tracking-tight">📚 Toplu Evraklar</h2>
-                                    <p className="mt-1 text-sm text-white/70">
-                                        Toplam Evrak: <b className="text-white">{filteredEvraklar.length}</b> • Toplam Sefer: <b className="text-white">{filteredToplamSefer}</b>
-                                    </p>
-                                </div>
 
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={goHome}
-                                        className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2 text-xs font-semibold text-white ring-1 ring-white/15 hover:bg-white/15 active:scale-[0.98] transition"
-                                        title="Anasayfaya dön"
-                                    >
-                                        <FiHome />
-                                        Anasayfaya Dön
-                                    </button>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Btn variant="secondary" size="md" leftIcon={FiHome} onClick={goHome} title="Anasayfaya dön">
+                                            Anasayfa
+                                        </Btn>
 
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setDraft(filters);
-                                            setShowFilters(true);
-                                        }}
-                                        className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 active:scale-[0.98] transition"
-                                    >
-                                        <FiFilter />
-                                        Filtre
-                                    </button>
-
-                                    {hasActiveFilters && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setFilters(initialFilterState)}
-                                            className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2 text-xs font-semibold text-white ring-1 ring-white/15 hover:bg-white/15 active:scale-[0.98] transition"
-                                            title="Filtreleri temizle"
+                                        <Btn
+                                            variant="primary"
+                                            size="md"
+                                            leftIcon={FiFilter}
+                                            onClick={() => {
+                                                setDraft(filters);
+                                                setShowFilters(true);
+                                            }}
                                         >
-                                            <FiX />
-                                            Temizle
-                                        </button>
-                                    )}
+                                            Filtre
+                                        </Btn>
 
-                                    <button
-                                        type="button"
-                                        onClick={exportToExcel}
-                                        className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 active:scale-[0.98] transition"
-                                    >
-                                        <FiDownload />
-                                        Excel'e Aktar
-                                    </button>
+                                        {hasActiveFilters && (
+                                            <Btn variant="secondary" size="md" leftIcon={FiX} onClick={() => setFilters(initialFilterState)} title="Filtreleri temizle">
+                                                Temizle
+                                            </Btn>
+                                        )}
 
-                                    <button
-                                        type="button"
-                                        onClick={exportFilteredExcel}
-                                        className="inline-flex items-center gap-2 rounded-2xl bg-fuchsia-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-fuchsia-700 active:scale-[0.98] transition"
-                                    >
-                                        <FiFile />
-                                        Detay Excel
-                                    </button>
-                                </div>
-                            </div>
+                                        <Btn variant="emerald" size="md" leftIcon={FiDownload} onClick={exportToExcel}>
+                                            Excel
+                                        </Btn>
 
-                            {/* mini stats */}
-                            <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                                <div className="rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/10">
-                                    <div className="text-xs text-white/70">Düzeltilmiş</div>
-                                    <div className="mt-1 text-lg font-bold">{duzeltilmis} <span className="text-xs font-semibold text-white/70">({oran(duzeltilmis)}%)</span></div>
+                                        <Btn variant="primary" size="md" leftIcon={FiFile} onClick={exportFilteredExcel}>
+                                            Detay Excel
+                                        </Btn>
+                                    </div>
                                 </div>
-                                <div className="rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/10">
-                                    <div className="text-xs text-white/70">Orijinale Çekilmiş</div>
-                                    <div className="mt-1 text-lg font-bold">{orjinaleCekilmis} <span className="text-xs font-semibold text-white/70">({oran(orjinaleCekilmis)}%)</span></div>
-                                </div>
-                                <div className="rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/10">
-                                    <div className="text-xs text-white/70">Toplam Sefer (Genel)</div>
-                                    <div className="mt-1 text-lg font-bold">{toplamSefer}</div>
+
+                                {/* mini stats */}
+                                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                                    <div className="rounded-3xl border border-violet-200/60 bg-white/70 p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.05]">
+                                        <div className="text-xs text-zinc-600 dark:text-zinc-300">Düzeltilmiş</div>
+                                        <div className="mt-1 text-lg font-extrabold">
+                                            {duzeltilmis} <span className="text-xs font-extrabold text-zinc-500 dark:text-zinc-300">({oran(duzeltilmis)}%)</span>
+                                        </div>
+                                    </div>
+                                    <div className="rounded-3xl border border-violet-200/60 bg-white/70 p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.05]">
+                                        <div className="text-xs text-zinc-600 dark:text-zinc-300">Orijinale Çekilmiş</div>
+                                        <div className="mt-1 text-lg font-extrabold">
+                                            {orjinaleCekilmis}{" "}
+                                            <span className="text-xs font-extrabold text-zinc-500 dark:text-zinc-300">({oran(orjinaleCekilmis)}%)</span>
+                                        </div>
+                                    </div>
+                                    <div className="rounded-3xl border border-violet-200/60 bg-white/70 p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.05]">
+                                        <div className="text-xs text-zinc-600 dark:text-zinc-300">Toplam Sefer (Genel)</div>
+                                        <div className="mt-1 text-lg font-extrabold">{toplamSefer}</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+
+                        {/* Özet kartları */}
+                        {!showFilters && (
+                            <div className="mb-6">
+                                <ModernSummary title="Açıklama Dağılımı" data={filteredAciklamaVerileri()} total={filteredToplamSefer} onCardClick={openCardPanel} />
+                            </div>
+                        )}
+
+                        {/* Tablo */}
+                        {loading ? (
+                            <TableSkeleton />
+                        ) : (
+                            <div className="rounded-3xl overflow-hidden border border-violet-200/60 dark:border-white/10 bg-white/70 dark:bg-white/[0.05] shadow-sm backdrop-blur-xl">
+                                <div className="overflow-auto">
+                                    <table className="w-full border-collapse">
+                                        <thead className="sticky top-0 z-10 backdrop-blur bg-white/80 dark:bg-white/[0.06]">
+                                            <tr className="text-left text-xs font-extrabold tracking-wide text-zinc-700 dark:text-zinc-200">
+                                                <th className="px-4 py-3 border-b border-violet-200/60 dark:border-white/10">#</th>
+                                                <th className="px-4 py-3 border-b border-violet-200/60 dark:border-white/10">Tarih</th>
+                                                <th className="px-4 py-3 border-b border-violet-200/60 dark:border-white/10">Lokasyon</th>
+                                                <th className="px-4 py-3 border-b border-violet-200/60 dark:border-white/10">Projeler</th>
+                                                <th className="px-4 py-3 border-b border-violet-200/60 dark:border-white/10">Toplam</th>
+                                                <th className="px-4 py-3 border-b border-violet-200/60 dark:border-white/10 text-center">Detay</th>
+                                                <th className="px-4 py-3 border-b border-violet-200/60 dark:border-white/10 text-center">Düzenle</th>
+                                                <th className="px-4 py-3 border-b border-violet-200/60 dark:border-white/10 text-center">Excel</th>
+                                                <th className="px-4 py-3 border-b border-violet-200/60 dark:border-white/10 text-center">Sil</th>
+                                            </tr>
+                                        </thead>
+
+                                        <tbody>
+                                            {filteredEvraklar.map((evrak, index) => {
+                                                const isProjelerVisible = acikProjeId === evrak.id;
+
+                                                return (
+                                                    <tr
+                                                        key={evrak.id}
+                                                        className="bg-white/60 dark:bg-white/[0.02] hover:bg-violet-50/70 dark:hover:bg-white/[0.06] transition-colors"
+                                                    >
+                                                        <td className="px-4 py-3 border-b border-violet-200/50 dark:border-white/10 font-extrabold text-center">
+                                                            {index + 1}
+                                                        </td>
+
+                                                        <td className="px-4 py-3 border-b border-violet-200/50 dark:border-white/10">
+                                                            {new Date(evrak.tarih).toLocaleDateString("tr-TR")}
+                                                        </td>
+
+                                                        <td className="px-4 py-3 border-b border-violet-200/50 dark:border-white/10">
+                                                            {lokasyonlar[evrak.lokasyonid]}
+                                                        </td>
+
+                                                        <td className="px-4 py-3 border-b border-violet-200/50 dark:border-white/10 align-top">
+                                                            <Btn
+                                                                variant="secondary"
+                                                                size="sm"
+                                                                leftIcon={FiInfo}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setAcikProjeId(isProjelerVisible ? null : evrak.id);
+                                                                }}
+                                                            >
+                                                                {isProjelerVisible ? "Gizle" : "Göster"}
+                                                            </Btn>
+
+                                                            {isProjelerVisible && (
+                                                                <ul className="mt-2 space-y-1 rounded-2xl border border-violet-200/60 bg-white/70 p-3 dark:border-white/10 dark:bg-white/[0.04]">
+                                                                    {evrak.evrakproje?.map((p, idx) => (
+                                                                        <li key={idx} className="text-sm">
+                                                                            <span className="font-extrabold">{projeler[p.projeid]}</span>{" "}
+                                                                            <span className="opacity-80">({p.sefersayisi})</span>
+                                                                        </li>
+                                                                    ))}
+                                                                    {(!evrak.evrakproje || !evrak.evrakproje.length) && (
+                                                                        <li className="text-sm opacity-70">Proje kaydı yok.</li>
+                                                                    )}
+                                                                </ul>
+                                                            )}
+                                                        </td>
+
+                                                        <td className="px-4 py-3 border-b border-violet-200/50 dark:border-white/10">
+                                                            <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-200 px-3 py-1 text-xs font-extrabold border border-emerald-200 dark:border-emerald-900/30">
+                                                                {evrak.sefersayisi}
+                                                            </span>
+                                                        </td>
+
+                                                        <td className="px-4 py-3 border-b border-violet-200/50 dark:border-white/10 text-center">
+                                                            <Btn
+                                                                variant="primary"
+                                                                size="sm"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    openDetail(evrak);
+                                                                }}
+                                                            >
+                                                                Detay
+                                                            </Btn>
+                                                        </td>
+
+                                                        <td className="px-4 py-3 border-b border-violet-200/50 dark:border-white/10 text-center">
+                                                            <Btn
+                                                                variant="secondary"
+                                                                size="sm"
+                                                                leftIcon={FiEdit2}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setSelectedEvrak(evrak);
+                                                                    setShowEditModal(true);
+                                                                }}
+                                                            >
+                                                                Düzenle
+                                                            </Btn>
+                                                        </td>
+
+                                                        <td className="px-4 py-3 border-b border-violet-200/50 dark:border-white/10 text-center">
+                                                            <Btn
+                                                                variant="emerald"
+                                                                size="sm"
+                                                                leftIcon={FiDownload}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    exportEvrakToExcel(evrak);
+                                                                }}
+                                                            >
+                                                                Rapor
+                                                            </Btn>
+                                                        </td>
+
+                                                        <td className="px-4 py-3 border-b border-violet-200/50 dark:border-white/10 text-center">
+                                                            <Btn
+                                                                variant="danger"
+                                                                size="sm"
+                                                                leftIcon={FiTrash2}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleEvrakSil(evrak);
+                                                                }}
+                                                                disabled={deletingId === evrak.id}
+                                                            >
+                                                                {deletingId === evrak.id ? "Siliniyor…" : "Sil"}
+                                                            </Btn>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+
+                                            {filteredEvraklar.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={9} className="px-6 py-10 text-center text-sm text-zinc-600 dark:text-zinc-300">
+                                                        Kayıt bulunamadı. Filtreleri gevşetmeyi deneyin.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
-                    {/* Özet kartları */}
-                    {!showFilters && (
-                        <div className="mb-6">
-                            <ModernSummary
-                                title="Açıklama Dağılımı"
-                                data={filteredAciklamaVerileri()}
-                                total={filteredToplamSefer}
-                                onCardClick={openCardPanel}
-                            />
+                    {/* SOL FİLTRE PANELİ (✅ light tema artık siyah değil) */}
+                    {showFilters && (
+                        <div className="fixed inset-0 z-50">
+                            <div className="absolute inset-0 bg-black/40" onClick={() => setShowFilters(false)} />
+
+                            <div className="absolute left-0 top-0 h-full w-full max-w-[440px] shadow-2xl overflow-y-auto
+                bg-white/85 dark:bg-[#0B1020]/85 backdrop-blur-xl
+                border-r border-violet-200/60 dark:border-white/10
+                text-zinc-900 dark:text-zinc-100 p-5"
+                            >
+                                <div className="flex items-center justify-between mb-4">
+                                    <div>
+                                        <div className="text-xs font-extrabold text-zinc-500 dark:text-zinc-300">Filtre Paneli</div>
+                                        <h3 className="text-lg font-extrabold">Gelişmiş Filtreler</h3>
+                                    </div>
+
+                                    <IconBtn title="Kapat" onClick={() => setShowFilters(false)}>
+                                        <FiX />
+                                    </IconBtn>
+                                </div>
+
+                                {/* Tarihler */}
+                                <div className="grid grid-cols-1 gap-3">
+                                    <div>
+                                        <label className="text-xs font-extrabold text-zinc-600 dark:text-zinc-300">Başlangıç Tarihi</label>
+                                        <input
+                                            type="date"
+                                            value={draft.startDate}
+                                            onChange={(e) => setDraft({ ...draft, startDate: e.target.value })}
+                                            className="mt-1 w-full px-4 py-3 rounded-2xl border border-violet-200/60 bg-white/70 dark:bg-white/[0.05] dark:border-white/10 outline-none
+                        focus:ring-4 focus:ring-violet-500/15 focus:border-violet-300/70"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-extrabold text-zinc-600 dark:text-zinc-300">Bitiş Tarihi</label>
+                                        <input
+                                            type="date"
+                                            value={draft.endDate}
+                                            onChange={(e) => setDraft({ ...draft, endDate: e.target.value })}
+                                            className="mt-1 w-full px-4 py-3 rounded-2xl border border-violet-200/60 bg-white/70 dark:bg-white/[0.05] dark:border-white/10 outline-none
+                        focus:ring-4 focus:ring-violet-500/15 focus:border-violet-300/70"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Projeler */}
+                                <div className="mt-5">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-sm font-extrabold">Projeler</label>
+                                        <Btn variant="ghost" size="sm" onClick={() => setDraft((d) => ({ ...d, proje: [] }))}>
+                                            Temizle
+                                        </Btn>
+                                    </div>
+
+                                    <div className="mt-2 max-h-44 overflow-auto rounded-2xl border border-violet-200/60 dark:border-white/10 bg-white/70 dark:bg-white/[0.04]">
+                                        {projeOptions.map(({ id, name }) => (
+                                            <label
+                                                key={id}
+                                                className="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer hover:bg-violet-50/70 dark:hover:bg-white/[0.06]"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    className="h-4 w-4"
+                                                    checked={draft.proje.includes(id)}
+                                                    onChange={() =>
+                                                        setDraft((d) => ({
+                                                            ...d,
+                                                            proje: d.proje.includes(id) ? d.proje.filter((x) => x !== id) : [...d.proje, id],
+                                                        }))
+                                                    }
+                                                />
+                                                <span className="font-semibold">{name}</span>
+                                            </label>
+                                        ))}
+                                        {projeOptions.length === 0 && <div className="px-3 py-3 text-sm text-zinc-500">Seçime göre proje yok.</div>}
+                                    </div>
+                                </div>
+
+                                {/* Lokasyonlar */}
+                                <div className="mt-5">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-sm font-extrabold">Lokasyonlar</label>
+                                        <Btn variant="ghost" size="sm" onClick={() => setDraft((d) => ({ ...d, lokasyon: [] }))}>
+                                            Temizle
+                                        </Btn>
+                                    </div>
+
+                                    <div className="mt-2 max-h-44 overflow-auto rounded-2xl border border-violet-200/60 dark:border-white/10 bg-white/70 dark:bg-white/[0.04]">
+                                        {lokasyonOptions.map(({ id, name }) => (
+                                            <label
+                                                key={id}
+                                                className="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer hover:bg-violet-50/70 dark:hover:bg-white/[0.06]"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    className="h-4 w-4"
+                                                    checked={draft.lokasyon.includes(id)}
+                                                    onChange={() =>
+                                                        setDraft((d) => ({
+                                                            ...d,
+                                                            lokasyon: d.lokasyon.includes(id) ? d.lokasyon.filter((x) => x !== id) : [...d.lokasyon, id],
+                                                        }))
+                                                    }
+                                                />
+                                                <span className="font-semibold">{name}</span>
+                                            </label>
+                                        ))}
+                                        {lokasyonOptions.length === 0 && <div className="px-3 py-3 text-sm text-zinc-500">Seçime göre lokasyon yok.</div>}
+                                    </div>
+                                </div>
+
+                                {/* Açıklama */}
+                                <div className="mt-5">
+                                    <label className="text-sm font-extrabold">Açıklama</label>
+                                    <input
+                                        type="text"
+                                        list="aciklama-list"
+                                        value={draft.aciklama}
+                                        onChange={(e) => setDraft({ ...draft, aciklama: e.target.value })}
+                                        className="mt-1 w-full px-4 py-3 rounded-2xl border border-violet-200/60 bg-white/70 dark:bg-white/[0.05] dark:border-white/10 outline-none
+                      focus:ring-4 focus:ring-violet-500/15 focus:border-violet-300/70"
+                                        placeholder="Ara ya da yaz..."
+                                    />
+                                    <datalist id="aciklama-list">
+                                        {aciklamaOptions.map((a, i) => (
+                                            <option key={i} value={a} />
+                                        ))}
+                                    </datalist>
+                                </div>
+
+                                {/* Sefer No */}
+                                <div className="mt-5">
+                                    <label className="text-sm font-extrabold">Sefer No</label>
+                                    <input
+                                        type="text"
+                                        list="sefer-list"
+                                        value={draft.seferno}
+                                        onChange={(e) => setDraft({ ...draft, seferno: e.target.value })}
+                                        className="mt-1 w-full px-4 py-3 rounded-2xl border border-violet-200/60 bg-white/70 dark:bg-white/[0.05] dark:border-white/10 outline-none
+                      focus:ring-4 focus:ring-violet-500/15 focus:border-violet-300/70"
+                                        placeholder="Ara ya da yaz..."
+                                    />
+                                    <datalist id="sefer-list">
+                                        {seferOptions.map((s, i) => (
+                                            <option key={i} value={s} />
+                                        ))}
+                                    </datalist>
+                                </div>
+
+                                {/* Butonlar */}
+                                <div className="mt-6 flex items-center gap-2">
+                                    <Btn
+                                        variant="secondary"
+                                        size="lg"
+                                        onClick={() => {
+                                            setFilters(initialFilterState);
+                                            setDraft(initialFilterState);
+                                            setShowFilters(false);
+                                        }}
+                                        leftIcon={FiX}
+                                        className="flex-1"
+                                    >
+                                        Temizle
+                                    </Btn>
+
+                                    <Btn
+                                        variant="primary"
+                                        size="lg"
+                                        onClick={() => {
+                                            setFilters(draft);
+                                            setShowFilters(false);
+                                        }}
+                                        leftIcon={FiFilter}
+                                        className="flex-1"
+                                    >
+                                        Uygula
+                                    </Btn>
+                                </div>
+
+                                <div className="mt-4 text-xs text-zinc-500 dark:text-zinc-300">
+                                    İpucu: Önce proje seçersen lokasyon listesi otomatik daralır.
+                                </div>
+                            </div>
                         </div>
                     )}
 
-                    {/* Tablo */}
-                    {loading ? (
-                        <TableSkeleton />
-                    ) : (
-                        <div className="rounded-2xl overflow-hidden border border-gray-200/70 dark:border-gray-700/60 bg-white/70 dark:bg-gray-900/50 shadow-sm backdrop-blur-xl">
-                            <div className="overflow-auto">
-                                <table className="w-full border-collapse">
-                                    <thead className="bg-gray-100/90 dark:bg-gray-800/80 sticky top-0 z-10 backdrop-blur">
-                                        <tr>
-                                            <th className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60 text-left text-xs font-bold tracking-wide text-gray-700 dark:text-gray-200">#</th>
-                                            <th className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60 text-left text-xs font-bold tracking-wide text-gray-700 dark:text-gray-200">Tarih</th>
-                                            <th className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60 text-left text-xs font-bold tracking-wide text-gray-700 dark:text-gray-200">Lokasyon</th>
-                                            <th className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60 text-left text-xs font-bold tracking-wide text-gray-700 dark:text-gray-200">Projeler</th>
-                                            <th className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60 text-left text-xs font-bold tracking-wide text-gray-700 dark:text-gray-200">Toplam</th>
-                                            <th className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60 text-center text-xs font-bold tracking-wide text-gray-700 dark:text-gray-200">Sefer</th>
-                                            <th className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60 text-center text-xs font-bold tracking-wide text-gray-700 dark:text-gray-200">Açıklama</th>
-                                            <th className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60"></th>
-                                            <th className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60"></th>
-                                            <th className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60"></th>
-                                        </tr>
-                                    </thead>
+                    {/* ✅ DETAY CARD */}
+                    {showDetailCard && detailEvrak && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                            <div className="absolute inset-0 bg-black/40" onClick={() => setShowDetailCard(false)} />
+                            <div className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-3xl shadow-2xl
+                bg-white/90 dark:bg-white/[0.06] backdrop-blur-xl
+                border border-violet-200/60 dark:border-white/10 p-6 text-zinc-900 dark:text-zinc-100"
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <Tag tone="info">Detay</Tag>
+                                        <h3 className="mt-2 text-lg font-extrabold">Sefer Detayları — Evrak #{detailEvrak.id}</h3>
+                                    </div>
+                                    <IconBtn title="Kapat" onClick={() => setShowDetailCard(false)}>
+                                        <FiX />
+                                    </IconBtn>
+                                </div>
 
-                                    <tbody>
-                                        {filteredEvraklar.map((evrak, index) => {
-                                            const isProjelerVisible = acikProjeId === evrak.id;
+                                {/* Meta */}
+                                <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <div className="rounded-3xl border border-violet-200/60 bg-white/70 p-4 dark:border-white/10 dark:bg-white/[0.04]">
+                                        <div className="text-xs text-zinc-600 dark:text-zinc-300">Tarih</div>
+                                        <div className="font-extrabold">{new Date(detailEvrak.tarih).toLocaleDateString("tr-TR")}</div>
+                                    </div>
+                                    <div className="rounded-3xl border border-violet-200/60 bg-white/70 p-4 dark:border-white/10 dark:bg-white/[0.04]">
+                                        <div className="text-xs text-zinc-600 dark:text-zinc-300">Lokasyon</div>
+                                        <div className="font-extrabold">{lokasyonlar[detailEvrak.lokasyonid]}</div>
+                                    </div>
+                                    <div className="rounded-3xl border border-violet-200/60 bg-white/70 p-4 dark:border-white/10 dark:bg-white/[0.04]">
+                                        <div className="text-xs text-zinc-600 dark:text-zinc-300">Toplam Sefer</div>
+                                        <div className="font-extrabold">{detailEvrak.sefersayisi || 0}</div>
+                                    </div>
+                                </div>
 
-                                            return (
-                                                <tr
-                                                    key={evrak.id}
-                                                    className="bg-white/60 text-gray-900 dark:bg-gray-900/20 dark:text-gray-100 odd:bg-gray-50/70 dark:odd:bg-gray-900/35 hover:bg-indigo-50/60 dark:hover:bg-indigo-900/25 transition-colors"
-                                                >
-                                                    <td className="px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/50 font-semibold text-center">
-                                                        {index + 1}
-                                                    </td>
-                                                    <td className="px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/50">
-                                                        {new Date(evrak.tarih).toLocaleDateString('tr-TR')}
-                                                    </td>
-                                                    <td className="px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/50">
-                                                        {lokasyonlar[evrak.lokasyonid]}
-                                                    </td>
+                                {/* Projeler */}
+                                <div className="mt-5">
+                                    <div className="text-sm font-extrabold mb-2">Projeler</div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {(detailEvrak.evrakproje || []).map((p, i) => (
+                                            <span
+                                                key={i}
+                                                className="px-3 py-1 rounded-full text-xs font-extrabold
+                          bg-violet-50 text-violet-800 border border-violet-200
+                          dark:bg-white/[0.05] dark:text-violet-200 dark:border-white/10"
+                                            >
+                                                {projeler[p.projeid]} — {p.sefersayisi}
+                                            </span>
+                                        ))}
+                                        {(!detailEvrak.evrakproje || !detailEvrak.evrakproje.length) && <span className="text-xs opacity-70">Proje kaydı yok.</span>}
+                                    </div>
+                                </div>
 
-                                                    <td className="px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/50">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setAcikProjeId(isProjelerVisible ? null : evrak.id);
-                                                            }}
-                                                            className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold bg-gray-100/80 border border-gray-200 text-gray-900
-                                         hover:bg-gray-200/70 dark:bg-gray-800/60 dark:border-gray-700 dark:text-white dark:hover:bg-gray-800"
-                                                        >
-                                                            <FiInfo />
-                                                            {isProjelerVisible ? 'Projeleri Gizle' : 'Projeleri Göster'}
-                                                        </button>
+                                {/* Sefer listesi */}
+                                <div className="mt-5">
+                                    <div className="text-sm font-extrabold mb-2">Seferler</div>
+                                    <div className="space-y-2">
+                                        {(detailEvrak.evrakseferler || []).length ? (
+                                            detailEvrak.evrakseferler.map((s, i) => {
+                                                const normalized = (s.aciklama || "").trim().toLocaleUpperCase("tr");
+                                                const badge =
+                                                    normalized === "TARAFIMIZCA DÜZELTİLMİŞTİR"
+                                                        ? "bg-emerald-600 text-white"
+                                                        : normalized === "TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR"
+                                                            ? "bg-violet-600 text-white"
+                                                            : "bg-zinc-200 text-zinc-900 dark:bg-white/[0.08] dark:text-zinc-100";
 
-                                                        {isProjelerVisible && (
-                                                            <ul className="mt-2 space-y-1 rounded-xl bg-white/60 dark:bg-gray-900/30 border border-gray-200/60 dark:border-gray-700/50 p-3">
-                                                                {evrak.evrakproje?.map((p, idx) => (
-                                                                    <li key={idx} className="text-sm">
-                                                                        <span className="font-semibold">{projeler[p.projeid]}</span>{' '}
-                                                                        <span className="opacity-80">({p.sefersayisi})</span>
-                                                                    </li>
-                                                                ))}
-                                                                {(!evrak.evrakproje || !evrak.evrakproje.length) && (
-                                                                    <li className="text-sm opacity-70">Proje kaydı yok.</li>
-                                                                )}
-                                                            </ul>
-                                                        )}
-                                                    </td>
+                                                return (
+                                                    <div
+                                                        key={i}
+                                                        className="rounded-3xl border border-violet-200/60 bg-white/70 p-4 dark:border-white/10 dark:bg-white/[0.04]
+                              flex items-start justify-between gap-3"
+                                                    >
+                                                        <div>
+                                                            <div className="text-xs text-zinc-600 dark:text-zinc-300">Sefer No</div>
+                                                            <div className="font-extrabold">{s.seferno || "(Boş)"}</div>
+                                                        </div>
+                                                        <span className={`px-3 py-1 rounded-full text-xs font-extrabold ${badge}`}>{s.aciklama || "—"}</span>
+                                                    </div>
+                                                );
+                                            })
+                                        ) : (
+                                            <div className="text-sm opacity-70">Sefer kaydı bulunamadı.</div>
+                                        )}
+                                    </div>
+                                </div>
 
-                                                    <td className="px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/50">
-                                                        <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-800 dark:bg-emerald-900/25 dark:text-emerald-200 px-3 py-1 text-xs font-bold">
-                                                            {evrak.sefersayisi}
-                                                        </span>
-                                                    </td>
+                                {/* Actions */}
+                                <div className="mt-6 flex justify-end gap-2">
+                                    <Btn variant="emerald" size="md" leftIcon={FiDownload} onClick={() => exportEvrakToExcel(detailEvrak)}>
+                                        Excel (Satır)
+                                    </Btn>
+                                    <Btn variant="secondary" size="md" onClick={() => setShowDetailCard(false)}>
+                                        Kapat
+                                    </Btn>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
-                                                    <td className="px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/50 text-center">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                openDetail(evrak);
-                                                            }}
-                                                            className="inline-flex items-center justify-center rounded-xl bg-indigo-600 text-white px-3 py-2 text-xs font-semibold hover:bg-indigo-700 active:scale-[0.98] transition"
-                                                        >
-                                                            Detay
-                                                        </button>
-                                                    </td>
+                    {/* 👉 Sağdan kayan PANEL */}
+                    {panelOpen && (
+                        <div className="fixed inset-0 z-50">
+                            <div className="absolute inset-0 bg-black/40" onClick={() => setPanelOpen(false)} />
+                            <div
+                                className="absolute right-0 top-0 h-full w-full sm:w-[680px] p-5 overflow-y-auto shadow-2xl
+                bg-white/85 dark:bg-[#0B1020]/85 backdrop-blur-xl
+                border-l border-violet-200/60 dark:border-white/10 text-zinc-900 dark:text-zinc-100"
+                            >
+                                <div className="flex items-center justify-between mb-3">
+                                    <div>
+                                        <Tag tone="info">Panel</Tag>
+                                        <h3 className="mt-2 text-lg font-extrabold">
+                                            {panelTitle} — {panelRows.length} satır
+                                        </h3>
+                                    </div>
+                                    <IconBtn title="Kapat" onClick={() => setPanelOpen(false)}>
+                                        <FiX />
+                                    </IconBtn>
+                                </div>
 
-                                                    <td className="px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/50 text-center">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                openDetail(evrak);
-                                                            }}
-                                                            className="inline-flex items-center justify-center rounded-xl bg-white/60 dark:bg-gray-900/25 border border-gray-200/70 dark:border-gray-700/60 px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300 hover:bg-white/90 dark:hover:bg-gray-900/40 active:scale-[0.98] transition"
-                                                        >
-                                                            Detay
-                                                        </button>
-                                                    </td>
-
-                                                    <td className="px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/50 text-center">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setSelectedEvrak(evrak);
-                                                                setShowEditModal(true);
-                                                            }}
-                                                            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 text-white px-3 py-2 text-xs font-semibold hover:bg-blue-700 active:scale-[0.98] transition"
-                                                        >
-                                                            <FiEdit2 />
-                                                            Düzenle
-                                                        </button>
-                                                    </td>
-
-                                                    <td className="px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/50 text-center">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                exportEvrakToExcel(evrak);
-                                                            }}
-                                                            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 text-white px-3 py-2 text-xs font-semibold hover:bg-emerald-700 active:scale-[0.98] transition"
-                                                        >
-                                                            <FiDownload />
-                                                            Satır Raporu
-                                                        </button>
-                                                    </td>
-
-                                                    <td className="px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/50 text-center">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleEvrakSil(evrak);
-                                                            }}
-                                                            disabled={deletingId === evrak.id}
-                                                            className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-white active:scale-[0.98] transition
-                                ${deletingId === evrak.id ? 'bg-rose-300 cursor-not-allowed' : 'bg-rose-600 hover:bg-rose-700'}`}
-                                                        >
-                                                            <FiTrash2 />
-                                                            {deletingId === evrak.id ? 'Siliniyor…' : 'Sil'}
-                                                        </button>
+                                <div className="rounded-3xl overflow-hidden border border-violet-200/60 dark:border-white/10 bg-white/70 dark:bg-white/[0.04]">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-white/80 dark:bg-white/[0.06]">
+                                            <tr className="text-left text-xs font-extrabold text-zinc-700 dark:text-zinc-200">
+                                                <th className="px-3 py-3 border-b border-violet-200/60 dark:border-white/10">#</th>
+                                                <th className="px-3 py-3 border-b border-violet-200/60 dark:border-white/10">Tarih</th>
+                                                <th className="px-3 py-3 border-b border-violet-200/60 dark:border-white/10">Evrak</th>
+                                                <th className="px-3 py-3 border-b border-violet-200/60 dark:border-white/10">Lokasyon</th>
+                                                <th className="px-3 py-3 border-b border-violet-200/60 dark:border-white/10">Sefer No</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {panelRows.map((r, i) => (
+                                                <tr key={`${r.evrakId}-${i}`} className="odd:bg-violet-50/40 dark:odd:bg-white/[0.03] hover:bg-violet-50/70 dark:hover:bg-white/[0.06]">
+                                                    <td className="px-3 py-3 border-b border-violet-200/40 dark:border-white/10 font-extrabold">{i + 1}</td>
+                                                    <td className="px-3 py-3 border-b border-violet-200/40 dark:border-white/10">{new Date(r.tarih).toLocaleDateString("tr-TR")}</td>
+                                                    <td className="px-3 py-3 border-b border-violet-200/40 dark:border-white/10">#{r.evrakId}</td>
+                                                    <td className="px-3 py-3 border-b border-violet-200/40 dark:border-white/10">{r.lokasyon}</td>
+                                                    <td className="px-3 py-3 border-b border-violet-200/40 dark:border-white/10">{r.seferno}</td>
+                                                </tr>
+                                            ))}
+                                            {panelRows.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={5} className="px-3 py-10 text-center text-zinc-600 dark:text-zinc-300">
+                                                        Kayıt bulunamadı.
                                                     </td>
                                                 </tr>
-                                            );
-                                        })}
-
-                                        {filteredEvraklar.length === 0 && (
-                                            <tr>
-                                                <td colSpan={10} className="px-6 py-10 text-center text-sm text-gray-600 dark:text-gray-300">
-                                                    Kayıt bulunamadı. Filtreleri gevşetmeyi deneyin.
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     )}
                 </div>
             </Layout>
-
-            {/* SOL FİLTRE PANELİ */}
-            {showFilters && (
-                <div className="fixed inset-0 z-50">
-                    <div className="absolute inset-0 bg-black/40" onClick={() => setShowFilters(false)} />
-                    <div className="absolute left-0 top-0 h-full w-full max-w-[420px] bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-2xl p-5 overflow-y-auto">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold">Filtreler</h3>
-                            <button onClick={() => setShowFilters(false)} className="text-xl px-2" aria-label="Kapat">×</button>
-                        </div>
-
-                        {/* Tarihler */}
-                        <div className="space-y-3">
-                            <div>
-                                <label className="text-sm">Başlangıç Tarihi</label>
-                                <input
-                                    type="date"
-                                    value={draft.startDate}
-                                    onChange={(e) => setDraft({ ...draft, startDate: e.target.value })}
-                                    className="mt-1 w-full px-3 py-2 rounded-xl border border-gray-300 dark:bg-gray-800 dark:border-gray-700"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-sm">Bitiş Tarihi</label>
-                                <input
-                                    type="date"
-                                    value={draft.endDate}
-                                    onChange={(e) => setDraft({ ...draft, endDate: e.target.value })}
-                                    className="mt-1 w-full px-3 py-2 rounded-xl border border-gray-300 dark:bg-gray-800 dark:border-gray-700"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Projeler */}
-                        <div className="mt-5">
-                            <div className="flex items-center justify-between">
-                                <label className="text-sm font-medium">Projeler</label>
-                                <button onClick={() => setDraft((d) => ({ ...d, proje: [] }))} className="text-xs px-2 py-1 rounded-lg bg-gray-200 dark:bg-gray-700">
-                                    Temizle
-                                </button>
-                            </div>
-                            <div className="mt-2 max-h-40 overflow-auto border border-gray-200 dark:border-gray-700 rounded-xl">
-                                {projeOptions.map(({ id, name }) => (
-                                    <label key={id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60">
-                                        <input
-                                            type="checkbox"
-                                            checked={draft.proje.includes(id)}
-                                            onChange={() =>
-                                                setDraft((d) => ({
-                                                    ...d,
-                                                    proje: d.proje.includes(id) ? d.proje.filter((x) => x !== id) : [...d.proje, id],
-                                                }))
-                                            }
-                                        />
-                                        <span>{name}</span>
-                                    </label>
-                                ))}
-                                {projeOptions.length === 0 && (
-                                    <div className="px-3 py-2 text-sm text-gray-500">Seçili tarih aralığında proje yok.</div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Lokasyonlar */}
-                        <div className="mt-5">
-                            <div className="flex items-center justify-between">
-                                <label className="text-sm font-medium">Lokasyonlar</label>
-                                <button onClick={() => setDraft((d) => ({ ...d, lokasyon: [] }))} className="text-xs px-2 py-1 rounded-lg bg-gray-200 dark:bg-gray-700">
-                                    Temizle
-                                </button>
-                            </div>
-                            <div className="mt-2 max-h-40 overflow-auto border border-gray-200 dark:border-gray-700 rounded-xl">
-                                {lokasyonOptions.map(({ id, name }) => (
-                                    <label key={id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60">
-                                        <input
-                                            type="checkbox"
-                                            checked={draft.lokasyon.includes(id)}
-                                            onChange={() =>
-                                                setDraft((d) => ({
-                                                    ...d,
-                                                    lokasyon: d.lokasyon.includes(id) ? d.lokasyon.filter((x) => x !== id) : [...d.lokasyon, id],
-                                                }))
-                                            }
-                                        />
-                                        <span>{name}</span>
-                                    </label>
-                                ))}
-                                {lokasyonOptions.length === 0 && (
-                                    <div className="px-3 py-2 text-sm text-gray-500">Seçili projelere ait lokasyon yok.</div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Açıklama */}
-                        <div className="mt-5">
-                            <label className="text-sm font-medium">Açıklama</label>
-                            <input
-                                type="text"
-                                list="aciklama-list"
-                                value={draft.aciklama}
-                                onChange={(e) => setDraft({ ...draft, aciklama: e.target.value })}
-                                className="mt-1 w-full px-3 py-2 rounded-xl border border-gray-300 dark:bg-gray-800 dark:border-gray-700"
-                                placeholder="Ara ya da yaz..."
-                            />
-                            <datalist id="aciklama-list">
-                                {aciklamaOptions.map((a, i) => (
-                                    <option key={i} value={a} />
-                                ))}
-                            </datalist>
-                        </div>
-
-                        {/* Sefer No */}
-                        <div className="mt-5">
-                            <label className="text-sm font-medium">Sefer No</label>
-                            <input
-                                type="text"
-                                list="sefer-list"
-                                value={draft.seferno}
-                                onChange={(e) => setDraft({ ...draft, seferno: e.target.value })}
-                                className="mt-1 w-full px-3 py-2 rounded-xl border border-gray-300 dark:bg-gray-800 dark:border-gray-700"
-                                placeholder="Ara ya da yaz..."
-                            />
-                            <datalist id="sefer-list">
-                                {seferOptions.map((s, i) => (
-                                    <option key={i} value={s} />
-                                ))}
-                            </datalist>
-                        </div>
-
-                        {/* Butonlar */}
-                        <div className="mt-6 flex items-center gap-2">
-                            <button
-                                onClick={() => {
-                                    setFilters(initialFilterState);
-                                    setDraft(initialFilterState);
-                                    setShowFilters(false);
-                                }}
-                                className="h-[44px] px-4 rounded-xl bg-gray-600 hover:bg-gray-700 text-white font-semibold"
-                            >
-                                Temizle
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setFilters(draft);
-                                    setShowFilters(false);
-                                }}
-                                className="h-[44px] px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
-                            >
-                                Uygula
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ✅ DETAY CARD */}
-            {showDetailCard && detailEvrak && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
-                    <div className="absolute inset-0 bg-black/40" onClick={() => setShowDetailCard(false)} />
-                    <div className="relative bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 w-full max-w-2xl max-h-[85vh] rounded-3xl shadow-2xl p-6 overflow-y-auto border border-gray-200/60 dark:border-gray-700/60">
-                        <button onClick={() => setShowDetailCard(false)} className="absolute top-3 right-4 text-2xl leading-none" aria-label="Kapat">×</button>
-
-                        <h3 className="text-lg font-semibold mb-4">Sefer Detayları — Evrak #{detailEvrak.id}</h3>
-
-                        {/* Meta */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-                            <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-3">
-                                <div className="text-xs opacity-70">Tarih</div>
-                                <div className="font-medium">{new Date(detailEvrak.tarih).toLocaleDateString('tr-TR')}</div>
-                            </div>
-                            <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-3">
-                                <div className="text-xs opacity-70">Lokasyon</div>
-                                <div className="font-medium">{lokasyonlar[detailEvrak.lokasyonid]}</div>
-                            </div>
-                            <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-3">
-                                <div className="text-xs opacity-70">Toplam Sefer</div>
-                                <div className="font-medium">{detailEvrak.sefersayisi || 0}</div>
-                            </div>
-                        </div>
-
-                        {/* Projeler */}
-                        <div className="mb-4">
-                            <div className="text-sm font-semibold mb-2">Projeler</div>
-                            <div className="flex flex-wrap gap-2">
-                                {(detailEvrak.evrakproje || []).map((p, i) => (
-                                    <span key={i} className="px-3 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 border border-blue-300 dark:border-blue-700">
-                                        {projeler[p.projeid]} — {p.sefersayisi}
-                                    </span>
-                                ))}
-                                {(!detailEvrak.evrakproje || !detailEvrak.evrakproje.length) && (
-                                    <span className="text-xs opacity-70">Proje kaydı yok.</span>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Sefer listesi */}
-                        <div>
-                            <div className="text-sm font-semibold mb-2">Seferler</div>
-                            <div className="space-y-2">
-                                {(detailEvrak.evrakseferler || []).length ? (
-                                    detailEvrak.evrakseferler.map((s, i) => {
-                                        const normalized = (s.aciklama || '').trim().toLocaleUpperCase('tr');
-                                        const badgeClass =
-                                            normalized === 'TARAFIMIZCA DÜZELTİLMİŞTİR'
-                                                ? 'bg-emerald-600 text-white'
-                                                : normalized === 'TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR'
-                                                    ? 'bg-indigo-600 text-white'
-                                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100';
-
-                                        return (
-                                            <div key={i} className="border border-gray-200 dark:border-gray-700 rounded-2xl p-3 flex items-start justify-between gap-3">
-                                                <div>
-                                                    <div className="text-xs opacity-70">Sefer No</div>
-                                                    <div className="font-medium">{s.seferno || '(Boş)'}</div>
-                                                </div>
-                                                <span className={`px-3 py-1 rounded-full text-xs ${badgeClass}`}>{s.aciklama || '—'}</span>
-                                            </div>
-                                        );
-                                    })
-                                ) : (
-                                    <div className="text-sm opacity-70">Sefer kaydı bulunamadı.</div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="mt-6 flex justify-end gap-2">
-                            <button onClick={() => exportEvrakToExcel(detailEvrak)} className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">
-                                Excel (Satır Raporu)
-                            </button>
-                            <button onClick={() => setShowDetailCard(false)} className="px-4 py-2 rounded-xl bg-gray-600 hover:bg-gray-700 text-white text-sm font-semibold">
-                                Kapat
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* 👉 Sağdan kayan PANEL */}
-            {panelOpen && (
-                <div className="fixed inset-0 z-50">
-                    <div className="absolute inset-0 bg-black/40" onClick={() => setPanelOpen(false)} />
-                    <div className="absolute right-0 top-0 h-full w-full sm:w-[620px] bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-2xl p-5 overflow-y-auto">
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-lg font-semibold">
-                                {panelTitle} — {panelRows.length} satır
-                            </h3>
-                            <button onClick={() => setPanelOpen(false)} className="text-xl px-2" aria-label="Kapat">×</button>
-                        </div>
-
-                        <div className="rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700">
-                            <table className="w-full text-sm">
-                                <thead className="bg-gray-100 dark:bg-gray-800">
-                                    <tr>
-                                        <th className="px-3 py-2 text-left">#</th>
-                                        <th className="px-3 py-2 text-left">Tarih</th>
-                                        <th className="px-3 py-2 text-left">Evrak</th>
-                                        <th className="px-3 py-2 text-left">Lokasyon</th>
-                                        <th className="px-3 py-2 text-left">Sefer No</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {panelRows.map((r, i) => (
-                                        <tr key={`${r.evrakId}-${i}`} className="odd:bg-gray-50 dark:odd:bg-gray-900">
-                                            <td className="px-3 py-2">{i + 1}</td>
-                                            <td className="px-3 py-2">{new Date(r.tarih).toLocaleDateString('tr-TR')}</td>
-                                            <td className="px-3 py-2">#{r.evrakId}</td>
-                                            <td className="px-3 py-2">{r.lokasyon}</td>
-                                            <td className="px-3 py-2">{r.seferno}</td>
-                                        </tr>
-                                    ))}
-                                    {panelRows.length === 0 && (
-                                        <tr>
-                                            <td colSpan={5} className="px-3 py-6 text-center opacity-70">Kayıt bulunamadı.</td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            )}
         </>
     );
 }
