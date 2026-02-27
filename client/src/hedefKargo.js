@@ -632,10 +632,10 @@ function HedefKargo() {
                 )}
 
                 {/* TABLE */}
-                <div className="rounded-3xl border border-gray-200/70 dark:border-white/10 bg-white/70 dark:bg-white/5 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.08)] overflow-hidden">
+                <div className="rounded-3xl border border-gray-200/70 dark:border-white/10 bg-white/70 dark:bg-[#0b1220]/70 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.08)] overflow-hidden">
                     <div className="overflow-x-auto">
-                        <table className="min-w-full text-sm md:text-[15px]">
-                            <thead className="bg-gray-50/80 dark:bg-white/5 sticky top-0 z-10">
+                        <table className="min-w-full text-sm md:text-[15px] text-gray-900 dark:text-gray-100">
+                            <thead className="bg-gray-50/80 dark:bg-[#0f172a]/80 sticky top-0 z-10">
                                 <tr className="text-left">
                                     <th className="px-4 py-3 text-[11px] tracking-wide uppercase font-semibold text-gray-600 dark:text-gray-400 border-b border-gray-200/70 dark:border-white/10">
                                         <label className="inline-flex items-center gap-2 select-none cursor-pointer">
@@ -670,9 +670,10 @@ function HedefKargo() {
                                 {!loading && filteredData.map((item, index) => (
                                     <tr
                                         key={item.id}
-                                        className={`group ${index % 2 === 0 ? 'bg-white/60 dark:bg-white/3' : 'bg-gray-50/50 dark:bg-white/2'
-                                            } hover:bg-indigo-50/60 dark:hover:bg-white/6 transition-colors`}
-                                    >
+                                        className={`group ${index % 2 === 0
+                                                ? 'bg-white/60 dark:bg-[#0b1220]/40'
+                                                : 'bg-gray-50/50 dark:bg-[#0b1220]/25'
+                                            } hover:bg-indigo-50/60 dark:hover:bg-[#111c33]/60 transition-colors`}                                    >
                                         <td className="px-4 py-3 border-b border-gray-100 dark:border-white/10">
                                             <input
                                                 type="checkbox"
@@ -702,7 +703,7 @@ function HedefKargo() {
                                         </td>
 
                                         <td className="px-4 py-3 border-b border-gray-100 dark:border-white/10">
-                                            <div className="flex gap-2 justify-center flex-wrap opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition">
+                                            <div className="flex gap-2 justify-center flex-wrap opacity-100 translate-y-0 transition">
                                                 <button
                                                     className="inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl text-amber-900 dark:text-amber-100 bg-amber-50/90 dark:bg-amber-900/30 border border-amber-200/70 dark:border-amber-800/60 hover:shadow-md transition-all duration-200 focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-400/30"
                                                     onClick={() => openEditSheet(item)}
@@ -765,7 +766,7 @@ function HedefKargo() {
                         </table>
                     </div>
 
-                    <div className="flex items-center justify-between px-4 py-3 bg-gray-50/70 dark:bg-white/5 border-t border-gray-200/70 dark:border-white/10 text-xs text-gray-600 dark:text-gray-400">
+                    <div className="flex items-center justify-between px-4 py-3 bg-gray-50/70 dark:bg-[#0f172a]/70 border-t border-gray-200/70 dark:border-white/10 text-xs text-gray-600 dark:text-gray-300">
                         <div>
                             Görüntülenen kayıt:{' '}
                             <span className="font-semibold text-gray-800 dark:text-gray-200">

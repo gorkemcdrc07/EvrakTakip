@@ -19,6 +19,7 @@ import {
     FiUsers,
     FiCopy,
     FiCheck,
+    FiTrash2,
 } from "react-icons/fi";
 
 function cx(...c) {
@@ -133,7 +134,7 @@ const rsStyles = (isDark) => ({
             : isDark
                 ? "rgba(255,255,255,.12)"
                 : "rgba(0,0,0,.10)",
-        backgroundColor: isDark ? "rgba(24,24,27,.55)" : "rgba(255,255,255,.80)", // zinc
+        backgroundColor: isDark ? "rgba(24,24,27,.55)" : "rgba(255,255,255,.80)",
         boxShadow: state.isFocused ? "0 0 0 4px rgba(139,92,246,.18)" : "none",
         ":hover": { borderColor: "rgba(139,92,246,.55)" },
     }),
@@ -142,7 +143,9 @@ const rsStyles = (isDark) => ({
         borderRadius: 18,
         overflow: "hidden",
         backgroundColor: isDark ? "rgba(9,9,11,.95)" : "white",
-        border: isDark ? "1px solid rgba(255,255,255,.10)" : "1px solid rgba(0,0,0,.08)",
+        border: isDark
+            ? "1px solid rgba(255,255,255,.10)"
+            : "1px solid rgba(0,0,0,.08)",
         boxShadow: "0 16px 40px rgba(0,0,0,.22)",
     }),
     option: (base, state) => ({
@@ -170,7 +173,10 @@ const rsStyles = (isDark) => ({
     multiValueRemove: (base) => ({
         ...base,
         borderRadius: 999,
-        ":hover": { backgroundColor: "rgba(244,63,94,.18)", color: isDark ? "white" : "#111827" },
+        ":hover": {
+            backgroundColor: "rgba(244,63,94,.18)",
+            color: isDark ? "white" : "#111827",
+        },
     }),
     input: (base) => ({ ...base, color: isDark ? "white" : "#111827" }),
     singleValue: (base) => ({ ...base, color: isDark ? "white" : "#111827", fontWeight: 700 }),
@@ -304,8 +310,7 @@ export default function TumKargoBilgileri() {
         return isNaN(tarih) ? "" : tarih.toLocaleDateString("tr-TR");
     };
 
-    const kisalt = (metin, limit = 34) =>
-        metin?.length > limit ? metin.slice(0, limit) + "…" : metin;
+    const kisalt = (metin, limit = 34) => (metin?.length > limit ? metin.slice(0, limit) + "…" : metin);
 
     const modalAc = (baslik, icerik) => {
         setModalBaslik(baslik);
@@ -313,25 +318,34 @@ export default function TumKargoBilgileri() {
         setModalGoster(true);
     };
 
-    const veriGetir = async (year = "2025") => {
+    /**
+     * ✅ FIX: yearOrNull null ise TÜM yıllar gelir (tarih filtresi uygulanmaz)
+     * ✅ FIX: tek useEffect ile çağırıyoruz (çift çağrı bug'ı yok)
+     */
+    const veriGetir = async (yearOrNull) => {
         setLoading(true);
+
         const pageSize = 1000;
         let from = 0;
         let to = pageSize - 1;
         let hasMore = true;
         let allData = [];
 
-        const start = `${year}-01-01`;
-        const end = `${year}-12-31`;
+        const start = yearOrNull ? `${yearOrNull}-01-01` : null;
+        const end = yearOrNull ? `${yearOrNull}-12-31` : null;
 
         while (hasMore) {
-            const { data, error } = await supabase
+            let q = supabase
                 .from("kargo_bilgileri")
                 .select("*")
                 .order("id", { ascending: false })
-                .range(from, to)
-                .gte("tarih", start)
-                .lte("tarih", end);
+                .range(from, to);
+
+            if (start && end) {
+                q = q.gte("tarih", start).lte("tarih", end);
+            }
+
+            const { data, error } = await q;
 
             if (error) {
                 console.error("Veri çekme hatası:", error);
@@ -363,8 +377,10 @@ export default function TumKargoBilgileri() {
         setLoading(false);
     };
 
+    // İlk açılış: TÜM yıllar + yıl seçenekleri
     useEffect(() => {
-        veriGetir("2025");
+        veriGetir(null);
+
         const current = new Date().getFullYear();
         const years = [];
         for (let y = current; y >= 2020; y--) years.push(String(y));
@@ -372,9 +388,9 @@ export default function TumKargoBilgileri() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // ✅ FIX: tek effect
     useEffect(() => {
-        if (secilenYil) veriGetir(secilenYil);
-        else veriGetir("2025");
+        veriGetir(secilenYil || null);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [secilenYil]);
 
@@ -481,7 +497,7 @@ export default function TumKargoBilgileri() {
         setSelectedGonderen([]);
         setIrsaliyeNoInput("");
         setQuickSearch("");
-        setFilteredVeriler(veriler);
+        // filteredVeriler zaten effect ile güncellenecek
     };
 
     const activeChips = useMemo(() => {
@@ -517,24 +533,24 @@ export default function TumKargoBilgileri() {
         saveAs(blob, `kargo_bilgileri_${tur}.xlsx`);
     };
 
+    // ✅ FIX: yıl seçiliyse o yıl, değilse tüm yıllar export
     const tumVeriyiExceleAktar = async () => {
-        const year = secilenYil || "2025";
+        const yearOrNull = secilenYil || null;
+
         const pageSize = 1000;
         let allData = [];
         let from = 0;
         let to = pageSize - 1;
         let hasMore = true;
 
-        const start = `${year}-01-01`;
-        const end = `${year}-12-31`;
+        const start = yearOrNull ? `${yearOrNull}-01-01` : null;
+        const end = yearOrNull ? `${yearOrNull}-12-31` : null;
 
         while (hasMore) {
-            const { data, error } = await supabase
-                .from("kargo_bilgileri")
-                .select("*")
-                .gte("tarih", start)
-                .lte("tarih", end)
-                .range(from, to);
+            let q = supabase.from("kargo_bilgileri").select("*").range(from, to);
+            if (start && end) q = q.gte("tarih", start).lte("tarih", end);
+
+            const { data, error } = await q;
 
             if (error) {
                 console.error("Veri çekme hatası:", error);
@@ -551,7 +567,7 @@ export default function TumKargoBilgileri() {
             }
         }
 
-        excelAktarVeri(allData, `yil_${year}`);
+        excelAktarVeri(allData, yearOrNull ? `yil_${yearOrNull}` : "tum_yillar");
         setExcelModalAcik(false);
         showToast("success", "Excel indirildi.");
     };
@@ -578,8 +594,16 @@ export default function TumKargoBilgileri() {
     }, [duzenlenenVeri, ekstraVar, ekstraEvrakSayisi]);
 
     const duzenleVeriyiGuncelle = async () => {
-        const { id, tarih, kargo_firmasi, gonderi_numarasi, gonderen_firma, irsaliye_adi, irsaliye_no, odak_evrak_no } =
-            duzenlenenVeri;
+        const {
+            id,
+            tarih,
+            kargo_firmasi,
+            gonderi_numarasi,
+            gonderen_firma,
+            irsaliye_adi,
+            irsaliye_no,
+            odak_evrak_no,
+        } = duzenlenenVeri;
 
         const { error } = await supabase
             .from("kargo_bilgileri")
@@ -609,6 +633,7 @@ export default function TumKargoBilgileri() {
     };
 
     const duzenleVeriyiSil = async () => {
+        if (!duzenlenenVeri?.id) return;
         if (!window.confirm("Bu kaydı silmek istediğinize emin misiniz?")) return;
 
         const { error } = await supabase.from("kargo_bilgileri").delete().eq("id", duzenlenenVeri.id);
@@ -616,6 +641,20 @@ export default function TumKargoBilgileri() {
         if (!error) {
             setVeriler((prev) => prev.filter((v) => v.id !== duzenlenenVeri.id));
             setDuzenleModalAcik(false);
+            showToast("success", "🗑️ Kayıt silindi.");
+        } else {
+            showToast("error", "❌ Silme başarısız.");
+        }
+    };
+
+    // Satırdan hızlı sil (buton)
+    const satirSil = async (row) => {
+        if (!row?.id) return;
+        if (!window.confirm("Bu kaydı silmek istediğinize emin misiniz?")) return;
+
+        const { error } = await supabase.from("kargo_bilgileri").delete().eq("id", row.id);
+        if (!error) {
+            setVeriler((prev) => prev.filter((v) => v.id !== row.id));
             showToast("success", "🗑️ Kayıt silindi.");
         } else {
             showToast("error", "❌ Silme başarısız.");
@@ -915,7 +954,7 @@ export default function TumKargoBilgileri() {
                             <div className="px-5 py-4 border-b border-black/5 dark:border-white/10 flex items-center justify-between">
                                 <div className="font-extrabold">Kayıtlar</div>
                                 <div className="text-xs text-gray-500 dark:text-gray-400">
-                                    İrsaliye/Odak tıklanabilir • Hover’da düzenle
+                                    İrsaliye/Odak tıklanabilir • İşlem butonları hep görünür
                                 </div>
                             </div>
 
@@ -943,7 +982,7 @@ export default function TumKargoBilgileri() {
                                 <div className="max-h-[72vh] overflow-auto">
                                     <div className="min-w-[980px]">
                                         <div className="sticky top-0 z-10 bg-white/85 dark:bg-zinc-950/75 backdrop-blur-xl border-b border-black/5 dark:border-white/10">
-                                            <div className="grid grid-cols-[120px_140px_160px_180px_160px_200px_200px_90px_120px] px-4 py-3 text-xs font-extrabold text-gray-600 dark:text-gray-300">
+                                            <div className="grid grid-cols-[120px_140px_160px_180px_160px_200px_200px_90px_160px] px-4 py-3 text-xs font-extrabold text-gray-600 dark:text-gray-300">
                                                 <div>Tarih</div>
                                                 <div>Kargo</div>
                                                 <div>Gönderi No</div>
@@ -960,7 +999,7 @@ export default function TumKargoBilgileri() {
                                             {filteredVeriler.map((item, idx) => (
                                                 <div
                                                     key={item.id ?? idx}
-                                                    className="group grid grid-cols-[120px_140px_160px_180px_160px_200px_200px_90px_120px] items-center px-4 py-3
+                                                    className="group grid grid-cols-[120px_140px_160px_180px_160px_200px_200px_90px_160px] items-center px-4 py-3
                           hover:bg-violet-50/60 dark:hover:bg-white/5 transition"
                                                 >
                                                     <div className="text-sm font-semibold">{tarihFormatla(item.tarih)}</div>
@@ -1006,13 +1045,21 @@ export default function TumKargoBilgileri() {
                                                         </span>
                                                     </div>
 
-                                                    <div className="flex justify-end">
+                                                    {/* ✅ FIX: butonlar hover beklemeden hep görünsün */}
+                                                    <div className="flex justify-end gap-2">
                                                         <button
                                                             onClick={() => duzenleModaliAc(item)}
-                                                            className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition
-                              inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-2 text-white font-extrabold hover:opacity-95"
+                                                            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-2 text-white font-extrabold hover:opacity-95"
                                                         >
                                                             <FiEdit2 /> Düzenle
+                                                        </button>
+
+                                                        <button
+                                                            onClick={() => satirSil(item)}
+                                                            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 px-3 py-2 text-white font-extrabold hover:opacity-95"
+                                                            title="Sil"
+                                                        >
+                                                            <FiTrash2 /> Sil
                                                         </button>
                                                     </div>
                                                 </div>
