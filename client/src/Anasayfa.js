@@ -172,8 +172,10 @@ export default function Anasayfa() {
                         root: {
                             background: mode === "dark" ? "rgba(10,12,20,0.72)" : "rgba(255,255,255,0.78)",
                             backdropFilter: "blur(14px)",
-                            borderBottom: mode === "dark" ? "1px solid rgba(167,139,250,0.16)" : "1px solid rgba(139,92,246,0.12)",
-                            boxShadow: mode === "dark" ? "0 10px 40px rgba(139,92,246,0.10)" : "0 10px 30px rgba(139,92,246,0.12)",
+                            borderBottom:
+                                mode === "dark" ? "1px solid rgba(167,139,250,0.16)" : "1px solid rgba(139,92,246,0.12)",
+                            boxShadow:
+                                mode === "dark" ? "0 10px 40px rgba(139,92,246,0.10)" : "0 10px 30px rgba(139,92,246,0.12)",
                         },
                     },
                 },
@@ -211,7 +213,6 @@ export default function Anasayfa() {
         localStorage.setItem("theme", darkMode ? "dark" : "light");
     }, [darkMode]);
 
-    const toggleTheme = useCallback(() => setDarkMode((p) => !p), []);
     const handleLogout = useCallback(() => {
         localStorage.clear();
         navigate("/login");
@@ -227,6 +228,13 @@ export default function Anasayfa() {
         }),
         [darkMode]
     );
+
+    // ✅ Kartlarda tarih göstermek için (YYYY-MM-DD -> GG.AA.YYYY)
+    const formatTRDate = useCallback((iso) => {
+        if (!iso) return "";
+        const dt = new Date(`${iso}T00:00:00`);
+        return dt.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
+    }, []);
 
     // firmalar
     useEffect(() => {
@@ -312,8 +320,14 @@ export default function Anasayfa() {
         const todayKey = new Date().toISOString().split("T")[0];
         return dailyData.find((d) => d.date === todayKey)?.count ?? 0;
     }, [dailyData]);
-    const avgCount = useMemo(() => (dailyData.length ? Math.round((totalCount / dailyData.length) * 10) / 10 : 0), [dailyData, totalCount]);
-    const maxDay = useMemo(() => (dailyData.length ? dailyData.reduce((a, b) => (b.count > a.count ? b : a), dailyData[0]) : null), [dailyData]);
+    const avgCount = useMemo(
+        () => (dailyData.length ? Math.round((totalCount / dailyData.length) * 10) / 10 : 0),
+        [dailyData, totalCount]
+    );
+    const maxDay = useMemo(
+        () => (dailyData.length ? dailyData.reduce((a, b) => (b.count > a.count ? b : a), dailyData[0]) : null),
+        [dailyData]
+    );
 
     const top5 = useMemo(() => firmTotals.slice(0, 5).reverse(), [firmTotals]);
 
@@ -333,7 +347,7 @@ export default function Anasayfa() {
                     <defs>
                         <linearGradient id="mainGrad" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor={darkMode ? accent.primary2 : accent.primary} stopOpacity={0.95} />
-                            <stop offset="55%" stopColor={darkMode ? accent.primary : accent.pink} stopOpacity={0.30} />
+                            <stop offset="55%" stopColor={darkMode ? accent.primary : accent.pink} stopOpacity={0.3} />
                             <stop offset="100%" stopColor={darkMode ? accent.cyan : accent.primary2} stopOpacity={0.12} />
                         </linearGradient>
                     </defs>
@@ -468,11 +482,23 @@ export default function Anasayfa() {
                                 {/* Header card (sade) */}
                                 <Card sx={{ borderRadius: 4, overflow: "hidden" }}>
                                     <CardContent sx={{ position: "relative" }}>
-                                        <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }} justifyContent="space-between">
+                                        <Stack
+                                            direction={{ xs: "column", md: "row" }}
+                                            spacing={1.5}
+                                            alignItems={{ md: "center" }}
+                                            justifyContent="space-between"
+                                        >
                                             <Box>
                                                 <Typography
                                                     variant="overline"
-                                                    sx={{ letterSpacing: "0.22em", fontWeight: 950, opacity: 0.9, display: "inline-flex", alignItems: "center", gap: 1 }}
+                                                    sx={{
+                                                        letterSpacing: "0.22em",
+                                                        fontWeight: 950,
+                                                        opacity: 0.9,
+                                                        display: "inline-flex",
+                                                        alignItems: "center",
+                                                        gap: 1,
+                                                    }}
                                                 >
                                                     <CalendarMonthIcon sx={{ fontSize: 18, opacity: 0.9 }} />
                                                     SADE ANALİZ
@@ -527,7 +553,11 @@ export default function Anasayfa() {
                                                 <Button
                                                     variant="outlined"
                                                     onClick={() => setSelectedFirma("Hepsi")}
-                                                    sx={{ borderRadius: 999, borderColor: "rgba(167,139,250,0.26)", bgcolor: "rgba(139,92,246,0.08)" }}
+                                                    sx={{
+                                                        borderRadius: 999,
+                                                        borderColor: "rgba(167,139,250,0.26)",
+                                                        bgcolor: "rgba(139,92,246,0.08)",
+                                                    }}
                                                 >
                                                     Sıfırla
                                                 </Button>
@@ -582,7 +612,12 @@ export default function Anasayfa() {
                                                     </Box>
                                                 </Stack>
 
-                                                <Typography variant={k.title === "Pik Gün" ? "h6" : "h3"} fontWeight={980} sx={{ mt: 1.1, lineHeight: 1.1 }} noWrap>
+                                                <Typography
+                                                    variant={k.title === "Pik Gün" ? "h6" : "h3"}
+                                                    fontWeight={980}
+                                                    sx={{ mt: 1.1, lineHeight: 1.1 }}
+                                                    noWrap
+                                                >
                                                     {k.value}
                                                 </Typography>
 
@@ -628,6 +663,7 @@ export default function Anasayfa() {
                                                 />
                                             </Stack>
 
+                                            {/* ✅ Grafik kutusu */}
                                             <Box
                                                 sx={{
                                                     height: { xs: 380, md: 460 },
@@ -656,6 +692,53 @@ export default function Anasayfa() {
                                                 ) : (
                                                     <Box sx={{ p: 1.5, height: "100%", position: "relative" }}>
                                                         <MainChart />
+                                                    </Box>
+                                                )}
+                                            </Box>
+
+                                            {/* ✅ Günlük kartlar (tarih + gün adı) */}
+                                            <Box sx={{ mt: 2 }}>
+                                                {loading ? null : (
+                                                    <Box
+                                                        sx={{
+                                                            display: "grid",
+                                                            gridTemplateColumns: {
+                                                                xs: "repeat(2, 1fr)",
+                                                                sm: "repeat(3, 1fr)",
+                                                                md: "repeat(7, 1fr)",
+                                                            },
+                                                            gap: 1.2,
+                                                        }}
+                                                    >
+                                                        {dailyData.map((d) => (
+                                                            <Card
+                                                                key={d.date}
+                                                                sx={{
+                                                                    borderRadius: 3,
+                                                                    overflow: "hidden",
+                                                                    border: "1px solid rgba(167,139,250,0.16)",
+                                                                    bgcolor: "rgba(255,255,255,0.02)",
+                                                                }}
+                                                            >
+                                                                <CardContent sx={{ p: 1.4, "&:last-child": { pb: 1.4 } }}>
+                                                                    <Typography variant="overline" sx={{ opacity: 0.9, fontWeight: 950, lineHeight: 1.1 }}>
+                                                                        {d.label}
+                                                                    </Typography>
+
+                                                                    <Typography variant="caption" sx={{ opacity: 0.75, display: "block", mt: 0.2 }}>
+                                                                        {formatTRDate(d.date)}
+                                                                    </Typography>
+
+                                                                    <Typography variant="h6" fontWeight={980} sx={{ lineHeight: 1.15, mt: 0.8 }}>
+                                                                        {d.count}
+                                                                    </Typography>
+
+                                                                    <Typography variant="caption" sx={{ opacity: 0.7 }}>
+                                                                        evrak
+                                                                    </Typography>
+                                                                </CardContent>
+                                                            </Card>
+                                                        ))}
                                                     </Box>
                                                 )}
                                             </Box>
