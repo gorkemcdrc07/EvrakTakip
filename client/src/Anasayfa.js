@@ -139,7 +139,7 @@ export default function Anasayfa() {
 
     // --- ROL ---
     const isRefika = usernameLower === "refika";
-    const isAdminOrManager = ["yaren", "ozge", "mehmet"].includes(usernameLower);
+    const isAdminOrManager = ["yaren", "ozge", "mehmet", "rabia"].includes(usernameLower);
 
     const tahakkukAllowedUsers = ["aleynagncl", "cagla123", "didem", "canan"].map((u) => u.trim().toLowerCase());
     const tahakkukBlockedUsers = ["yaren", "ozge", "refika", "mehmet"];
