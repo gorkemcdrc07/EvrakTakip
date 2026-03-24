@@ -2,20 +2,6 @@
 import Layout from './components/Layout';
 import { supabase } from './supabaseClient';
 
-/**
- * KargoBilgisiEkle – Modern UI + Otomatik QR/Barcode Okutma
- * ---------------------------------------------------------
- * ✅ Scanner veriyi direkt alana basar
- * ✅ "no":"..." veya "no"."..." içinden irsaliye no çekilir
- * ✅ Otomatik irsaliyeNo alanına yazılır
- * ✅ Yeni farklı değer gelirse arasına - koyup ekler
- * ✅ Aynı değer tekrar okunursa uyarı verir
- * ✅ Butonsuz otomatik akış
- * ✅ Modern glass + gradient görünüm
- * ✅ Alert yerine toast
- * ✅ Evrak adedi otomatik hesap
- */
-
 function KargoBilgisiEkle() {
     const [formData, setFormData] = useState({
         tarih: '',
@@ -28,7 +14,8 @@ function KargoBilgisiEkle() {
         evrakAdedi: 0
     });
 
-    const [qrInput, setQrInput] = useState('');
+    const [scannerValue, setScannerValue] = useState('');
+    const [scannerPreview, setScannerPreview] = useState('');
     const [ekstraEvrakSoruAcik, setEkstraEvrakSoruAcik] = useState(false);
     const [ekstraEvrakEklendi, setEkstraEvrakEklendi] = useState(false);
     const [ekstraEvrakSayisi, setEkstraEvrakSayisi] = useState('');
@@ -38,16 +25,40 @@ function KargoBilgisiEkle() {
     const [irsaliyeList, setIrsaliyeList] = useState([]);
 
     const [saving, setSaving] = useState(false);
-    const [toast, setToast] = useState(null);
 
-    const toastTimerRef = useRef(null);
-    const qrInputRef = useRef(null);
-    const qrBufferTimerRef = useRef(null);
+    const [notice, setNotice] = useState(null);
+    // { type: 'success' | 'error' | 'info', title: '', message: '' }
 
-    const showToast = (type, msg) => {
-        setToast({ type, msg });
-        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-        toastTimerRef.current = setTimeout(() => setToast(null), 2600);
+    const scannerInputRef = useRef(null);
+    const scannerProcessTimerRef = useRef(null);
+    const scannerRefocusTimerRef = useRef(null);
+    const noticeTimerRef = useRef(null);
+
+    const REQUIRED_IRSALIYE_LENGTH = 16;
+
+    const showNotice = (type, title, message, autoClose = true) => {
+        setNotice({ type, title, message });
+
+        if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+
+        if (autoClose) {
+            noticeTimerRef.current = setTimeout(() => {
+                setNotice(null);
+                focusScanner();
+            }, 2200);
+        }
+    };
+
+    const closeNotice = () => {
+        if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+        setNotice(null);
+        setTimeout(() => focusScanner(), 50);
+    };
+
+    const focusScanner = () => {
+        if (document.activeElement !== scannerInputRef.current) {
+            scannerInputRef.current?.focus();
+        }
     };
 
     const hesaplaEvrakAdedi = (irsaliyeNo, odakEvrakNo) => {
@@ -59,24 +70,139 @@ function KargoBilgisiEkle() {
         return irsaliyeAdet + odakAdet;
     };
 
-    const extractIrsaliyeNo = (qrText) => {
-        if (!qrText || typeof qrText !== 'string') return '';
+    const normalizeScannerText = (text) => {
+        if (!text || typeof text !== 'string') return '';
 
-        const normalized = qrText.replace(/\r?\n/g, ' ').trim();
+        return text
+            .replace(/\r/g, ' ')
+            .replace(/\n/g, ' ')
+            .replace(/\t/g, ' ')
+            .replace(/[“”]/g, '"')
+            .replace(/[‘’]/g, "'")
+            .replace(/İ/g, 'I')
+            .replace(/ı/g, 'i')
+            .replace(/Ş/g, 'S')
+            .replace(/ş/g, 's')
+            .replace(/Ğ/g, 'G')
+            .replace(/ğ/g, 'g')
+            .replace(/Ü/g, 'U')
+            .replace(/ü/g, 'u')
+            .replace(/Ö/g, 'O')
+            .replace(/ö/g, 'o')
+            .replace(/Ç/g, 'C')
+            .replace(/ç/g, 'c')
+            .replace(/\s+/g, ' ')
+            .trim();
+    };
 
-        // Yeni format: "no":"MKC2026000008663"
-        let match = normalized.match(/"no"\s*:\s*"([^"]+)"/i);
-        if (match?.[1]) return match[1].trim();
+    const sanitizeIrsaliyeNo = (value) => {
+        if (!value) return '';
+        return value
+            .trim()
+            .replace(/^"+|"+$/g, '')
+            .replace(/^'+|'+$/g, '')
+            .replace(/[^A-Za-z0-9]/g, '')
+            .toUpperCase();
+    };
 
-        // Eski format: "no"."MKC2026000008663"
-        match = normalized.match(/"no"\s*\.\s*"([^"]+)"/i);
-        if (match?.[1]) return match[1].trim();
+    const extractIrsaliyeNo = (rawText) => {
+        if (!rawText || typeof rawText !== 'string') return '';
 
-        // Fallback
-        match = normalized.match(/\bno\b[^A-Za-z0-9]*([A-Za-z0-9_-]+)/i);
-        if (match?.[1]) return match[1].trim();
+        const text = normalizeScannerText(rawText);
+
+        const patterns = [
+            /"no"\s*:\s*"([^"]+)"/i,
+            /"no"\s*\.\s*"([^"]+)"/i,
+            /\bno\b\s*[:.]\s*"([^"]+)"/i,
+            /\bno\b\s*[:.]\s*([A-Z0-9_-]{5,})/i,
+            /\bno\b[^A-Z0-9]{0,20}([A-Z0-9_-]{5,})/i,
+            /(?:^|[,{ ])\s*no\s*(?:[:. ]\s*)?([A-Z0-9_-]{5,})/i
+        ];
+
+        for (const pattern of patterns) {
+            const match = text.match(pattern);
+            if (match?.[1]) {
+                return sanitizeIrsaliyeNo(match[1]);
+            }
+        }
 
         return '';
+    };
+
+    const irsaliyeNoEkle = (yeniNo) => {
+        if (!yeniNo) return;
+
+        const temizNo = sanitizeIrsaliyeNo(yeniNo);
+
+        if (temizNo.length !== REQUIRED_IRSALIYE_LENGTH) {
+            showNotice(
+                'error',
+                'Karakter sayısı hatalı',
+                `Okunan irsaliye no ${temizNo.length} karakter. ${REQUIRED_IRSALIYE_LENGTH} karakter olması gerekiyor. Lütfen tekrar deneyin ya da elle yazın.`
+            );
+            return;
+        }
+
+        const mevcutlar = formData.irsaliyeNo
+            ? formData.irsaliyeNo.split('-').map(s => s.trim()).filter(Boolean)
+            : [];
+
+        if (mevcutlar.includes(temizNo)) {
+            showNotice(
+                'info',
+                'Bu irsaliye zaten eklendi',
+                `${temizNo} daha önce listeye eklenmiş.`
+            );
+            return;
+        }
+
+        const yeniIrsaliyeNo = [...mevcutlar, temizNo].join('-');
+
+        setFormData(prev => ({
+            ...prev,
+            irsaliyeNo: yeniIrsaliyeNo,
+            evrakAdedi: hesaplaEvrakAdedi(yeniIrsaliyeNo, prev.odakEvrakNo)
+        }));
+
+        showNotice(
+            'success',
+            'İrsaliye eklendi',
+            `${temizNo} başarıyla listeye eklendi.`
+        );
+    };
+    const processScannerData = (rawValue) => {
+        const cleaned = normalizeScannerText(rawValue);
+        if (!cleaned) return;
+
+        setScannerPreview(cleaned);
+
+        const parsedNo = extractIrsaliyeNo(cleaned);
+
+        if (!parsedNo) {
+            showNotice(
+                'error',
+                'NO değeri bulunamadı',
+                'Okunan veride geçerli bir NO alanı bulunamadı. Lütfen tekrar deneyin ya da elle yazın.'
+            );
+            setScannerValue('');
+            focusScanner();
+            return;
+        }
+
+        if (parsedNo.length !== REQUIRED_IRSALIYE_LENGTH) {
+            showNotice(
+                'error',
+                'Karakter sayısı eksik veya fazla',
+                `Okunan değer ${parsedNo.length} karakter: ${parsedNo}. Lütfen tekrar deneyin ya da elle yazın.`
+            );
+            setScannerValue('');
+            focusScanner();
+            return;
+        }
+
+        irsaliyeNoEkle(parsedNo);
+        setScannerValue('');
+        focusScanner();
     };
 
     useEffect(() => {
@@ -90,7 +216,7 @@ function KargoBilgisiEkle() {
 
             if (error) {
                 console.error(error);
-                showToast('error', error.message || 'Liste verileri alınamadı');
+                showNotice('error', 'Veri alınamadı', error.message || 'Liste verileri alınamadı');
                 return;
             }
 
@@ -104,12 +230,25 @@ function KargoBilgisiEkle() {
         fetchDistinctValues();
 
         setTimeout(() => {
-            qrInputRef.current?.focus();
-        }, 150);
+            focusScanner();
+        }, 200);
+
+        scannerRefocusTimerRef.current = setInterval(() => {
+            const activeTag = document.activeElement?.tagName?.toLowerCase();
+            const isTypingField =
+                activeTag === 'input' ||
+                activeTag === 'textarea' ||
+                document.activeElement?.isContentEditable;
+
+            if (!isTypingField || document.activeElement === scannerInputRef.current) {
+                focusScanner();
+            }
+        }, 800);
 
         return () => {
-            if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-            if (qrBufferTimerRef.current) clearTimeout(qrBufferTimerRef.current);
+            if (scannerProcessTimerRef.current) clearTimeout(scannerProcessTimerRef.current);
+            if (scannerRefocusTimerRef.current) clearInterval(scannerRefocusTimerRef.current);
+            if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
         };
     }, []);
 
@@ -130,77 +269,30 @@ function KargoBilgisiEkle() {
         });
     };
 
-    const irsaliyeNoEkle = (yeniNo) => {
-        if (!yeniNo) return;
-
-        let duplicateFound = false;
-        let added = false;
-
-        setFormData(prev => {
-            const mevcutlar = prev.irsaliyeNo
-                ? prev.irsaliyeNo.split('-').map(s => s.trim()).filter(Boolean)
-                : [];
-
-            if (mevcutlar.includes(yeniNo)) {
-                duplicateFound = true;
-                return prev;
-            }
-
-            const yeniIrsaliyeNo = [...mevcutlar, yeniNo].join('-');
-            added = true;
-
-            return {
-                ...prev,
-                irsaliyeNo: yeniIrsaliyeNo,
-                evrakAdedi: hesaplaEvrakAdedi(yeniIrsaliyeNo, prev.odakEvrakNo)
-            };
-        });
-
-        if (duplicateFound) {
-            showToast('info', `Bu eklendi zaten: ${yeniNo}`);
-            return;
-        }
-
-        if (added) {
-            showToast('success', `İrsaliye eklendi: ${yeniNo}`);
-        }
-    };
-
-    const parseAndAppendQR = (rawValue) => {
-        const parsedNo = extractIrsaliyeNo(rawValue);
-
-        if (!parsedNo) return;
-
-        irsaliyeNoEkle(parsedNo);
-        setQrInput('');
-
-        setTimeout(() => {
-            qrInputRef.current?.focus();
-        }, 50);
-    };
-
-    const handleQRChange = (e) => {
+    const handleScannerChange = (e) => {
         const value = e.target.value;
-        setQrInput(value);
+        setScannerValue(value);
 
-        if (qrBufferTimerRef.current) {
-            clearTimeout(qrBufferTimerRef.current);
+        if (scannerProcessTimerRef.current) {
+            clearTimeout(scannerProcessTimerRef.current);
         }
 
-        qrBufferTimerRef.current = setTimeout(() => {
-            parseAndAppendQR(value);
+        scannerProcessTimerRef.current = setTimeout(() => {
+            if (value.trim().length >= 10) {
+                processScannerData(value);
+            }
         }, 120);
     };
 
-    const handleQRKeyDown = (e) => {
-        if (e.key === 'Enter') {
+    const handleScannerKeyDown = (e) => {
+        if (e.key === 'Enter' || e.key === 'Tab') {
             e.preventDefault();
 
-            if (qrBufferTimerRef.current) {
-                clearTimeout(qrBufferTimerRef.current);
+            if (scannerProcessTimerRef.current) {
+                clearTimeout(scannerProcessTimerRef.current);
             }
 
-            parseAndAppendQR(qrInput);
+            processScannerData(scannerValue);
         }
     };
 
@@ -234,12 +326,12 @@ function KargoBilgisiEkle() {
 
         if (error) {
             console.error(error);
-            showToast('error', error.message || '❌ Kayıt başarısız oldu.');
+            showNotice('error', 'Kayıt başarısız', error.message || 'Kayıt başarısız oldu.');
             setSaving(false);
             return;
         }
 
-        showToast('success', '✅ Kargo bilgisi başarıyla kaydedildi!');
+        showNotice('success', 'Kayıt tamamlandı', 'Kargo bilgisi başarıyla kaydedildi!');
 
         const today = new Date().toISOString().split('T')[0];
 
@@ -254,15 +346,16 @@ function KargoBilgisiEkle() {
             evrakAdedi: 0
         });
 
-        setQrInput('');
+        setScannerValue('');
+        setScannerPreview('');
         setEkstraEvrakSoruAcik(false);
         setEkstraEvrakEklendi(false);
         setEkstraEvrakSayisi('');
         setSaving(false);
 
         setTimeout(() => {
-            qrInputRef.current?.focus();
-        }, 80);
+            focusScanner();
+        }, 100);
     };
 
     const autocompleteInput = (name, label, list) => (
@@ -293,6 +386,29 @@ function KargoBilgisiEkle() {
     return (
         <Layout>
             <div className="min-h-screen px-4 py-10 relative">
+                <input
+                    ref={scannerInputRef}
+                    type="text"
+                    value={scannerValue}
+                    onChange={handleScannerChange}
+                    onKeyDown={handleScannerKeyDown}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    aria-hidden="true"
+                    tabIndex={-1}
+                    style={{
+                        position: 'fixed',
+                        left: '-9999px',
+                        top: '0',
+                        width: '1px',
+                        height: '1px',
+                        opacity: 0,
+                        pointerEvents: 'none'
+                    }}
+                />
+
                 <div className="pointer-events-none absolute inset-0 -z-10">
                     <div className="absolute -top-40 left-1/2 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-gradient-to-r from-indigo-500/18 via-fuchsia-400/14 to-cyan-400/14 blur-3xl" />
                     <div className="absolute top-32 right-[-160px] h-[380px] w-[380px] rounded-full bg-gradient-to-br from-violet-500/12 to-indigo-400/10 blur-3xl" />
@@ -307,7 +423,7 @@ function KargoBilgisiEkle() {
                                     <span className="mr-2">📦</span>Kargo Bilgisi Ekle
                                 </h1>
                                 <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-                                    Modern görünüm, otomatik scanner okuma ve hızlı irsaliye toplama.
+                                    Scanner verisi otomatik yakalanır, NO değeri 16 karakter kontrolüyle eklenir.
                                 </p>
                             </div>
 
@@ -322,6 +438,28 @@ function KargoBilgisiEkle() {
                         </div>
 
                         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                            <div className="rounded-3xl border border-indigo-200/70 dark:border-indigo-800/40 bg-gradient-to-br from-indigo-50/90 via-white/70 to-fuchsia-50/70 dark:from-indigo-950/30 dark:via-white/5 dark:to-fuchsia-950/20 p-4 shadow-sm">
+                                <div className="flex items-start justify-between gap-3 mb-3">
+                                    <div>
+                                        <label className="block text-[11px] font-semibold tracking-wider uppercase text-indigo-700 dark:text-indigo-300">
+                                            Scanner Durumu
+                                        </label>
+                                        <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                                            Okunan NO alanı tam {REQUIRED_IRSALIYE_LENGTH} karakter olmalı.
+                                        </p>
+                                    </div>
+
+                                    <div className="shrink-0 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/80 dark:bg-white/10 border border-indigo-200/70 dark:border-indigo-800/40 text-xs text-indigo-700 dark:text-indigo-300">
+                                        <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                                        Scanner Hazır
+                                    </div>
+                                </div>
+
+                                <div className="rounded-2xl border border-dashed border-indigo-300/60 dark:border-indigo-700/40 bg-white/70 dark:bg-slate-900/30 px-4 py-3 text-sm text-gray-700 dark:text-gray-200 min-h-[56px] break-all">
+                                    {scannerPreview || 'Okunan veri burada önizlenir...'}
+                                </div>
+                            </div>
+
                             <div>
                                 <label className="block mb-1 text-[11px] font-semibold tracking-wider uppercase text-gray-500 dark:text-gray-400">
                                     Tarih
@@ -355,35 +493,6 @@ function KargoBilgisiEkle() {
                             {autocompleteInput('gonderenFirma', 'Gönderen Firma', gonderenList)}
                             {autocompleteInput('irsaliyeAdi', 'İrsaliye Adı', irsaliyeList)}
 
-                            <div className="relative overflow-hidden rounded-3xl border border-indigo-200/70 dark:border-indigo-800/40 bg-gradient-to-br from-indigo-50/90 via-white/70 to-fuchsia-50/70 dark:from-indigo-950/30 dark:via-white/5 dark:to-fuchsia-950/20 p-4 shadow-sm">
-                                <div className="flex items-start justify-between gap-3 mb-3">
-                                    <div>
-                                        <label className="block text-[11px] font-semibold tracking-wider uppercase text-indigo-700 dark:text-indigo-300">
-                                            QR / Barkod Okutma Alanı
-                                        </label>
-                                        <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
-                                            Scanner bu alana veri bastığında sistem otomatik olarak <span className="font-semibold">irsaliye no</span> bilgisini ayıklar ve ekler.
-                                        </p>
-                                    </div>
-
-                                    <div className="shrink-0 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/80 dark:bg-white/10 border border-indigo-200/70 dark:border-indigo-800/40 text-xs text-indigo-700 dark:text-indigo-300">
-                                        <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                                        Otomatik Okuma Açık
-                                    </div>
-                                </div>
-
-                                <input
-                                    ref={qrInputRef}
-                                    type="text"
-                                    value={qrInput}
-                                    onChange={handleQRChange}
-                                    onKeyDown={handleQRKeyDown}
-                                    placeholder='Scanner okutunca veri otomatik işlenir... örn: "no":"MKC2026000008663"'
-                                    className="w-full h-12 px-4 rounded-2xl border border-indigo-300/60 dark:border-indigo-700/40 bg-white/85 dark:bg-slate-900/50 backdrop-blur-xl text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
-                                    autoComplete="off"
-                                />
-                            </div>
-
                             <div>
                                 <label className="block mb-1 text-[11px] font-semibold tracking-wider uppercase text-gray-500 dark:text-gray-400">
                                     İrsaliye No
@@ -393,7 +502,7 @@ function KargoBilgisiEkle() {
                                     rows="3"
                                     value={formData.irsaliyeNo}
                                     onChange={handleChange}
-                                    placeholder="Örn: MKC2026000008663-MKC2026000008664"
+                                    placeholder="Örn: I20202600000779-MKC2026000008663"
                                     className="w-full px-4 py-3 rounded-2xl border border-gray-200/70 dark:border-white/10 bg-white/75 dark:bg-white/5 backdrop-blur-xl text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
                                 />
                             </div>
@@ -471,13 +580,7 @@ function KargoBilgisiEkle() {
                                         disabled={saving}
                                         className={`mt-3 w-full inline-flex items-center justify-center gap-2 h-11 rounded-2xl text-white bg-gradient-to-r from-pink-600 to-fuchsia-600 hover:from-pink-500 hover:to-fuchsia-500 shadow-md shadow-pink-600/20 focus:outline-none focus-visible:ring-4 focus-visible:ring-pink-500/30 transition ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}
                                     >
-                                        {saving ? (
-                                            <>
-                                                <Spinner /> Kaydediliyor...
-                                            </>
-                                        ) : (
-                                            'Kaydet'
-                                        )}
+                                        {saving ? <><Spinner /> Kaydediliyor...</> : 'Kaydet'}
                                     </button>
                                 </div>
                             )}
@@ -488,20 +591,14 @@ function KargoBilgisiEkle() {
                                     disabled={saving}
                                     className={`w-full inline-flex items-center justify-center gap-2 h-11 rounded-2xl text-white bg-gradient-to-r from-pink-600 to-fuchsia-600 hover:from-pink-500 hover:to-fuchsia-500 shadow-md shadow-pink-600/20 focus:outline-none focus-visible:ring-4 focus-visible:ring-pink-500/30 transition ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}
                                 >
-                                    {saving ? (
-                                        <>
-                                            <Spinner /> Kaydediliyor...
-                                        </>
-                                    ) : (
-                                        'Kaydet'
-                                    )}
+                                    {saving ? <><Spinner /> Kaydediliyor...</> : 'Kaydet'}
                                 </button>
                             )}
                         </form>
                     </div>
                 </div>
 
-                {toast && <Toast type={toast.type} msg={toast.msg} />}
+                {notice && <NoticeModal notice={notice} onClose={closeNotice} />}
             </div>
         </Layout>
     );
@@ -511,27 +608,70 @@ const Spinner = () => (
     <span className="inline-block h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
 );
 
-const Toast = ({ type = 'info', msg }) => {
-    const color =
-        type === 'success'
-            ? 'from-emerald-600 to-teal-600'
-            : type === 'error'
-                ? 'from-rose-600 to-rose-700'
-                : 'from-indigo-600 to-violet-600';
+const NoticeModal = ({ notice, onClose }) => {
+    const styleMap = {
+        success: {
+            ring: 'border-emerald-200 dark:border-emerald-800/50',
+            bg: 'from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/30',
+            iconBg: 'bg-emerald-100 dark:bg-emerald-900/40',
+            icon: '✅',
+            title: 'text-emerald-900 dark:text-emerald-100'
+        },
+        error: {
+            ring: 'border-rose-200 dark:border-rose-800/50',
+            bg: 'from-rose-50 to-orange-50 dark:from-rose-950/40 dark:to-orange-950/30',
+            iconBg: 'bg-rose-100 dark:bg-rose-900/40',
+            icon: '⚠️',
+            title: 'text-rose-900 dark:text-rose-100'
+        },
+        info: {
+            ring: 'border-indigo-200 dark:border-indigo-800/50',
+            bg: 'from-indigo-50 to-violet-50 dark:from-indigo-950/40 dark:to-violet-950/30',
+            iconBg: 'bg-indigo-100 dark:bg-indigo-900/40',
+            icon: 'ℹ️',
+            title: 'text-indigo-900 dark:text-indigo-100'
+        }
+    };
+
+    const current = styleMap[notice.type] || styleMap.info;
 
     return (
-        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[80]">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/45 backdrop-blur-sm p-4">
             <div
-                className={`px-4 py-2 text-sm text-white rounded-2xl shadow-lg bg-gradient-to-r ${color} animate-[toast_0.25s_ease-out]`}
+                className={`w-full max-w-lg rounded-3xl border ${current.ring} bg-gradient-to-br ${current.bg} shadow-[0_20px_80px_rgba(0,0,0,0.30)] p-6 sm:p-7 animate-[modalIn_0.18s_ease-out]`}
             >
-                {msg}
+                <div className="flex items-start gap-4">
+                    <div className={`shrink-0 h-14 w-14 rounded-2xl ${current.iconBg} flex items-center justify-center text-2xl`}>
+                        {current.icon}
+                    </div>
+
+                    <div className="flex-1">
+                        <h3 className={`text-xl sm:text-2xl font-semibold tracking-tight ${current.title}`}>
+                            {notice.title}
+                        </h3>
+                        <p className="mt-2 text-sm sm:text-base text-gray-700 dark:text-gray-200 leading-relaxed">
+                            {notice.message}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="mt-6 flex justify-end">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="inline-flex items-center justify-center h-11 px-5 rounded-2xl text-white bg-gradient-to-r from-slate-800 to-slate-900 hover:opacity-95 dark:from-slate-200 dark:to-white dark:text-slate-900 transition shadow-md"
+                    >
+                        Tamam
+                    </button>
+                </div>
+
+                <style>{`
+                    @keyframes modalIn {
+                        from { opacity: 0; transform: scale(0.96) translateY(8px); }
+                        to { opacity: 1; transform: scale(1) translateY(0); }
+                    }
+                `}</style>
             </div>
-            <style>{`
-                @keyframes toast {
-                    from { opacity: 0; transform: translateY(8px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-            `}</style>
         </div>
     );
 };
