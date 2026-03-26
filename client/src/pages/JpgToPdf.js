@@ -262,13 +262,12 @@ export default function JpgToPdf() {
                                     {/* ✅ Anasayfa butonu */}
                                     <Button
                                         variant="outlined"
-                                        onClick={() => navigate("/anasayfa")}
+                                        onClick={() => window.open("/anasayfa", "_blank", "noopener,noreferrer")}
                                         disabled={busy}
                                         sx={{ borderRadius: 999, fontWeight: 900, borderColor: borderCol }}
                                     >
                                         ⬅️ Anasayfa
                                     </Button>
-
                                     <Button
                                         variant="outlined"
                                         startIcon={<UploadRoundedIcon />}

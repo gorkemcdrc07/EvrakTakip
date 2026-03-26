@@ -1,4 +1,6 @@
 ﻿// src/components/ModernSidebar.jsx
+import useTabStore from "../stores/tabStore";
+import { screenRegistry } from "../screenRegistry";
 import React, { useMemo, useState, useCallback } from "react";
 import {
     Box,
@@ -16,6 +18,7 @@ import {
     Avatar,
     Tooltip,
 } from "@mui/material";
+
 
 import CloseIcon from "@mui/icons-material/Close";
 import SearchIcon from "@mui/icons-material/Search";
@@ -98,6 +101,7 @@ function ETSMark({ ui, size = 30 }) {
 export default function ModernSidebar({ onClose, navigate, currentPath, darkMode, user, perms }) {
     const safeUser = user ?? { adSoyad: "Kullanıcı", usernameRaw: "" };
     const safePerms = perms ?? { canSeeTahakkuk: false, isAdminOrManager: false, isRefika: false, icons: {} };
+    const openTab = useTabStore((s) => s.openTab);
 
     const ui = useMemo(() => {
         const dark = !!darkMode;
@@ -130,12 +134,20 @@ export default function ModernSidebar({ onClose, navigate, currentPath, darkMode
 
     const go = useCallback(
         (path) => () => {
-            onClose?.();
-            navigate(path);
-        },
-        [navigate, onClose]
-    );
+            const screen = screenRegistry[path];
 
+            if (screen) {
+                openTab({
+                    path,
+                    title: screen.title,
+                });
+            }
+
+            onClose?.();
+            navigate(`/app${path}`);
+        },
+        [navigate, onClose, openTab]
+    );
     const menuConfig = useMemo(() => {
         const I = safePerms.icons;
         return [
