@@ -1,6 +1,7 @@
 ﻿import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 
 const STAMP_URL = "/images/kase.png";
+
 const today = () => {
     const d = new Date();
     return d.toLocaleDateString("tr-TR", {
@@ -21,7 +22,10 @@ body {
 
 .mev {
     min-height: 100vh;
-    background: #080810;
+    background:
+        radial-gradient(circle at top left, rgba(124,111,255,0.08), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(232,121,249,0.06), transparent 24%),
+        #080810;
     color: #e2e0f0;
     font-family: 'Plus Jakarta Sans', sans-serif;
     padding: 3.25rem 2.75rem;
@@ -298,10 +302,6 @@ body {
     transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
 }
 
-.mev-barcode-icon {
-    font-size: 18px; opacity: 0.4; flex-shrink: 0;
-}
-
 .mev-add-btn {
     background: linear-gradient(135deg, #7c6fff, #b06fef);
     border: none; border-radius: 14px;
@@ -310,10 +310,11 @@ body {
     font-size: 14px; font-weight: 600; cursor: pointer;
     transition: opacity 0.15s, transform 0.1s, box-shadow 0.2s;
     white-space: nowrap; box-shadow: 0 4px 20px rgba(124,111,255,0.3);
+    min-height: 48px;
 }
 
-.mev-add-btn:hover { opacity: 0.9; }
-.mev-add-btn:active { transform: scale(0.97); }
+.mev-add-btn:hover { opacity: 0.92; transform: translateY(-1px); }
+.mev-add-btn:active { transform: scale(0.98); }
 
 .mev-dup-warning {
     display: flex; align-items: center; gap: 0.5rem;
@@ -335,12 +336,135 @@ body {
     margin-bottom: 1rem;
 }
 
+.mev-scan-surface {
+    position: relative;
+    min-height: 205px;
+    border-radius: 22px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.02), rgba(124,111,255,0.035));
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mev-scan-surface::before {
+    content: '';
+    position: absolute;
+    inset: 18px;
+    border-radius: 18px;
+    border: 1px dashed rgba(167,139,250,0.14);
+    pointer-events: none;
+}
+
+.mev-scan-hero {
+    width: min(88%, 420px);
+    min-height: 132px;
+    border-radius: 22px;
+    border: 2px solid rgba(124,111,255,0.58);
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.03) inset,
+        0 0 35px rgba(124,111,255,0.12);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    overflow: hidden;
+    background: rgba(255,255,255,0.015);
+}
+
+.mev-scan-hero.active {
+    border-color: rgba(167,139,250,0.9);
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.05) inset,
+        0 0 45px rgba(124,111,255,0.24);
+}
+
+.mev-scan-hero::before,
+.mev-scan-hero::after {
+    content: '';
+    position: absolute;
+    width: 26px; height: 26px;
+    border-color: rgba(255,255,255,0.78);
+    opacity: 0.75;
+}
+
+.mev-scan-hero::before {
+    top: 10px; left: 10px;
+    border-top: 3px solid;
+    border-left: 3px solid;
+    border-top-left-radius: 12px;
+}
+
+.mev-scan-hero::after {
+    right: 10px; bottom: 10px;
+    border-right: 3px solid;
+    border-bottom: 3px solid;
+    border-bottom-right-radius: 12px;
+}
+
+.mev-scan-line {
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, transparent, #b794ff, transparent);
+    box-shadow: 0 0 16px rgba(183,148,255,0.8);
+    opacity: 0;
+}
+
+.mev-scan-hero.active .mev-scan-line {
+    opacity: 1;
+    animation: mev-scan-line-move 1.6s linear infinite;
+}
+
+@keyframes mev-scan-line-move {
+    0% { top: 18%; }
+    50% { top: 76%; }
+    100% { top: 18%; }
+}
+
+.mev-scan-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 54px;
+    opacity: 0.9;
+}
+
+.mev-scan-bars span {
+    width: 4px;
+    background: linear-gradient(180deg, #f5f3ff, #a78bff);
+    border-radius: 999px;
+}
+
+.mev-scan-bars span:nth-child(1) { height: 26px; }
+.mev-scan-bars span:nth-child(2) { height: 42px; }
+.mev-scan-bars span:nth-child(3) { height: 30px; }
+.mev-scan-bars span:nth-child(4) { height: 50px; }
+.mev-scan-bars span:nth-child(5) { height: 35px; }
+.mev-scan-bars span:nth-child(6) { height: 46px; }
+.mev-scan-bars span:nth-child(7) { height: 22px; }
+.mev-scan-bars span:nth-child(8) { height: 48px; }
+.mev-scan-bars span:nth-child(9) { height: 33px; }
+.mev-scan-bars span:nth-child(10){ height: 44px; }
+.mev-scan-bars span:nth-child(11){ height: 25px; }
+.mev-scan-bars span:nth-child(12){ height: 52px; }
+
+.mev-scan-copy {
+    margin-top: 1rem;
+    text-align: center;
+}
+
 .mev-scan-box-title {
     font-family: 'Plus Jakarta Sans', sans-serif;
     font-size: 16px;
     font-weight: 700;
     color: #d8d5fb;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
 }
 
 .mev-scan-box-sub {
@@ -420,6 +544,12 @@ body {
     line-height: 1; font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
+.mev-del-btn:hover {
+    border-color: rgba(248,113,113,0.25);
+    color: #fca5a5;
+    background: rgba(239,68,68,0.06);
+}
+
 .mev-empty {
     text-align: center; padding: 4rem 1rem; color: #2e2c42;
 }
@@ -446,6 +576,12 @@ body {
     font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s;
 }
 
+.mev-btn-ghost:hover {
+    color: #d2cff2;
+    border-color: rgba(255,255,255,0.16);
+    background: rgba(255,255,255,0.03);
+}
+
 .mev-btn-print {
     display: flex; align-items: center; gap: 0.5rem;
     background: rgba(255,255,255,0.06);
@@ -453,6 +589,11 @@ body {
     border-radius: 12px; padding: 0.85rem 1.9rem;
     color: #f0eeff; font-family: 'Plus Jakarta Sans', sans-serif;
     font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+
+.mev-btn-print:hover {
+    transform: translateY(-1px);
+    background: rgba(255,255,255,0.08);
 }
 
 .mev-edit-input {
@@ -482,6 +623,7 @@ body {
     width: 100%;
     border: 1.5px solid #222;
     border-top: none;
+    break-inside: auto;
 }
 
 .print-grid {
@@ -550,26 +692,29 @@ body {
     min-height: 96px;
 }
 
-.print-two-col {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0;
-}
-
 .print-sign-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
     gap: 42px;
     margin-top: 18px;
+    break-inside: avoid-page;
+    page-break-inside: avoid;
 }
-
 .print-sign-box {
+    flex: 1;
     border: 1.5px solid #222;
     min-height: 170px;
     display: flex;
     flex-direction: column;
+    break-inside: avoid-page;
+    page-break-inside: avoid;
 }
 
+.print-sign-title,
+.print-sign-firm,
+.print-sign-body {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+}
 .print-sign-title {
     border-bottom: 1px solid #222;
     text-align: center;
@@ -655,6 +800,15 @@ body {
         visibility: visible !important;
     }
 
+    .print-sign-row,
+    .print-sign-box,
+    .print-sign-title,
+    .print-sign-firm,
+    .print-sign-body {
+        break-inside: avoid-page !important;
+        page-break-inside: avoid !important;
+    }
+
     .print-sign-body {
         padding: 6px 8px 8px 8px !important;
         align-items: flex-end !important;
@@ -670,7 +824,6 @@ body {
     }
 }
 `;
-    ;
 
 const DEFAULT_EDEN = "ODAK TEDARİK ZİNCİRİ VE LOJİSTİK A.Ş.";
 const DEFAULT_ALAN = "ES GLOBAL GIDA SANAYİ VE TİCARET A.Ş.";
@@ -741,8 +894,9 @@ function parseBarcode(raw) {
         tarih: tarihVal
     };
 }
+
 function splitRowsForPrint(rows) {
-    const ordered = [...rows].reverse(); // eski kayıt üstte görünsün
+    const ordered = [...rows].reverse();
     const half = Math.ceil(ordered.length / 2);
     const left = ordered.slice(0, half);
     const right = ordered.slice(half);
@@ -753,6 +907,7 @@ export default function MusteriEvraklari() {
     const [teslimEden, setTeslimEden] = useState(DEFAULT_EDEN);
     const [teslimAlan, setTeslimAlan] = useState(DEFAULT_ALAN);
     const aciklama = useMemo(() => buildDescription(teslimAlan), [teslimAlan]);
+
     const [rows, setRows] = useState([]);
     const [flashId, setFlashId] = useState(null);
     const [dupWarning, setDupWarning] = useState(null);
@@ -771,6 +926,9 @@ export default function MusteriEvraklari() {
     const audioCtxRef = useRef(null);
     const scanTimeoutRef = useRef(null);
     const bufferRef = useRef("");
+
+    const [manualTarih, setManualTarih] = useState(today().replaceAll("/", "."));
+    const [manualIrsaliye, setManualIrsaliye] = useState("");
 
     const printRows = useMemo(() => splitRowsForPrint(rows), [rows]);
 
@@ -805,6 +963,56 @@ export default function MusteriEvraklari() {
         }
     }, []);
 
+    const startScanMode = useCallback(() => {
+        bufferRef.current = "";
+        setScanBuffer("");
+        setParseError(null);
+        setDupWarning(null);
+        setScanMode(true);
+        setTimeout(() => {
+            scanAreaRef.current?.focus();
+        }, 10);
+    }, []);
+
+    const addParsedRow = useCallback((payload) => {
+        setDupWarning(null);
+        setParseError(null);
+
+        const tarih = String(payload?.tarih || "").trim() || today().replaceAll("/", ".");
+        const irsaliyeNo = String(payload?.irsaliye || "").trim().toUpperCase();
+
+        if (!irsaliyeNo) {
+            playBeep(false);
+            setParseError("NO_BULUNAMADI");
+            setTimeout(() => setParseError(null), 3500);
+            return false;
+        }
+
+        if (irsaliyeNo.length !== 16) {
+            playBeep(false);
+            setParseError({ type: "UZUNLUK_HATASI", val: irsaliyeNo, len: irsaliyeNo.length });
+            setTimeout(() => setParseError(null), 3500);
+            return false;
+        }
+
+        if (dupCheck) {
+            const exists = rows.some((r) => r.irsaliye === irsaliyeNo);
+            if (exists) {
+                playBeep(false);
+                setDupWarning(irsaliyeNo);
+                setTimeout(() => setDupWarning(null), 2500);
+                return false;
+            }
+        }
+
+        const id = Date.now() + Math.floor(Math.random() * 1000);
+        setRows((prev) => [{ id, tarih, irsaliye: irsaliyeNo }, ...prev]);
+        setFlashId(id);
+        playBeep(true);
+        setTimeout(() => setFlashId(null), 500);
+        return true;
+    }, [rows, dupCheck, playBeep]);
+
     const addRow = useCallback((raw) => {
         const trimmed = String(raw || "").trim();
         if (!trimmed) return false;
@@ -822,41 +1030,21 @@ export default function MusteriEvraklari() {
             return false;
         }
 
-        const irsaliyeNo = parsed.irsaliye;
+        const ok = addParsedRow({
+            tarih: parsed.tarih || new Date().toLocaleDateString("tr-TR", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric"
+            }),
+            irsaliye: parsed.irsaliye
+        });
 
-        if (irsaliyeNo.length !== 16) {
+        if (!ok) {
             setLastRawScan(trimmed);
-            playBeep(false);
-            setParseError({ type: "UZUNLUK_HATASI", val: irsaliyeNo, len: irsaliyeNo.length });
-            setTimeout(() => setParseError(null), 3500);
             return false;
         }
 
-        if (dupCheck) {
-            const exists = rows.some((r) => r.irsaliye === irsaliyeNo);
-            if (exists) {
-                playBeep(false);
-                setDupWarning(irsaliyeNo);
-                setTimeout(() => setDupWarning(null), 2500);
-                return false;
-            }
-        }
-
-        const fallbackToday = new Date().toLocaleDateString("tr-TR", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric"
-        });
-
-        const tarih = parsed.tarih || fallbackToday;
-
-        const id = Date.now() + Math.floor(Math.random() * 1000);
-
-        setRows((prev) => [{ id, tarih, irsaliye: irsaliyeNo }, ...prev]);
-        setFlashId(id);
         setLastRawScan(trimmed);
-        playBeep(true);
-        setTimeout(() => setFlashId(null), 500);
 
         if (autoStopAfterRead) {
             stopScanMode();
@@ -866,17 +1054,7 @@ export default function MusteriEvraklari() {
         }
 
         return true;
-    }, [rows, dupCheck, playBeep, autoStopAfterRead, stopScanMode]);
-    const startScanMode = useCallback(() => {
-        bufferRef.current = "";
-        setScanBuffer("");
-        setParseError(null);
-        setDupWarning(null);
-        setScanMode(true);
-        setTimeout(() => {
-            scanAreaRef.current?.focus();
-        }, 10);
-    }, []);
+    }, [addParsedRow, playBeep, autoStopAfterRead, stopScanMode]);
 
     useEffect(() => {
         const finalizeScan = () => {
@@ -942,6 +1120,12 @@ export default function MusteriEvraklari() {
             }
         };
     }, [scanMode, addRow, stopScanMode, autoStopAfterRead]);
+
+    useEffect(() => {
+        return () => {
+            stopScanMode();
+        };
+    }, [stopScanMode]);
 
     const updateRow = (id, field, value) => {
         setRows((prev) =>
@@ -1127,55 +1311,98 @@ export default function MusteriEvraklari() {
                                 ref={scanAreaRef}
                                 tabIndex={0}
                                 className="mev-barcode-field"
-                                onClick={startScanMode}
                                 style={{
-                                    minHeight: 84,
-                                    cursor: "pointer",
+                                    minHeight: 260,
                                     display: "flex",
                                     flexDirection: "column",
-                                    alignItems: "stretch",
-                                    justifyContent: "center",
                                     padding: "1rem 1.1rem"
                                 }}
                             >
-                                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", width: "100%" }}>
-                                    <span className="mev-barcode-icon">▦</span>
-
-                                    <div style={{ flex: 1 }}>
-                                        <div className="mev-scan-box-title">
-                                            {scanMode ? "Okutma aktif — barkodu okutun" : "Barkod okutmak için tıklayın"}
-                                        </div>
-                                        <div className="mev-scan-box-sub">
-                                            {scanBuffer || (scanMode ? "Veri bekleniyor..." : "Tıklayın, sonra barkodu okutun")}
-                                        </div>
-                                    </div>
-
-                                    {scanMode ? (
-                                        <button
-                                            type="button"
-                                            className="mev-del-btn"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                stopScanMode();
-                                            }}
-                                        >
-                                            Kapat
+                                <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem", flexWrap: "wrap" }}>
+                                    {!scanMode ? (
+                                        <button type="button" className="mev-add-btn" onClick={startScanMode}>
+                                            Barkod Okumayı Başlat
                                         </button>
                                     ) : (
-                                        <button
-                                            type="button"
-                                            className="mev-add-btn"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                startScanMode();
-                                            }}
-                                            style={{ height: 40, padding: "0 1rem" }}
-                                        >
-                                            Okutmayı Başlat
+                                        <button type="button" className="mev-btn-ghost" onClick={stopScanMode}>
+                                            Okumayı Durdur
                                         </button>
                                     )}
                                 </div>
+
+                                <div className="mev-scan-surface">
+                                    <div className={`mev-scan-hero${scanMode ? " active" : ""}`}>
+                                        <div className="mev-scan-line" />
+                                        <div className="mev-scan-bars" aria-hidden="true">
+                                            <span /><span /><span /><span /><span /><span />
+                                            <span /><span /><span /><span /><span /><span />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mev-scan-copy">
+                                    <div className="mev-scan-box-title">
+                                        {scanMode
+                                            ? "Barkod okuyucu aktif — barkodu okutun"
+                                            : "Barkod okumayı başlatın"}
+                                    </div>
+
+                                    <div className="mev-scan-box-sub">
+                                        {scanBuffer || lastRawScan || "Ham veri burada görünecek"}
+                                    </div>
+                                </div>
                             </div>
+                        </div>
+
+                        <div className="mev-input-row">
+                            <div className="mev-barcode-field" style={{ padding: "0.85rem 1rem", maxWidth: 180 }}>
+                                <input
+                                    type="text"
+                                    value={manualTarih}
+                                    onChange={(e) => setManualTarih(e.target.value)}
+                                    placeholder="gg.aa.yyyy"
+                                    className="mev-edit-input"
+                                />
+                            </div>
+
+                            <div className="mev-barcode-field" style={{ padding: "0.85rem 1rem", flex: 1 }}>
+                                <input
+                                    type="text"
+                                    value={manualIrsaliye}
+                                    onChange={(e) => setManualIrsaliye(e.target.value.toUpperCase())}
+                                    placeholder="Manuel İrsaliye No"
+                                    className="mev-edit-input"
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                            const ok = addParsedRow({
+                                                tarih: manualTarih,
+                                                irsaliye: manualIrsaliye
+                                            });
+
+                                            if (ok) {
+                                                setManualIrsaliye("");
+                                            }
+                                        }
+                                    }}
+                                />
+                            </div>
+
+                            <button
+                                type="button"
+                                className="mev-add-btn"
+                                onClick={() => {
+                                    const ok = addParsedRow({
+                                        tarih: manualTarih,
+                                        irsaliye: manualIrsaliye
+                                    });
+
+                                    if (ok) {
+                                        setManualIrsaliye("");
+                                    }
+                                }}
+                            >
+                                Manuel Ekle
+                            </button>
                         </div>
 
                         <div className="mev-table-outer">
@@ -1222,7 +1449,8 @@ export default function MusteriEvraklari() {
                                                         className="mev-edit-input"
                                                         placeholder="İrsaliye No"
                                                     />
-                                                </td>                                                <td>
+                                                </td>
+                                                <td>
                                                     <button
                                                         type="button"
                                                         className="mev-del-btn"
