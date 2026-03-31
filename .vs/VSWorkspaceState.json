@@ -2,8 +2,11 @@
   "ExpandedNodes": [
     "",
     "\\client",
-    "\\client\\src"
+    "\\client\\public",
+    "\\client\\public\\images",
+    "\\client\\src",
+    "\\client\\src\\pages"
   ],
-  "SelectedNode": "\\client\\src\\hedefKargo.js",
+  "SelectedNode": "\\client\\public\\images",
   "PreviewInSolutionExplorer": false
 }

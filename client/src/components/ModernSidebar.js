@@ -126,6 +126,7 @@ export default function ModernSidebar({ onClose, navigate, currentPath, darkMode
         RAPORLAR: true,
         DİĞER: true,
         KARGO: true,
+        "MÜŞTERİ EVRAKI": true,
     }));
 
     const toggleSection = useCallback((title) => {
@@ -148,6 +149,12 @@ export default function ModernSidebar({ onClose, navigate, currentPath, darkMode
         },
         [navigate, onClose, openTab]
     );
+
+    const canSeeMusteriEvraki = useMemo(() => {
+        const username = (safeUser.usernameRaw ?? "").toLowerCase().trim();
+        return ["ozge", "yaren", "rabia"].includes(username);
+    }, [safeUser.usernameRaw]);
+
     const menuConfig = useMemo(() => {
         const I = safePerms.icons;
         return [
@@ -200,8 +207,15 @@ export default function ModernSidebar({ onClose, navigate, currentPath, darkMode
                     { label: "Tüm Kargo Bilgileri", icon: I.Shipping ?? null, path: "/tum-kargo-bilgileri", onClick: go("/tum-kargo-bilgileri"), keywords: ["kargo"] },
                 ],
             },
+            {
+                title: "MÜŞTERİ EVRAKI",
+                show: canSeeMusteriEvraki,
+                items: [
+                    { label: "Müşteri Evrakları", icon: I.Description ?? null, path: "/musteri-evraki", onClick: go("/musteri-evraki"), keywords: ["müşteri", "evrak"] },
+                ],
+            },
         ];
-    }, [safePerms, go]);
+    }, [safePerms, go, canSeeMusteriEvraki]);
 
     const visibleSections = useMemo(() => {
         const q = query.trim().toLowerCase();

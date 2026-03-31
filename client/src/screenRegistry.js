@@ -14,6 +14,7 @@ import TopluTutanak from "./TopluTutanak";
 import Tahakkuk from "./Tahakkuk";
 import JpgToPdf from "./pages/JpgToPdf";
 import PdfSikistirma from "./pages/PdfSikistirma";
+import MusteriEvraklari from "./pages/musteriEvraklari";
 
 export const screenRegistry = {
     "/anasayfa": { title: "Anasayfa", component: Anasayfa },
@@ -32,4 +33,5 @@ export const screenRegistry = {
     "/tahakkuk": { title: "Tahakkuk", component: Tahakkuk },
     "/jpg-to-pdf": { title: "JPG TO PDF", component: JpgToPdf },
     "/pdf-sikistirma": { title: "PDF Sıkıştırma", component: PdfSikistirma },
+    "/musteri-evraki": { title: "Müşteri Evrakları", component: MusteriEvraklari },
 };
