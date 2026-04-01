@@ -1,4 +1,6 @@
 ﻿import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 const STAMP_URL = "/images/kase.png";
 
@@ -22,10 +24,7 @@ body {
 
 .mev {
     min-height: 100vh;
-    background:
-        radial-gradient(circle at top left, rgba(124,111,255,0.08), transparent 28%),
-        radial-gradient(circle at bottom right, rgba(232,121,249,0.06), transparent 24%),
-        #080810;
+    background: #080810;
     color: #e2e0f0;
     font-family: 'Plus Jakarta Sans', sans-serif;
     padding: 3.25rem 2.75rem;
@@ -52,34 +51,47 @@ body {
 }
 
 .mev-inner {
-    position: relative; z-index: 1;
-    max-width: 1180px; margin: 0 auto;
+    position: relative;
+    z-index: 1;
+    max-width: 1180px;
+    margin: 0 auto;
 }
 
 .mev-header {
-    display: flex; align-items: flex-start;
+    display: flex;
+    align-items: flex-start;
     justify-content: space-between;
-    margin-bottom: 3.25rem; gap: 1rem; flex-wrap: wrap;
+    margin-bottom: 3.25rem;
+    gap: 1rem;
+    flex-wrap: wrap;
 }
 
 .mev-eyebrow {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; letter-spacing: 0.22em;
-    color: #7c6fff; text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    color: #7c6fff;
+    text-transform: uppercase;
     margin-bottom: 0.6rem;
-    display: flex; align-items: center; gap: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .mev-eyebrow::before {
     content: '';
     display: inline-block;
-    width: 22px; height: 1px; background: #7c6fff;
+    width: 22px;
+    height: 1px;
+    background: #7c6fff;
 }
 
 .mev-title {
     font-size: clamp(2.3rem, 4vw, 3.4rem);
-    font-weight: 800; color: #f5f3ff;
-    line-height: 1.05; letter-spacing: -0.03em;
+    font-weight: 800;
+    color: #f5f3ff;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
 }
 
 .mev-title span {
@@ -90,23 +102,36 @@ body {
 }
 
 .mev-date-chip {
-    display: flex; align-items: center; gap: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
     background: rgba(124,111,255,0.08);
     border: 1px solid rgba(124,111,255,0.2);
-    border-radius: 100px; padding: 0.75rem 1.35rem;
+    border-radius: 100px;
+    padding: 0.75rem 1.35rem;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 13px; color: #a89fff;
-    white-space: nowrap; align-self: flex-start;
-    margin-top: 0.9rem; backdrop-filter: blur(8px);
+    font-size: 13px;
+    color: #a89fff;
+    white-space: nowrap;
+    align-self: flex-start;
+    margin-top: 0.9rem;
+    backdrop-filter: blur(8px);
 }
 
 .mev-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: #7c6fff; box-shadow: 0 0 6px #7c6fff;
-    animation: mev-pulse 2s infinite; flex-shrink: 0;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #7c6fff;
+    box-shadow: 0 0 6px #7c6fff;
+    animation: mev-pulse 2s infinite;
+    flex-shrink: 0;
 }
 
-@keyframes mev-pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+@keyframes mev-pulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
 
 .mev-divider {
     height: 1px;
@@ -128,26 +153,35 @@ body {
 .mev-glass::before {
     content: '';
     position: absolute;
-    top: 0; left: 0; right: 0; height: 1px;
+    top: 0; left: 0; right: 0;
+    height: 1px;
     background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
 }
 
 .mev-section-label {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px; letter-spacing: 0.18em;
-    color: #6a678b; text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    color: #6a678b;
+    text-transform: uppercase;
     margin-bottom: 1.5rem;
-    display: flex; align-items: center; gap: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
 }
 
 .mev-section-label::after {
     content: '';
-    flex: 1; height: 1px; background: rgba(255,255,255,0.05);
+    flex: 1;
+    height: 1px;
+    background: rgba(255,255,255,0.05);
 }
 
 .mev-firms {
-    display: grid; grid-template-columns: 1fr 58px 1fr;
-    gap: 1rem; align-items: center;
+    display: grid;
+    grid-template-columns: 1fr 58px 1fr;
+    gap: 1rem;
+    align-items: center;
 }
 
 .mev-firm-field {
@@ -160,94 +194,147 @@ body {
 
 .mev-firm-tag {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10px; letter-spacing: 0.16em;
-    color: #6a678b; text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    color: #6a678b;
+    text-transform: uppercase;
     margin-bottom: 0.65rem;
 }
 
 .mev-firm-input {
-    background: transparent; border: none; outline: none;
+    background: transparent;
+    border: none;
+    outline: none;
     font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 16px; font-weight: 600; color: #f0eeff;
-    width: 100%; resize: none; line-height: 1.6;
+    font-size: 16px;
+    font-weight: 600;
+    color: #f0eeff;
+    width: 100%;
+    resize: none;
+    line-height: 1.6;
 }
 
 .mev-arrow-circle {
-    width: 48px; height: 48px; border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
     background: linear-gradient(135deg, rgba(124,111,255,0.15), rgba(232,121,249,0.1));
     border: 1px solid rgba(124,111,255,0.25);
-    display: flex; align-items: center; justify-content: center;
-    justify-self: center; color: #a78bff; font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    justify-self: center;
+    color: #a78bff;
+    font-size: 15px;
 }
 
 .mev-desc-input {
-    background: transparent; border: none; outline: none;
+    background: transparent;
+    border: none;
+    outline: none;
     font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 16px; color: #c8c6e8;
-    width: 100%; resize: none; line-height: 1.9;
+    font-size: 16px;
+    color: #c8c6e8;
+    width: 100%;
+    resize: none;
+    line-height: 1.9;
 }
 
 .mev-settings-toggle {
-    display: flex; align-items: center; gap: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
     background: transparent;
     border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 10px; padding: 0.6rem 1.1rem;
-    color: #6a678b; font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; cursor: pointer; transition: all 0.2s;
+    border-radius: 10px;
+    padding: 0.6rem 1.1rem;
+    color: #6a678b;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
     letter-spacing: 0.08em;
 }
 
-.mev-settings-toggle:hover { border-color: rgba(124,111,255,0.3); color: #a89fff; }
-.mev-settings-toggle.active { border-color: rgba(124,111,255,0.35); color: #a89fff; background: rgba(124,111,255,0.06); }
+.mev-settings-toggle:hover {
+    border-color: rgba(124,111,255,0.3);
+    color: #a89fff;
+}
+
+.mev-settings-toggle.active {
+    border-color: rgba(124,111,255,0.35);
+    color: #a89fff;
+    background: rgba(124,111,255,0.06);
+}
 
 .mev-settings-panel {
     background: rgba(124,111,255,0.04);
     border: 1px solid rgba(124,111,255,0.15);
-    border-radius: 16px; padding: 1.4rem 1.6rem;
+    border-radius: 16px;
+    padding: 1.4rem 1.6rem;
     margin-bottom: 1.25rem;
 }
 
 .mev-settings-title {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; letter-spacing: 0.18em;
-    color: #7c6fff; text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: #7c6fff;
+    text-transform: uppercase;
     margin-bottom: 1rem;
 }
 
 .mev-settings-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 0.85rem;
 }
 
 .mev-toggle-row {
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     background: rgba(255,255,255,0.025);
     border: 1px solid rgba(255,255,255,0.05);
-    border-radius: 12px; padding: 0.9rem 1rem;
+    border-radius: 12px;
+    padding: 0.9rem 1rem;
     gap: 0.75rem;
 }
 
 .mev-toggle-label {
-    font-size: 13px; font-weight: 600; color: #d8d6f0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #d8d6f0;
     margin-bottom: 2px;
 }
 
 .mev-toggle-desc {
-    font-size: 11px; color: #575471;
+    font-size: 11px;
+    color: #575471;
     font-family: 'JetBrains Mono', monospace;
 }
 
 .mev-switch {
-    position: relative; width: 38px; height: 22px; flex-shrink: 0;
+    position: relative;
+    width: 38px;
+    height: 22px;
+    flex-shrink: 0;
 }
 
-.mev-switch input { opacity: 0; width: 0; height: 0; }
+.mev-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
 
 .mev-switch-track {
-    position: absolute; inset: 0; border-radius: 100px;
+    position: absolute;
+    inset: 0;
+    border-radius: 100px;
     background: rgba(255,255,255,0.07);
     border: 1px solid rgba(255,255,255,0.1);
-    cursor: pointer; transition: all 0.25s;
+    cursor: pointer;
+    transition: all 0.25s;
 }
 
 .mev-switch input:checked + .mev-switch-track {
@@ -259,204 +346,151 @@ body {
 .mev-switch-track::after {
     content: '';
     position: absolute;
-    width: 14px; height: 14px; border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
     background: rgba(255,255,255,0.4);
-    top: 3px; left: 3px; transition: all 0.25s;
+    top: 3px;
+    left: 3px;
+    transition: all 0.25s;
 }
 
 .mev-switch input:checked + .mev-switch-track::after {
-    left: 19px; background: #fff;
+    left: 19px;
+    background: #fff;
 }
 
 .mev-scanner-header {
-    display: flex; align-items: center;
+    display: flex;
+    align-items: center;
     justify-content: space-between;
-    margin-bottom: 1.4rem; flex-wrap: wrap; gap: 0.75rem;
+    margin-bottom: 1.4rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
 }
 
-.mev-scanner-left { display: flex; align-items: center; gap: 0.85rem; flex-wrap: wrap; }
+.mev-scanner-left {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    flex-wrap: wrap;
+}
 
 .mev-scanner-title {
-    font-size: 19px; font-weight: 700;
-    color: #f0eeff; letter-spacing: -0.02em;
+    font-size: 19px;
+    font-weight: 700;
+    color: #f0eeff;
+    letter-spacing: -0.02em;
 }
 
 .mev-count {
     font-family: 'JetBrains Mono', monospace;
     font-size: 12px;
-    color: #a78bff; background: rgba(124,111,255,0.1);
+    color: #a78bff;
+    background: rgba(124,111,255,0.1);
     border: 1px solid rgba(124,111,255,0.2);
-    border-radius: 100px; padding: 0.38rem 0.95rem;
+    border-radius: 100px;
+    padding: 0.38rem 0.95rem;
 }
 
 .mev-input-row {
-    display: flex; gap: 0.75rem;
-    margin-bottom: 1.6rem; align-items: stretch;
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1.1rem;
+    align-items: stretch;
 }
 
 .mev-barcode-field {
-    flex: 1; display: flex; align-items: center; gap: 0.75rem;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
     background: rgba(255,255,255,0.03);
     border: 1px solid rgba(255,255,255,0.07);
     border-radius: 16px;
     transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
 }
 
-.mev-add-btn {
-    background: linear-gradient(135deg, #7c6fff, #b06fef);
-    border: none; border-radius: 14px;
-    padding: 0 1.5rem; color: #fff;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 14px; font-weight: 600; cursor: pointer;
-    transition: opacity 0.15s, transform 0.1s, box-shadow 0.2s;
-    white-space: nowrap; box-shadow: 0 4px 20px rgba(124,111,255,0.3);
-    min-height: 48px;
+.mev-barcode-icon {
+    font-size: 18px;
+    opacity: 0.4;
+    flex-shrink: 0;
 }
 
-.mev-add-btn:hover { opacity: 0.92; transform: translateY(-1px); }
-.mev-add-btn:active { transform: scale(0.98); }
+.mev-add-btn {
+    background: linear-gradient(135deg, #7c6fff, #b06fef);
+    border: none;
+    border-radius: 14px;
+    padding: 0 1.5rem;
+    color: #fff;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s, box-shadow 0.2s;
+    white-space: nowrap;
+    box-shadow: 0 4px 20px rgba(124,111,255,0.3);
+}
+
+.mev-add-btn:hover { opacity: 0.9; }
+.mev-add-btn:active { transform: scale(0.97); }
+
+.mev-manual-grid {
+    display: grid;
+    grid-template-columns: 170px 1fr auto;
+    gap: 0.75rem;
+    margin-bottom: 1.6rem;
+}
+
+.mev-manual-input {
+    width: 100%;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 14px;
+    padding: 0.95rem 1rem;
+    color: #eceaff;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 14px;
+    outline: none;
+}
+
+.mev-manual-input::placeholder {
+    color: #6d698f;
+}
+
+.mev-inline-hint {
+    margin-bottom: 1rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #7d79a8;
+}
 
 .mev-dup-warning {
-    display: flex; align-items: center; gap: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     background: rgba(234,179,8,0.07);
     border: 1px solid rgba(234,179,8,0.2);
-    border-radius: 10px; padding: 0.75rem 1rem;
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px; color: #fbbf24;
+    font-size: 12px;
+    color: #fbbf24;
     margin-bottom: 1rem;
 }
 
 .mev-parse-error {
-    display: flex; align-items: flex-start; gap: 0.5rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
     background: rgba(239,68,68,0.07);
     border: 1px solid rgba(239,68,68,0.22);
-    border-radius: 10px; padding: 0.75rem 1rem;
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px; color: #f87171;
+    font-size: 12px;
+    color: #f87171;
     margin-bottom: 1rem;
-}
-
-.mev-scan-surface {
-    position: relative;
-    min-height: 205px;
-    border-radius: 22px;
-    border: 1px solid rgba(255,255,255,0.08);
-    background:
-        linear-gradient(180deg, rgba(255,255,255,0.02), rgba(124,111,255,0.035));
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.mev-scan-surface::before {
-    content: '';
-    position: absolute;
-    inset: 18px;
-    border-radius: 18px;
-    border: 1px dashed rgba(167,139,250,0.14);
-    pointer-events: none;
-}
-
-.mev-scan-hero {
-    width: min(88%, 420px);
-    min-height: 132px;
-    border-radius: 22px;
-    border: 2px solid rgba(124,111,255,0.58);
-    box-shadow:
-        0 0 0 1px rgba(255,255,255,0.03) inset,
-        0 0 35px rgba(124,111,255,0.12);
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-    overflow: hidden;
-    background: rgba(255,255,255,0.015);
-}
-
-.mev-scan-hero.active {
-    border-color: rgba(167,139,250,0.9);
-    box-shadow:
-        0 0 0 1px rgba(255,255,255,0.05) inset,
-        0 0 45px rgba(124,111,255,0.24);
-}
-
-.mev-scan-hero::before,
-.mev-scan-hero::after {
-    content: '';
-    position: absolute;
-    width: 26px; height: 26px;
-    border-color: rgba(255,255,255,0.78);
-    opacity: 0.75;
-}
-
-.mev-scan-hero::before {
-    top: 10px; left: 10px;
-    border-top: 3px solid;
-    border-left: 3px solid;
-    border-top-left-radius: 12px;
-}
-
-.mev-scan-hero::after {
-    right: 10px; bottom: 10px;
-    border-right: 3px solid;
-    border-bottom: 3px solid;
-    border-bottom-right-radius: 12px;
-}
-
-.mev-scan-line {
-    position: absolute;
-    left: 8%;
-    right: 8%;
-    height: 2px;
-    border-radius: 999px;
-    background: linear-gradient(90deg, transparent, #b794ff, transparent);
-    box-shadow: 0 0 16px rgba(183,148,255,0.8);
-    opacity: 0;
-}
-
-.mev-scan-hero.active .mev-scan-line {
-    opacity: 1;
-    animation: mev-scan-line-move 1.6s linear infinite;
-}
-
-@keyframes mev-scan-line-move {
-    0% { top: 18%; }
-    50% { top: 76%; }
-    100% { top: 18%; }
-}
-
-.mev-scan-bars {
-    display: flex;
-    align-items: flex-end;
-    gap: 4px;
-    height: 54px;
-    opacity: 0.9;
-}
-
-.mev-scan-bars span {
-    width: 4px;
-    background: linear-gradient(180deg, #f5f3ff, #a78bff);
-    border-radius: 999px;
-}
-
-.mev-scan-bars span:nth-child(1) { height: 26px; }
-.mev-scan-bars span:nth-child(2) { height: 42px; }
-.mev-scan-bars span:nth-child(3) { height: 30px; }
-.mev-scan-bars span:nth-child(4) { height: 50px; }
-.mev-scan-bars span:nth-child(5) { height: 35px; }
-.mev-scan-bars span:nth-child(6) { height: 46px; }
-.mev-scan-bars span:nth-child(7) { height: 22px; }
-.mev-scan-bars span:nth-child(8) { height: 48px; }
-.mev-scan-bars span:nth-child(9) { height: 33px; }
-.mev-scan-bars span:nth-child(10){ height: 44px; }
-.mev-scan-bars span:nth-child(11){ height: 25px; }
-.mev-scan-bars span:nth-child(12){ height: 52px; }
-
-.mev-scan-copy {
-    margin-top: 1rem;
-    text-align: center;
 }
 
 .mev-scan-box-title {
@@ -464,7 +498,7 @@ body {
     font-size: 16px;
     font-weight: 700;
     color: #d8d5fb;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 }
 
 .mev-scan-box-sub {
@@ -505,95 +539,149 @@ body {
 }
 
 .mev-table-outer {
-    border-radius: 16px; overflow: hidden;
+    border-radius: 16px;
+    overflow: hidden;
     border: 1px solid rgba(255,255,255,0.05);
 }
 
 .mev-table {
-    width: 100%; border-collapse: collapse;
-    font-family: 'JetBrains Mono', monospace; font-size: 14px;
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
 }
 
-.mev-table thead tr { background: rgba(255,255,255,0.025); }
+.mev-table thead tr {
+    background: rgba(255,255,255,0.025);
+}
 
 .mev-table th {
-    color: #686582; font-size: 11px; letter-spacing: 0.14em;
-    text-transform: uppercase; font-weight: 500;
-    padding: 0.95rem 1.15rem; text-align: left;
+    color: #686582;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 500;
+    padding: 0.95rem 1.15rem;
+    text-align: left;
     border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
 .mev-table td {
     padding: 0.95rem 1.15rem;
     border-bottom: 1px solid rgba(255,255,255,0.033);
-    vertical-align: middle; transition: background 0.15s;
+    vertical-align: middle;
+    transition: background 0.15s;
 }
 
-.mev-table tbody tr:last-child td { border-bottom: none; }
-.mev-table tbody tr:hover td { background: rgba(124,111,255,0.04); }
+.mev-table tbody tr:last-child td {
+    border-bottom: none;
+}
 
-.mev-td-no { color: #686582; font-size: 13px; width: 60px; }
-.mev-td-date { color: #a7a4c7; font-size: 14px; }
-.mev-td-code { color: #eceaff; font-weight: 500; letter-spacing: 0.02em; font-size: 14px; }
+.mev-table tbody tr:hover td {
+    background: rgba(124,111,255,0.04);
+}
+
+.mev-td-no {
+    color: #686582;
+    font-size: 13px;
+    width: 60px;
+}
+
+.mev-td-date {
+    color: #a7a4c7;
+    font-size: 14px;
+}
+
+.mev-td-code {
+    color: #eceaff;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    font-size: 14px;
+}
 
 .mev-del-btn {
     background: transparent;
     border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 8px; color: #66637f; cursor: pointer;
-    padding: 0.45rem 0.8rem; font-size: 11px; transition: all 0.15s;
-    line-height: 1; font-family: 'Plus Jakarta Sans', sans-serif;
-}
-
-.mev-del-btn:hover {
-    border-color: rgba(248,113,113,0.25);
-    color: #fca5a5;
-    background: rgba(239,68,68,0.06);
+    border-radius: 8px;
+    color: #66637f;
+    cursor: pointer;
+    padding: 0.45rem 0.8rem;
+    font-size: 11px;
+    transition: all 0.15s;
+    line-height: 1;
+    font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
 .mev-empty {
-    text-align: center; padding: 4rem 1rem; color: #2e2c42;
+    text-align: center;
+    padding: 4rem 1rem;
+    color: #2e2c42;
 }
 
-.mev-empty-icon { font-size: 2.8rem; display: block; margin-bottom: 0.85rem; filter: grayscale(1); opacity: 0.4; }
-.mev-empty-text { font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.1em; color: #3b3953; }
+.mev-empty-icon {
+    font-size: 2.8rem;
+    display: block;
+    margin-bottom: 0.85rem;
+    filter: grayscale(1);
+    opacity: 0.4;
+}
+
+.mev-empty-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    color: #3b3953;
+}
 
 @keyframes mev-flash {
     0% { background: rgba(124,111,255,0.18); }
     100% { background: transparent; }
 }
-.mev-flash td { animation: mev-flash 0.5s ease forwards; }
+
+.mev-flash td {
+    animation: mev-flash 0.5s ease forwards;
+}
 
 .mev-actions {
-    display: flex; justify-content: flex-end;
-    gap: 0.9rem; padding-top: 0.6rem; flex-wrap: wrap;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.9rem;
+    padding-top: 0.6rem;
+    flex-wrap: wrap;
 }
 
 .mev-btn-ghost {
     background: transparent;
     border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 12px; padding: 0.85rem 1.6rem;
-    color: #66637f; font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s;
-}
-
-.mev-btn-ghost:hover {
-    color: #d2cff2;
-    border-color: rgba(255,255,255,0.16);
-    background: rgba(255,255,255,0.03);
+    border-radius: 12px;
+    padding: 0.85rem 1.6rem;
+    color: #66637f;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
 }
 
 .mev-btn-print {
-    display: flex; align-items: center; gap: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     background: rgba(255,255,255,0.06);
     border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 12px; padding: 0.85rem 1.9rem;
-    color: #f0eeff; font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    border-radius: 12px;
+    padding: 0.85rem 1.9rem;
+    color: #f0eeff;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
 }
 
-.mev-btn-print:hover {
-    transform: translateY(-1px);
-    background: rgba(255,255,255,0.08);
+.mev-btn-print:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .mev-edit-input {
@@ -611,19 +699,71 @@ body {
     color: #6d698f;
 }
 
-/* PRINT LAYOUT */
+/* PDF EXPORT */
 .print-sheet {
-    display: none;
+    position: fixed;
+    left: -99999px;
+    top: 0;
     width: 210mm;
     background: #fff;
     color: #111;
+    z-index: -1;
+}
+
+.pdf-page {
+    width: 210mm;
+    height: 297mm;
+    background: #fff;
+    color: #111;
+    overflow: hidden;
+    position: relative;
+    page-break-after: always;
+}
+
+.pdf-page:last-child {
+    page-break-after: auto;
+}
+
+.print-sheet-inner {
+    width: 190mm;
+    margin: 10mm auto;
+    color: #111;
+    font-family: Arial, sans-serif;
+}
+
+.print-top-title {
+    border: 1.5px solid #222;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    padding: 12px 10px;
+    margin-bottom: 8px;
+}
+
+.print-top-date {
+    border: 1px solid #444;
+    text-align: right;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+}
+
+.print-desc {
+    border: 1px solid #444;
+    text-align: center;
+    font-size: 12px;
+    line-height: 1.8;
+    padding: 20px 18px;
+    min-height: auto;
+    margin-bottom: 12px;
 }
 
 .print-table-wrap {
     width: 100%;
-    border: 1.5px solid #222;
-    border-top: none;
-    break-inside: auto;
+    border: 1px solid #333;
+    margin-bottom: 16px;
 }
 
 .print-grid {
@@ -635,17 +775,17 @@ body {
 
 .print-grid th,
 .print-grid td {
-    border: 1px solid #222;
-    padding: 5px 6px;
-    font-size: 12px;
-    line-height: 1.2;
+    border: 1px solid #555;
+    padding: 6px 7px;
+    font-size: 11.5px;
+    line-height: 1.25;
     text-align: center;
     vertical-align: middle;
 }
 
 .print-grid th {
     font-weight: 700;
-    background: #f7f7f7;
+    background: #f3f3f3;
 }
 
 .print-grid td.code {
@@ -657,170 +797,71 @@ body {
     white-space: nowrap;
 }
 
-.print-sheet-inner {
-    width: 100%;
-    color: #111;
-    font-family: "Arial", sans-serif;
-}
-
-.print-top-title {
-    border: 1.5px solid #222;
-    border-bottom: none;
-    text-align: center;
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: 0.3px;
-    padding: 14px 10px 12px;
-}
-
-.print-top-date {
-    border: 1.5px solid #222;
-    border-bottom: none;
-    text-align: right;
-    font-size: 13px;
-    font-weight: 700;
-    padding: 8px 12px;
-}
-
-.print-desc {
-    border: 1.5px solid #222;
-    border-bottom: none;
-    text-align: center;
-    font-size: 12.5px;
-    line-height: 1.75;
-    padding: 24px 22px;
-    min-height: 96px;
-}
-
 .print-sign-row {
     display: flex;
-    gap: 42px;
-    margin-top: 18px;
-    break-inside: avoid-page;
-    page-break-inside: avoid;
-}
-.print-sign-box {
-    flex: 1;
-    border: 1.5px solid #222;
-    min-height: 170px;
-    display: flex;
-    flex-direction: column;
-    break-inside: avoid-page;
+    gap: 16px;
+    margin-top: 12px;
+    width: 100%;
+    break-inside: avoid;
     page-break-inside: avoid;
 }
 
-.print-sign-title,
-.print-sign-firm,
-.print-sign-body {
-    break-inside: avoid-page;
-    page-break-inside: avoid;
+.print-sign-box {
+    flex: 1;
+    border: 1px solid #333;
+    min-height: 150px;
+    display: flex;
+    flex-direction: column;
 }
+
 .print-sign-title {
-    border-bottom: 1px solid #222;
+    border-bottom: 1px solid #444;
     text-align: center;
     font-size: 12px;
     font-weight: 700;
-    padding: 6px;
+    padding: 8px 6px;
+    background: #f7f7f7;
 }
 
 .print-sign-firm {
-    border-bottom: 1px solid #222;
+    border-bottom: 1px solid #444;
     text-align: center;
     font-size: 11px;
     font-weight: 700;
-    padding: 8px 10px;
+    padding: 10px 10px;
     line-height: 1.45;
-    min-height: 44px;
+    min-height: 40px;
 }
 
 .print-sign-body {
     flex: 1;
-    position: relative;
-    padding: 8px 10px 10px 10px;
+    padding: 16px;
     display: flex;
-    align-items: flex-end;
-    justify-content: flex-start;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
 }
 
 .print-stamp {
-    width: 260px;
+    width: 150px;
     max-width: 100%;
-    max-height: 120px;
+    max-height: 75px;
     object-fit: contain;
+    display: block;
     opacity: 0.98;
 }
 
-@media print {
-    @page {
-        size: A4 portrait;
-        margin: 10mm;
+@media (max-width: 900px) {
+    .mev-firms {
+        grid-template-columns: 1fr;
     }
 
-    html,
-    body {
-        background: #fff !important;
-        margin: 0 !important;
-        padding: 0 !important;
+    .mev-arrow-circle {
+        display: none;
     }
 
-    .mev {
-        background: #fff !important;
-        color: #000 !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        min-height: auto !important;
-        overflow: visible !important;
-    }
-
-    .mev::before,
-    .mev::after {
-        display: none !important;
-    }
-
-    .mev-inner {
-        max-width: none !important;
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-
-    .mev-inner > :not(.print-sheet) {
-        display: none !important;
-    }
-
-    .print-sheet {
-        display: block !important;
-        position: static !important;
-        visibility: visible !important;
-        width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-
-    .print-sheet * {
-        visibility: visible !important;
-    }
-
-    .print-sign-row,
-    .print-sign-box,
-    .print-sign-title,
-    .print-sign-firm,
-    .print-sign-body {
-        break-inside: avoid-page !important;
-        page-break-inside: avoid !important;
-    }
-
-    .print-sign-body {
-        padding: 6px 8px 8px 8px !important;
-        align-items: flex-end !important;
-        justify-content: flex-start !important;
-    }
-
-    .print-stamp {
-        width: 290px !important;
-        max-width: 100% !important;
-        max-height: 140px !important;
-        object-fit: contain !important;
-        opacity: 0.98 !important;
+    .mev-manual-grid {
+        grid-template-columns: 1fr;
     }
 }
 `;
@@ -895,12 +936,12 @@ function parseBarcode(raw) {
     };
 }
 
-function splitRowsForPrint(rows) {
-    const ordered = [...rows].reverse();
-    const half = Math.ceil(ordered.length / 2);
-    const left = ordered.slice(0, half);
-    const right = ordered.slice(half);
-    return { left, right };
+function splitRowsForTwoColumns(rowsForPage) {
+    const half = Math.ceil(rowsForPage.length / 2);
+    return {
+        left: rowsForPage.slice(0, half),
+        right: rowsForPage.slice(half)
+    };
 }
 
 export default function MusteriEvraklari() {
@@ -914,6 +955,7 @@ export default function MusteriEvraklari() {
     const [parseError, setParseError] = useState(null);
     const [lastRawScan, setLastRawScan] = useState("");
     const [showSettings, setShowSettings] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
 
     const [scanMode, setScanMode] = useState(false);
     const [scanBuffer, setScanBuffer] = useState("");
@@ -922,15 +964,86 @@ export default function MusteriEvraklari() {
     const [beepEnabled, setBeepEnabled] = useState(true);
     const [autoStopAfterRead, setAutoStopAfterRead] = useState(false);
 
+    const [manualDate, setManualDate] = useState(() => {
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, "0");
+        const dd = String(now.getDate()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd}`;
+    });
+    const [manualIrsaliye, setManualIrsaliye] = useState("");
+
     const scanAreaRef = useRef(null);
     const audioCtxRef = useRef(null);
     const scanTimeoutRef = useRef(null);
     const bufferRef = useRef("");
+    const printSheetRef = useRef(null);
 
-    const [manualTarih, setManualTarih] = useState(today().replaceAll("/", "."));
-    const [manualIrsaliye, setManualIrsaliye] = useState("");
+    // Çift kolon tablo için toplam satır kapasitesi
+    const FIRST_PAGE_CAPACITY = 46;              // başlık + açıklama + tablo
+    const OTHER_PAGE_CAPACITY = 58;              // sadece tablo olan sayfalar
+    const LAST_PAGE_WITH_SIGN_CAPACITY = 34;     // tablo + imza aynı sayfadaysa güvenli toplam satır
 
-    const printRows = useMemo(() => splitRowsForPrint(rows), [rows]);
+    const pdfPages = useMemo(() => {
+        const ordered = [...rows].reverse();
+        const pages = [];
+
+        if (ordered.length === 0) {
+            return [
+                {
+                    rows: [],
+                    showHeader: true,
+                    showSignatures: true,
+                    startNo: 1
+                }
+            ];
+        }
+
+        let index = 0;
+        let startNo = 1;
+        let isFirstPage = true;
+
+        while (index < ordered.length) {
+            const remaining = ordered.length - index;
+            const normalCapacity = isFirstPage ? FIRST_PAGE_CAPACITY : OTHER_PAGE_CAPACITY;
+
+            if (remaining <= LAST_PAGE_WITH_SIGN_CAPACITY) {
+                const chunk = ordered.slice(index);
+                pages.push({
+                    rows: chunk,
+                    showHeader: isFirstPage,
+                    showSignatures: true,
+                    startNo
+                });
+                index += chunk.length;
+                startNo += chunk.length;
+                break;
+            }
+
+            const chunk = ordered.slice(index, index + normalCapacity);
+            pages.push({
+                rows: chunk,
+                showHeader: isFirstPage,
+                showSignatures: false,
+                startNo
+            });
+
+            index += chunk.length;
+            startNo += chunk.length;
+            isFirstPage = false;
+        }
+
+        if (!pages.some((p) => p.showSignatures)) {
+            pages.push({
+                rows: [],
+                showHeader: false,
+                showSignatures: true,
+                startNo
+            });
+        }
+
+        return pages;
+    }, [rows]);
 
     const playBeep = useCallback((success = true) => {
         if (!beepEnabled) return;
@@ -963,53 +1076,49 @@ export default function MusteriEvraklari() {
         }
     }, []);
 
-    const startScanMode = useCallback(() => {
-        bufferRef.current = "";
-        setScanBuffer("");
-        setParseError(null);
-        setDupWarning(null);
-        setScanMode(true);
-        setTimeout(() => {
-            scanAreaRef.current?.focus();
-        }, 10);
-    }, []);
+    const insertRow = useCallback((irsaliyeNo, tarih, rawForError = "") => {
+        const cleanNo = String(irsaliyeNo || "").trim().toUpperCase();
+        const cleanDate = String(tarih || "").trim();
 
-    const addParsedRow = useCallback((payload) => {
-        setDupWarning(null);
-        setParseError(null);
-
-        const tarih = String(payload?.tarih || "").trim() || today().replaceAll("/", ".");
-        const irsaliyeNo = String(payload?.irsaliye || "").trim().toUpperCase();
-
-        if (!irsaliyeNo) {
-            playBeep(false);
+        if (!cleanNo) {
+            setLastRawScan(rawForError);
             setParseError("NO_BULUNAMADI");
             setTimeout(() => setParseError(null), 3500);
+            playBeep(false);
             return false;
         }
 
-        if (irsaliyeNo.length !== 16) {
-            playBeep(false);
-            setParseError({ type: "UZUNLUK_HATASI", val: irsaliyeNo, len: irsaliyeNo.length });
+        if (cleanNo.length !== 16) {
+            setLastRawScan(rawForError || cleanNo);
+            setParseError({ type: "UZUNLUK_HATASI", val: cleanNo, len: cleanNo.length });
             setTimeout(() => setParseError(null), 3500);
+            playBeep(false);
             return false;
         }
 
         if (dupCheck) {
-            const exists = rows.some((r) => r.irsaliye === irsaliyeNo);
+            const exists = rows.some((r) => r.irsaliye === cleanNo);
             if (exists) {
-                playBeep(false);
-                setDupWarning(irsaliyeNo);
+                setDupWarning(cleanNo);
                 setTimeout(() => setDupWarning(null), 2500);
+                playBeep(false);
                 return false;
             }
         }
 
+        const fallbackToday = new Date().toLocaleDateString("tr-TR", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric"
+        });
+
         const id = Date.now() + Math.floor(Math.random() * 1000);
-        setRows((prev) => [{ id, tarih, irsaliye: irsaliyeNo }, ...prev]);
+
+        setRows((prev) => [{ id, tarih: cleanDate || fallbackToday, irsaliye: cleanNo }, ...prev]);
         setFlashId(id);
-        playBeep(true);
         setTimeout(() => setFlashId(null), 500);
+        playBeep(true);
+
         return true;
     }, [rows, dupCheck, playBeep]);
 
@@ -1030,31 +1139,47 @@ export default function MusteriEvraklari() {
             return false;
         }
 
-        const ok = addParsedRow({
-            tarih: parsed.tarih || new Date().toLocaleDateString("tr-TR", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric"
-            }),
-            irsaliye: parsed.irsaliye
-        });
+        const success = insertRow(parsed.irsaliye, parsed.tarih, trimmed);
 
-        if (!ok) {
+        if (success) {
             setLastRawScan(trimmed);
-            return false;
+
+            if (autoStopAfterRead) {
+                stopScanMode();
+            } else {
+                bufferRef.current = "";
+                setScanBuffer("");
+            }
         }
 
-        setLastRawScan(trimmed);
+        return success;
+    }, [insertRow, autoStopAfterRead, stopScanMode, playBeep]);
 
-        if (autoStopAfterRead) {
-            stopScanMode();
-        } else {
-            bufferRef.current = "";
-            setScanBuffer("");
+    const handleManualAdd = useCallback(() => {
+        setDupWarning(null);
+        setParseError(null);
+
+        const success = insertRow(
+            manualIrsaliye,
+            formatDateToTR(manualDate),
+            `manuel:${manualIrsaliye}`
+        );
+
+        if (success) {
+            setManualIrsaliye("");
         }
+    }, [insertRow, manualIrsaliye, manualDate]);
 
-        return true;
-    }, [addParsedRow, playBeep, autoStopAfterRead, stopScanMode]);
+    const startScanMode = useCallback(() => {
+        bufferRef.current = "";
+        setScanBuffer("");
+        setParseError(null);
+        setDupWarning(null);
+        setScanMode(true);
+        setTimeout(() => {
+            scanAreaRef.current?.focus();
+        }, 10);
+    }, []);
 
     useEffect(() => {
         const finalizeScan = () => {
@@ -1121,12 +1246,6 @@ export default function MusteriEvraklari() {
         };
     }, [scanMode, addRow, stopScanMode, autoStopAfterRead]);
 
-    useEffect(() => {
-        return () => {
-            stopScanMode();
-        };
-    }, [stopScanMode]);
-
     const updateRow = (id, field, value) => {
         setRows((prev) =>
             prev.map((row) =>
@@ -1146,7 +1265,68 @@ export default function MusteriEvraklari() {
         }
     };
 
-    const printRowCount = Math.max(printRows.left.length, printRows.right.length);
+    const waitForImages = useCallback(async (container) => {
+        const images = Array.from(container.querySelectorAll("img"));
+        await Promise.all(
+            images.map((img) => {
+                if (img.complete && img.naturalWidth > 0) {
+                    return Promise.resolve();
+                }
+
+                return new Promise((resolve) => {
+                    const done = () => resolve();
+                    img.onload = done;
+                    img.onerror = done;
+                });
+            })
+        );
+    }, []);
+
+    const exportPDF = useCallback(async () => {
+        const pageElements = Array.from(
+            printSheetRef.current?.querySelectorAll(".pdf-page") || []
+        );
+
+        if (!pageElements.length) return;
+
+        try {
+            setIsExporting(true);
+
+            const pdf = new jsPDF({
+                orientation: "portrait",
+                unit: "mm",
+                format: "a4"
+            });
+
+            for (let i = 0; i < pageElements.length; i++) {
+                const element = pageElements[i];
+
+                await waitForImages(element);
+
+                const canvas = await html2canvas(element, {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: "#ffffff",
+                    logging: false
+                });
+
+                const imgData = canvas.toDataURL("image/png");
+
+                if (i > 0) {
+                    pdf.addPage();
+                }
+
+                pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
+            }
+
+            pdf.save("evrak-teslim-tutanagi-" + today().replaceAll(".", "-") + ".pdf");
+        } catch (err) {
+            console.error("PDF export hatası:", err);
+            alert("PDF oluşturulurken bir hata oluştu.");
+        } finally {
+            setIsExporting(false);
+        }
+    }, [waitForImages]);
 
     return (
         <>
@@ -1283,7 +1463,7 @@ export default function MusteriEvraklari() {
                                 <div>
                                     <div>
                                         {parseError === "NO_BULUNAMADI" ? (
-                                            "Okutulan veride NO alanı bulunamadı."
+                                            "Okutulan veride veya manuel girişte geçerli İrsaliye No bulunamadı."
                                         ) : (
                                             <span>
                                                 <b>{parseError.val}</b> — {parseError.len} karakter, 16 olmalı.
@@ -1306,103 +1486,91 @@ export default function MusteriEvraklari() {
                             </div>
                         )}
 
+                        <div className="mev-inline-hint">
+                            Manuel giriş veya barkod okutma ile kayıt ekleyebilirsiniz.
+                        </div>
+
+                        <div className="mev-manual-grid">
+                            <input
+                                type="date"
+                                className="mev-manual-input"
+                                value={manualDate}
+                                onChange={(e) => setManualDate(e.target.value)}
+                            />
+                            <input
+                                type="text"
+                                className="mev-manual-input"
+                                placeholder="Manuel İrsaliye No (16 karakter)"
+                                value={manualIrsaliye}
+                                onChange={(e) => setManualIrsaliye(e.target.value.toUpperCase())}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") handleManualAdd();
+                                }}
+                            />
+                            <button
+                                type="button"
+                                className="mev-add-btn"
+                                onClick={handleManualAdd}
+                                style={{ minHeight: 52, padding: "0 1.25rem" }}
+                            >
+                                Manuel Ekle
+                            </button>
+                        </div>
+
                         <div className="mev-input-row" style={{ display: "block" }}>
                             <div
                                 ref={scanAreaRef}
                                 tabIndex={0}
                                 className="mev-barcode-field"
+                                onClick={startScanMode}
                                 style={{
-                                    minHeight: 260,
+                                    minHeight: 84,
+                                    cursor: "pointer",
                                     display: "flex",
                                     flexDirection: "column",
+                                    alignItems: "stretch",
+                                    justifyContent: "center",
                                     padding: "1rem 1.1rem"
                                 }}
                             >
-                                <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem", flexWrap: "wrap" }}>
-                                    {!scanMode ? (
-                                        <button type="button" className="mev-add-btn" onClick={startScanMode}>
-                                            Barkod Okumayı Başlat
+                                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", width: "100%" }}>
+                                    <span className="mev-barcode-icon">▦</span>
+
+                                    <div style={{ flex: 1 }}>
+                                        <div className="mev-scan-box-title">
+                                            {scanMode ? "Okutma aktif — barkodu okutun" : "Barkod okutmak için tıklayın"}
+                                        </div>
+                                        <div className="mev-scan-box-sub">
+                                            {scanBuffer || (scanMode ? "Veri bekleniyor..." : "Tıklayın, sonra barkodu okutun")}
+                                        </div>
+                                    </div>
+
+                                    {scanMode ? (
+                                        <button
+                                            type="button"
+                                            className="mev-del-btn"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                stopScanMode();
+                                            }}
+                                        >
+                                            Kapat
                                         </button>
                                     ) : (
-                                        <button type="button" className="mev-btn-ghost" onClick={stopScanMode}>
-                                            Okumayı Durdur
+                                        <button
+                                            type="button"
+                                            className="mev-add-btn"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                startScanMode();
+                                            }}
+                                            style={{ height: 40, padding: "0 1rem" }}
+                                        >
+                                            Okutmayı Başlat
                                         </button>
                                     )}
                                 </div>
-
-                                <div className="mev-scan-surface">
-                                    <div className={`mev-scan-hero${scanMode ? " active" : ""}`}>
-                                        <div className="mev-scan-line" />
-                                        <div className="mev-scan-bars" aria-hidden="true">
-                                            <span /><span /><span /><span /><span /><span />
-                                            <span /><span /><span /><span /><span /><span />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="mev-scan-copy">
-                                    <div className="mev-scan-box-title">
-                                        {scanMode
-                                            ? "Barkod okuyucu aktif — barkodu okutun"
-                                            : "Barkod okumayı başlatın"}
-                                    </div>
-
-                                    <div className="mev-scan-box-sub">
-                                        {scanBuffer || lastRawScan || "Ham veri burada görünecek"}
-                                    </div>
-                                </div>
                             </div>
-                        </div>
-
-                        <div className="mev-input-row">
-                            <div className="mev-barcode-field" style={{ padding: "0.85rem 1rem", maxWidth: 180 }}>
-                                <input
-                                    type="text"
-                                    value={manualTarih}
-                                    onChange={(e) => setManualTarih(e.target.value)}
-                                    placeholder="gg.aa.yyyy"
-                                    className="mev-edit-input"
-                                />
-                            </div>
-
-                            <div className="mev-barcode-field" style={{ padding: "0.85rem 1rem", flex: 1 }}>
-                                <input
-                                    type="text"
-                                    value={manualIrsaliye}
-                                    onChange={(e) => setManualIrsaliye(e.target.value.toUpperCase())}
-                                    placeholder="Manuel İrsaliye No"
-                                    className="mev-edit-input"
-                                    onKeyDown={(e) => {
-                                        if (e.key === "Enter") {
-                                            const ok = addParsedRow({
-                                                tarih: manualTarih,
-                                                irsaliye: manualIrsaliye
-                                            });
-
-                                            if (ok) {
-                                                setManualIrsaliye("");
-                                            }
-                                        }
-                                    }}
-                                />
-                            </div>
-
-                            <button
-                                type="button"
-                                className="mev-add-btn"
-                                onClick={() => {
-                                    const ok = addParsedRow({
-                                        tarih: manualTarih,
-                                        irsaliye: manualIrsaliye
-                                    });
-
-                                    if (ok) {
-                                        setManualIrsaliye("");
-                                    }
-                                }}
-                            >
-                                Manuel Ekle
-                            </button>
                         </div>
 
                         <div className="mev-table-outer">
@@ -1422,7 +1590,7 @@ export default function MusteriEvraklari() {
                                                 <div className="mev-empty">
                                                     <span className="mev-empty-icon">▤</span>
                                                     <span className="mev-empty-text">
-                                                        Barkod okutun — irsaliyeler burada görünecek
+                                                        Manuel ekleyin veya barkod okutun — irsaliyeler burada görünecek
                                                     </span>
                                                 </div>
                                             </td>
@@ -1450,6 +1618,7 @@ export default function MusteriEvraklari() {
                                                         placeholder="İrsaliye No"
                                                     />
                                                 </td>
+
                                                 <td>
                                                     <button
                                                         type="button"
@@ -1471,90 +1640,104 @@ export default function MusteriEvraklari() {
                         <button type="button" className="mev-btn-ghost" onClick={handleClear}>
                             Sıfırla
                         </button>
-                        <button type="button" className="mev-btn-print" onClick={() => window.print()}>
-                            <span>⎙</span> Yazdır / PDF Al
+                        <button
+                            type="button"
+                            className="mev-btn-print"
+                            onClick={exportPDF}
+                            disabled={isExporting}
+                        >
+                            <span>⎙</span> {isExporting ? "PDF Oluşturuluyor..." : "PDF İndir"}
                         </button>
                     </div>
 
-                    {/* PRINT ONLY */}
-                    <div className="print-sheet">
-                        <div className="print-sheet-inner">
-                            <div className="print-top-title">EVRAK TESLİM TUTANAĞI</div>
-                            <div className="print-top-date">TESLİM TARİHİ : {today()}</div>
-                            <div className="print-desc">{aciklama}</div>
+                    <div className="print-sheet" ref={printSheetRef}>
+                        {pdfPages.map((page, pageIndex) => {
+                            const pageRows = splitRowsForTwoColumns(page.rows);
+                            const rowCount = Math.max(pageRows.left.length, pageRows.right.length);
 
-                            <div className="print-table-wrap">
-                                <table className="print-grid">
-                                    <colgroup>
-                                        <col style={{ width: "5%" }} />
-                                        <col style={{ width: "12%" }} />
-                                        <col style={{ width: "33%" }} />
-                                        <col style={{ width: "5%" }} />
-                                        <col style={{ width: "12%" }} />
-                                        <col style={{ width: "33%" }} />
-                                    </colgroup>
-                                    <thead>
-                                        <tr>
-                                            <th>NO</th>
-                                            <th>TARİH</th>
-                                            <th>İRSALİYE NO</th>
-                                            <th>NO</th>
-                                            <th>TARİH</th>
-                                            <th>İRSALİYE NO</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {printRowCount === 0 ? (
-                                            <tr>
-                                                <td colSpan={6} style={{ height: 300 }} />
-                                            </tr>
-                                        ) : (
-                                            Array.from({ length: printRowCount }).map((_, idx) => {
-                                                const left = printRows.left[idx];
-                                                const right = printRows.right[idx];
-
-                                                return (
-                                                    <tr key={idx}>
-                                                        <td>{left ? idx + 1 : ""}</td>
-                                                        <td className="date">{left?.tarih || ""}</td>
-                                                        <td className="code">{left?.irsaliye || ""}</td>
-
-                                                        <td>{right ? printRows.left.length + idx + 1 : ""}</td>
-                                                        <td className="date">{right?.tarih || ""}</td>
-                                                        <td className="code">{right?.irsaliye || ""}</td>
-                                                    </tr>
-                                                );
-                                            })
+                            return (
+                                <div className="pdf-page" key={pageIndex}>
+                                    <div className="print-sheet-inner">
+                                        {page.showHeader && (
+                                            <>
+                                                <div className="print-top-title">EVRAK TESLİM TUTANAĞI</div>
+                                                <div className="print-top-date">TESLİM TARİHİ : {today()}</div>
+                                                <div className="print-desc">{aciklama}</div>
+                                            </>
                                         )}
-                                    </tbody>
-                                </table>
-                            </div>
 
-                            <div className="print-sign-row">
-                                <div className="print-sign-box">
-                                    <div className="print-sign-title">EVRAK TESLİM EDEN</div>
-                                    <div className="print-sign-firm">{teslimEden}</div>
+                                        {page.rows.length > 0 && (
+                                            <div className="print-table-wrap">
+                                                <table className="print-grid">
+                                                    <colgroup>
+                                                        <col style={{ width: "5%" }} />
+                                                        <col style={{ width: "14%" }} />
+                                                        <col style={{ width: "31%" }} />
+                                                        <col style={{ width: "5%" }} />
+                                                        <col style={{ width: "14%" }} />
+                                                        <col style={{ width: "31%" }} />
+                                                    </colgroup>
+                                                    <thead>
+                                                        <tr>
+                                                            <th>NO</th>
+                                                            <th>TARİH</th>
+                                                            <th>İRSALİYE NO</th>
+                                                            <th>NO</th>
+                                                            <th>TARİH</th>
+                                                            <th>İRSALİYE NO</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {Array.from({ length: rowCount }).map((_, idx) => {
+                                                            const left = pageRows.left[idx];
+                                                            const right = pageRows.right[idx];
 
-                                    <div className="print-sign-body">
-                                        <img
-                                            src={STAMP_URL}
-                                            alt="Firma Kaşesi"
-                                            className="print-stamp"
-                                            onError={(e) => {
-                                                e.currentTarget.style.display = "none";
-                                            }}
-                                        />
+                                                            return (
+                                                                <tr key={idx}>
+                                                                    <td>{left ? page.startNo + idx : ""}</td>
+                                                                    <td className="date">{left?.tarih || ""}</td>
+                                                                    <td className="code">{left?.irsaliye || ""}</td>
+
+                                                                    <td>{right ? page.startNo + pageRows.left.length + idx : ""}</td>
+                                                                    <td className="date">{right?.tarih || ""}</td>
+                                                                    <td className="code">{right?.irsaliye || ""}</td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+
+                                        {page.showSignatures && (
+                                            <div className="print-sign-row">
+                                                <div className="print-sign-box">
+                                                    <div className="print-sign-title">EVRAK TESLİM EDEN</div>
+                                                    <div className="print-sign-firm">{teslimEden}</div>
+
+                                                    <div className="print-sign-body">
+                                                        <img
+                                                            src={STAMP_URL}
+                                                            alt="Firma Kaşesi"
+                                                            className="print-stamp"
+                                                            onError={(e) => {
+                                                                e.currentTarget.style.display = "none";
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="print-sign-box">
+                                                    <div className="print-sign-title">EVRAK TESLİM ALAN</div>
+                                                    <div className="print-sign-firm">{teslimAlan}</div>
+                                                    <div className="print-sign-body" />
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-
-                                <div className="print-sign-box">
-                                    <div className="print-sign-title">EVRAK TESLİM ALAN</div>
-                                    <div className="print-sign-firm">{teslimAlan}</div>
-
-                                    <div className="print-sign-body" />
-                                </div>
-                            </div>
-                        </div>
+                            );
+                        })}
                     </div>
                 </div>
             </div>
