@@ -105,6 +105,16 @@ function KargoBilgisiEkle() {
             .toUpperCase();
     };
 
+    const sanitizeOdakEvrakNo = (value) => {
+        if (!value) return '';
+        return value
+            .trim()
+            .replace(/^"+|"+$/g, '')
+            .replace(/^'+|'+$/g, '')
+            .replace(/[^A-Za-z0-9]/g, '')
+            .toUpperCase();
+    };
+
     const extractIrsaliyeNo = (rawText) => {
         if (!rawText || typeof rawText !== 'string') return '';
 
@@ -127,6 +137,59 @@ function KargoBilgisiEkle() {
         }
 
         return '';
+    };
+
+    const extractSfrValue = (rawText) => {
+        if (!rawText || typeof rawText !== 'string') return '';
+
+        const text = normalizeScannerText(rawText).toUpperCase();
+
+        const match = text.match(/\bSFR[A-Z0-9]+\b/);
+        return match ? sanitizeOdakEvrakNo(match[0]) : '';
+    };
+
+    const odakEvrakNoEkle = (yeniNo) => {
+        if (!yeniNo) return;
+
+        const temizNo = sanitizeOdakEvrakNo(yeniNo);
+
+        if (!temizNo.startsWith('SFR')) {
+            showNotice(
+                'error',
+                'Geçersiz odak evrak no',
+                'Okunan değer SFR ile başlamıyor. Lütfen tekrar deneyin.'
+            );
+            return;
+        }
+
+        const mevcutlar = formData.odakEvrakNo
+            ? formData.odakEvrakNo.split('-').map(s => s.trim()).filter(Boolean)
+            : [];
+
+        if (mevcutlar.includes(temizNo)) {
+            showNotice(
+                'info',
+                'Bu odak evrak no zaten eklendi',
+                `${temizNo} daha önce Odak Evrak No alanına eklenmiş.`
+            );
+            return;
+        }
+
+        const yeniOdakEvrakNo = mevcutlar.length > 0
+            ? `${mevcutlar.join(' - ')} - ${temizNo}`
+            : temizNo;
+
+        setFormData(prev => ({
+            ...prev,
+            odakEvrakNo: yeniOdakEvrakNo,
+            evrakAdedi: hesaplaEvrakAdedi(prev.irsaliyeNo, yeniOdakEvrakNo)
+        }));
+
+        showNotice(
+            'success',
+            'Odak evrak no eklendi',
+            `${temizNo} başarıyla Odak Evrak No alanına eklendi.`
+        );
     };
 
     const irsaliyeNoEkle = (yeniNo) => {
@@ -170,11 +233,21 @@ function KargoBilgisiEkle() {
             `${temizNo} başarıyla listeye eklendi.`
         );
     };
+
     const processScannerData = (rawValue) => {
         const cleaned = normalizeScannerText(rawValue);
         if (!cleaned) return;
 
         setScannerPreview(cleaned);
+
+        const sfrValue = extractSfrValue(cleaned);
+
+        if (sfrValue) {
+            odakEvrakNoEkle(sfrValue);
+            setScannerValue('');
+            focusScanner();
+            return;
+        }
 
         const parsedNo = extractIrsaliyeNo(cleaned);
 
@@ -278,7 +351,7 @@ function KargoBilgisiEkle() {
         }
 
         scannerProcessTimerRef.current = setTimeout(() => {
-            if (value.trim().length >= 10) {
+            if (value.trim().length >= 3) {
                 processScannerData(value);
             }
         }, 120);
@@ -423,7 +496,7 @@ function KargoBilgisiEkle() {
                                     <span className="mr-2">📦</span>Kargo Bilgisi Ekle
                                 </h1>
                                 <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-                                    Scanner verisi otomatik yakalanır, NO değeri 16 karakter kontrolüyle eklenir.
+                                    Scanner verisi otomatik yakalanır. SFR ile başlayan barkodlar Odak Evrak No alanına eklenir.
                                 </p>
                             </div>
 
@@ -445,7 +518,7 @@ function KargoBilgisiEkle() {
                                             Scanner Durumu
                                         </label>
                                         <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
-                                            Okunan NO alanı tam {REQUIRED_IRSALIYE_LENGTH} karakter olmalı.
+                                            SFR ile başlayan kodlar Odak Evrak No alanına, diğer uygun NO değerleri İrsaliye No alanına gider.
                                         </p>
                                     </div>
 
@@ -516,7 +589,7 @@ function KargoBilgisiEkle() {
                                     rows="3"
                                     value={formData.odakEvrakNo}
                                     onChange={handleChange}
-                                    placeholder="Örn: ODK111-ODK222"
+                                    placeholder="Örn: SFR123456 - SFR654321"
                                     className="w-full px-4 py-3 rounded-2xl border border-gray-200/70 dark:border-white/10 bg-white/75 dark:bg-white/5 backdrop-blur-xl text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
                                 />
                             </div>
