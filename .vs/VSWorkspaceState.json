@@ -5,8 +5,9 @@
     "\\client\\public",
     "\\client\\public\\images",
     "\\client\\src",
+    "\\client\\src\\components",
     "\\client\\src\\pages"
   ],
-  "SelectedNode": "\\client\\src\\KargoBilgisiEkle.js",
+  "SelectedNode": "\\client\\src\\components\\EditEvrakModal.js",
   "PreviewInSolutionExplorer": false
 }

@@ -22,6 +22,7 @@ export default function EditEvrakModal({
     const [draft, setDraft] = useState(value);
     const [density, setDensity] = useState("comfortable"); // comfortable | compact
     const [seferSearch, setSeferSearch] = useState("");
+    const [projeSearch, setProjeSearch] = useState("");
     const overlayRef = useRef(null);
     const bodyRef = useRef(null);
     const [showUnsaved, setShowUnsaved] = useState(false);
@@ -137,6 +138,21 @@ export default function EditEvrakModal({
         () => Object.entries(projeler || {}).map(([id, name]) => ({ id, name })),
         [projeler]
     );
+
+    const filteredProjeRows = useMemo(() => {
+        const q = projeSearch.trim().toLocaleLowerCase("tr-TR");
+
+        return (draft?.evrakproje || [])
+            .map((p, idx) => ({ ...p, __idx: idx }))
+            .filter((p) => {
+                if (!q) return true;
+
+                const projeAdi = String(projeler?.[p.projeid] ?? p.projeid ?? "")
+                    .toLocaleLowerCase("tr-TR");
+
+                return projeAdi.includes(q);
+            });
+    }, [draft?.evrakproje, projeSearch, projeler]);
 
     const updateField = (patch) => setDraft((d) => ({ ...d, ...patch }));
 
@@ -385,22 +401,36 @@ export default function EditEvrakModal({
 
                             {tab === "projeler" && (
                                 <div className="space-y-4">
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
                                         <div className="text-sm font-semibold">Proje Kalemleri</div>
-                                        <button
-                                            onClick={addProjeRow}
-                                            className="px-3.5 py-2.5 rounded-2xl text-sm font-semibold
-                        bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-95 text-white shadow"
-                                        >
-                                            + Proje Ekle
-                                        </button>
+
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                value={projeSearch}
+                                                onChange={(e) => setProjeSearch(e.target.value)}
+                                                placeholder="Proje ara…"
+                                                className="px-3 py-2.5 rounded-2xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-gray-800/70
+focus:outline-none focus:ring-4 focus:ring-blue-200/60 dark:focus:ring-blue-900/30"
+                                            />
+
+                                            <button
+                                                onClick={addProjeRow}
+                                                className="px-3.5 py-2.5 rounded-2xl text-sm font-semibold
+bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-95 text-white shadow"
+                                            >
+                                                + Proje Ekle
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <div className="space-y-3">
-                                        {(draft?.evrakproje || []).map((p, i) => (
-                                            <motion.div
-                                                key={i}
-                                                layout
+                                        {filteredProjeRows.map((p) => {
+                                            const i = p.__idx;
+
+                                            return (
+                                                <motion.div
+                                                    key={i}
+                                                    layout
                                                 className={cx(
                                                     "rounded-3xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-gray-800/70",
                                                     "shadow-sm hover:shadow-md transition",
@@ -452,9 +482,9 @@ export default function EditEvrakModal({
                                                 >
                                                     Sil
                                                 </button>
-                                            </motion.div>
-                                        ))}
-
+                                                </motion.div>
+                                            );
+                                        })}
                                         {(draft?.evrakproje || []).length === 0 && (
                                             <div className="text-sm text-gray-500 dark:text-gray-400">Henüz proje eklenmemiş.</div>
                                         )}
@@ -661,8 +691,10 @@ export default function EditEvrakModal({
                                             {(projeler?.[p.projeid] ?? p.projeid) + " • " + (p.sefersayisi ?? 0)}
                                         </span>
                                     ))}
-                                    {(draft?.evrakproje || []).length === 0 && (
-                                        <span className="text-xs text-gray-500">—</span>
+                                    {filteredProjeRows.length === 0 && (
+                                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                                            Eşleşen proje yok.
+                                        </div>
                                     )}
                                 </div>
                             </Card>
