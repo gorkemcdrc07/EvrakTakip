@@ -197,19 +197,43 @@ export default function Tahakkuk() {
             setSelectedIds([]);
         }
     };
+    const chunkArray = (arr, size = 100) => {
+        const chunks = [];
 
-    const executeDelete = async () => {
-        const targetIds = confirmDelete.isBulk ? selectedIds : [confirmDelete.id];
-        const { error } = await supabase.from("tahakkuk").delete().in("id", targetIds);
+        for (let i = 0; i < arr.length; i += size) {
+            chunks.push(arr.slice(i, i + size));
+        }
 
-        if (!error) {
-            fetchRows();
-            checkExpiredRows();
-            setSelectedIds([]);
-            setConfirmDelete({ open: false, id: null, isBulk: false });
+        return chunks;
+    };
+
+    const deleteByChunks = async (ids) => {
+        for (const chunk of chunkArray(ids, 100)) {
+            const { error } = await supabase
+                .from("tahakkuk")
+                .delete()
+                .in("id", chunk);
+
+            if (error) throw error;
         }
     };
 
+    const executeDelete = async () => {
+        const targetIds = confirmDelete.isBulk ? selectedIds : [confirmDelete.id];
+
+        try {
+            await deleteByChunks(targetIds);
+
+            await fetchRows();
+            await checkExpiredRows();
+
+            setSelectedIds([]);
+            setConfirmDelete({ open: false, id: null, isBulk: false });
+        } catch (error) {
+            console.error(error);
+            alert("Silme sırasında hata oluştu: " + error.message);
+        }
+    };
     const deleteSelectedExpiredRows = async () => {
         if (selectedExpiredIds.length === 0) {
             alert("Silmek için en az bir kayıt seçmelisiniz.");
@@ -218,17 +242,17 @@ export default function Tahakkuk() {
 
         setDeletingExpired(true);
 
-        const { error } = await supabase
-            .from("tahakkuk")
-            .delete()
-            .in("id", selectedExpiredIds);
+        try {
+            await deleteByChunks(selectedExpiredIds);
 
-        if (!error) {
             await fetchRows();
             await checkExpiredRows();
+        } catch (error) {
+            console.error(error);
+            alert("Silme sırasında hata oluştu: " + error.message);
+        } finally {
+            setDeletingExpired(false);
         }
-
-        setDeletingExpired(false);
     };
 
     const exportToExcel = () => {
