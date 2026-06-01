@@ -183,7 +183,13 @@ export default function Anasayfa() {
     const isRefika = usernameLower === "refika";
     const isAdminOrManager = ["yaren", "ozge", "mehmet", "rabia"].includes(usernameLower);
 
-    const tahakkukAllowedUsers = ["aleynagncl", "cagla123", "didem", "canan"].map((u) => u.trim().toLowerCase());
+    const tahakkukAllowedUsers = [
+        "aleynagncl",
+        "cagla123",
+        "didem",
+        "canan",
+        "merve"
+    ].map((u) => u.trim().toLowerCase());
     const tahakkukBlockedUsers = ["yaren", "ozge", "refika", "mehmet"];
     const canSeeTahakkuk =
         tahakkukAllowedUsers.includes(usernameLower) && !tahakkukBlockedUsers.includes(usernameLower);
