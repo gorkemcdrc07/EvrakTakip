@@ -1,0 +1,822 @@
+﻿/* ───────────────────────────────────────────
+   TUTANAK — Kurumsal Belge Paneli
+   Palette: Lacivert navy · Altın gold · Soğuk gri
+   ─────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* ── Tokens ── */
+:root {
+    --navy-950: #05101f;
+    --navy-900: #0a1628;
+    --navy-800: #0f2040;
+    --navy-700: #162d58;
+    --navy-600: #1e3a72;
+    --navy-200: #a8bcd8;
+    --navy-100: #d4dff0;
+    --navy-50: #eef2fa;
+    --gold-500: #c9a227;
+    --gold-400: #d4b245;
+    --gold-300: #e2c97a;
+    --gold-100: #fdf3d7;
+    --slate-700: #334155;
+    --slate-500: #64748b;
+    --slate-400: #94a3b8;
+    --slate-200: #e2e8f0;
+    --slate-100: #f1f5f9;
+    --slate-50: #f8fafc;
+    --white: #ffffff;
+    --surface: #ffffff;
+    --radius-sm: 8px;
+    --radius-md: 14px;
+    --radius-lg: 20px;
+    --radius-xl: 28px;
+    --shadow-card: 0 2px 12px rgba(5, 16, 31, 0.08), 0 1px 3px rgba(5, 16, 31, 0.05);
+    --shadow-card-hover: 0 8px 32px rgba(5, 16, 31, 0.12), 0 2px 8px rgba(5, 16, 31, 0.06);
+    --font: 'Inter', system-ui, sans-serif;
+}
+
+/* ── Reset / base ── */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+/* ── Screen ── */
+.t-screen {
+    position: relative;
+    min-height: 100vh;
+    background: linear-gradient(180deg, var(--navy-950) 0%, #0d1e3a 55%, #0f1c34 100%);
+    font-family: var(--font);
+    padding: 0 0 48px;
+}
+
+.t-bg {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background: radial-gradient(ellipse 700px 500px at 10% 15%, rgba(201,162,39,0.06) 0%, transparent 70%), radial-gradient(ellipse 600px 600px at 90% 85%, rgba(30,58,114,0.55) 0%, transparent 70%);
+}
+
+/* ── Wrapper ── */
+.t-wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 1480px;
+    margin: 0 auto;
+    padding: 0 28px;
+}
+
+/* ════════════════════
+   TOP BAR
+══════════════════════ */
+.t-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    height: 64px;
+    margin: 0 -28px;
+    background: rgba(5, 16, 31, 0.72);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(201,162,39,0.18);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.t-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.t-brand-icon {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, var(--gold-500), #e8b84b);
+    color: var(--navy-950);
+    flex-shrink: 0;
+}
+
+.t-brand-name {
+    display: block;
+    color: var(--white);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+}
+
+.t-brand-sub {
+    display: block;
+    color: var(--navy-200);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1;
+}
+
+.t-nav {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.t-nav-item {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--navy-200);
+    cursor: default;
+}
+
+.t-nav-active {
+    color: var(--gold-400);
+}
+
+.t-nav-divider {
+    width: 1px;
+    height: 20px;
+    background: rgba(255,255,255,0.1);
+}
+
+.t-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 16px;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: var(--radius-sm);
+    background: rgba(255,255,255,0.06);
+    color: var(--navy-100);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.18s, border-color 0.18s;
+}
+
+    .t-back-btn:hover {
+        background: rgba(255,255,255,0.1);
+        border-color: rgba(255,255,255,0.2);
+    }
+
+/* ════════════════════
+   PAGE TITLE
+══════════════════════ */
+.t-page-title {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 36px 0 28px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    margin-bottom: 28px;
+}
+
+    .t-page-title h1 {
+        margin: 0;
+        font-size: 30px;
+        font-weight: 800;
+        color: var(--white);
+        letter-spacing: -0.02em;
+        line-height: 1.15;
+    }
+
+    .t-page-title p {
+        margin: 6px 0 0;
+        font-size: 14px;
+        color: var(--navy-200);
+        line-height: 1.6;
+    }
+
+.t-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: rgba(34,197,94,0.1);
+    border: 1px solid rgba(34,197,94,0.22);
+    color: #4ade80;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.t-status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #4ade80;
+    box-shadow: 0 0 0 3px rgba(74,222,128,0.25);
+    animation: pulse-dot 2.2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+    0%, 100% {
+        box-shadow: 0 0 0 3px rgba(74,222,128,0.25);
+    }
+
+    50% {
+        box-shadow: 0 0 0 5px rgba(74,222,128,0.08);
+    }
+}
+
+/* ════════════════════
+   LAYOUT GRID
+══════════════════════ */
+.t-layout {
+    display: grid;
+    grid-template-columns: 340px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+}
+
+.t-aside {
+    position: sticky;
+    top: 80px;
+    display: grid;
+    gap: 18px;
+}
+
+.t-main {
+    display: grid;
+    gap: 20px;
+}
+
+/* ════════════════════
+   BASE CARD
+══════════════════════ */
+.t-card {
+    background: var(--surface);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--slate-200);
+    box-shadow: var(--shadow-card);
+    padding: 24px;
+    transition: box-shadow 0.2s;
+}
+
+    .t-card:hover {
+        box-shadow: var(--shadow-card-hover);
+    }
+
+.t-card-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gold-500);
+    margin-bottom: 4px;
+}
+
+.t-card-head h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--navy-900);
+    line-height: 1.25;
+}
+
+.t-card-head {
+    margin-bottom: 20px;
+}
+
+.t-card-head--row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.t-form-hint {
+    margin: 0;
+    font-size: 12px;
+    color: var(--slate-500);
+    line-height: 1.5;
+    max-width: 300px;
+    text-align: right;
+}
+
+/* ════════════════════
+   UPLOAD CARD
+══════════════════════ */
+.t-upload-card {
+    /* gold top accent line */
+    border-top: 3px solid var(--gold-500);
+    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+    border-top-left-radius: var(--radius-xl);
+    border-top-right-radius: var(--radius-xl);
+}
+
+/* Dropzone */
+.t-dropzone {
+    border: 1.5px dashed var(--slate-200);
+    border-radius: var(--radius-lg);
+    padding: 24px 20px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, transform 0.18s;
+    text-align: center;
+    background: var(--slate-50);
+    min-height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+    .t-dropzone:hover,
+    .t-dropzone--active {
+        border-color: var(--gold-400);
+        background: var(--gold-100);
+        transform: translateY(-1px);
+    }
+
+.t-dropzone--filled {
+    border-style: solid;
+    border-color: rgba(34,197,94,0.35);
+    background: rgba(240,253,244,0.7);
+}
+
+.t-drop-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.t-drop-icon {
+    width: 56px;
+    height: 56px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, rgba(201,162,39,0.15), rgba(201,162,39,0.05));
+    border: 1px solid rgba(201,162,39,0.22);
+    color: var(--gold-500);
+    margin-bottom: 6px;
+}
+
+.t-drop-hint {
+    margin: 0;
+    font-size: 13px;
+    color: var(--slate-500);
+}
+
+.t-drop-btn {
+    margin-top: 8px;
+    height: 36px;
+    padding: 0 18px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--navy-800);
+    color: var(--white);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.18s;
+}
+
+    .t-drop-btn:hover {
+        background: var(--navy-700);
+    }
+
+.t-drop-formats {
+    margin: 6px 0 0;
+    font-size: 11px;
+    color: var(--slate-400);
+    letter-spacing: 0.04em;
+}
+
+/* Filled state */
+.t-drop-filled {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+}
+
+.t-drop-file-icon {
+    width: 48px;
+    height: 48px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(34,197,94,0.12);
+    border: 1px solid rgba(34,197,94,0.3);
+    color: #16a34a;
+    margin-bottom: 4px;
+}
+
+.t-drop-file-label {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #16a34a;
+}
+
+.t-drop-file-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--navy-900);
+    word-break: break-word;
+    text-align: center;
+}
+
+.t-drop-change {
+    font-size: 11px;
+    color: var(--slate-400);
+    margin-top: 2px;
+}
+
+/* Auto fields */
+.t-auto-fields {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--slate-100);
+}
+
+.t-auto-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--slate-500);
+    margin-bottom: 10px;
+}
+
+.t-auto-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.t-auto-tag {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--navy-50);
+    border: 1px solid var(--navy-100);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--navy-700);
+}
+
+/* ════════════════════
+   EXPORT CARD
+══════════════════════ */
+.t-export-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.t-export-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 14px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: transform 0.14s, box-shadow 0.14s, filter 0.14s;
+    text-align: left;
+}
+
+    .t-export-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+        filter: brightness(1.06);
+    }
+
+    .t-export-btn:active {
+        transform: translateY(0);
+    }
+
+    .t-export-btn strong {
+        display: block;
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+
+    .t-export-btn span {
+        display: block;
+        font-size: 10.5px;
+        font-weight: 500;
+        opacity: 0.78;
+        margin-top: 1px;
+    }
+
+.t-export-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-sm);
+    display: grid;
+    place-items: center;
+    background: rgba(255,255,255,0.22);
+    flex-shrink: 0;
+}
+
+.t-export-word {
+    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+    color: #fff;
+}
+
+.t-export-pdf {
+    background: linear-gradient(135deg, #b91c1c, #dc2626);
+    color: #fff;
+}
+
+.t-export-excel {
+    background: linear-gradient(135deg, #065f46, #059669);
+    color: #fff;
+}
+
+.t-export-print {
+    background: linear-gradient(135deg, #334155, #475569);
+    color: #fff;
+}
+
+/* ════════════════════
+   FORM CARD
+══════════════════════ */
+.t-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.t-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.t-field--full {
+    grid-column: 1 / -1;
+}
+
+.t-field-label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--slate-500);
+}
+
+.t-field-dot {
+    display: block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.t-field-input {
+    width: 100%;
+    height: 42px;
+    padding: 0 14px;
+    border: 1.5px solid var(--slate-200);
+    border-radius: var(--radius-sm);
+    font-family: var(--font);
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--navy-900);
+    background: var(--white);
+    outline: none;
+    transition: border-color 0.18s, box-shadow 0.18s;
+}
+
+    .t-field-input:focus {
+        border-color: var(--gold-400);
+        box-shadow: 0 0 0 3px rgba(201,162,39,0.12);
+    }
+
+    .t-field-input::placeholder {
+        color: var(--slate-400);
+        font-weight: 400;
+    }
+
+/* ════════════════════
+   PREVIEW CARD
+══════════════════════ */
+.t-preview-card {
+    padding: 0;
+    overflow: hidden;
+}
+
+.t-preview-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--slate-100);
+}
+
+    .t-preview-header h2 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 800;
+        color: var(--navy-900);
+    }
+
+.t-preview-badge {
+    height: 26px;
+    padding: 0 10px;
+    border-radius: var(--radius-sm);
+    background: var(--navy-50);
+    border: 1px solid var(--navy-100);
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--navy-700);
+    letter-spacing: 0.06em;
+    display: grid;
+    place-items: center;
+}
+
+.t-preview-scroll {
+    overflow-x: auto;
+    padding: 24px;
+    background: var(--slate-50);
+}
+
+/* ════════════════════
+   TUTANAK DOCUMENT
+   (Print-fidelity layer — do not restyle)
+══════════════════════ */
+.tutanak-page {
+    width: 760px;
+    min-height: 1050px;
+    margin: 0 auto;
+    background: #ffffff;
+    color: #000000;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+    padding: 48px 52px;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.06), 0 4px 24px rgba(0,0,0,0.09);
+    border-radius: 3px;
+}
+
+.tutanak-title {
+    text-align: center;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: 0.15em;
+    margin: 0 0 48px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #000;
+}
+
+.tutanak-row {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 9px;
+}
+
+.tutanak-label {
+    width: 300px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.tutanak-colon {
+    width: 18px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.tutanak-mark {
+    padding: 1px 4px;
+    color: #000000;
+}
+
+.tutanak-text {
+    margin-top: 48px;
+    text-align: justify;
+}
+
+    .tutanak-text p {
+        margin-bottom: 16px;
+        text-indent: 48px;
+        line-height: 1.65;
+    }
+
+.tutanak-signatures {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 60px;
+}
+
+.tutanak-signature {
+    width: 44%;
+    text-align: center;
+}
+
+.tutanak-muted {
+    margin-top: 36px;
+    color: #d9d9d9;
+    text-align: left;
+    line-height: 1.7;
+}
+
+/* ════════════════════
+   FOOTER
+══════════════════════ */
+.t-footer {
+    margin-top: 48px;
+    padding: 20px 0;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 12px;
+    color: rgba(168,188,216,0.55);
+}
+
+.t-footer-sep {
+    opacity: 0.4;
+}
+
+/* ════════════════════
+   RESPONSIVE
+══════════════════════ */
+@media (max-width: 1200px) {
+    .t-layout {
+        grid-template-columns: 300px minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 960px) {
+    .t-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .t-aside {
+        position: static;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+    }
+
+    .t-export-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (max-width: 680px) {
+    .t-wrap {
+        padding: 0 16px;
+    }
+
+    .t-topbar {
+        padding: 0 16px;
+    }
+
+    .t-page-title {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .t-aside {
+        grid-template-columns: 1fr;
+    }
+
+    .t-export-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .t-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .t-card-head--row {
+        flex-direction: column;
+    }
+
+    .t-form-hint {
+        text-align: left;
+        max-width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+}

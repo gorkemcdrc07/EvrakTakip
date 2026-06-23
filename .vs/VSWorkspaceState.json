@@ -4,10 +4,8 @@
     "\\client",
     "\\client\\public",
     "\\client\\public\\images",
-    "\\client\\src",
-    "\\client\\src\\components",
-    "\\client\\src\\pages"
+    "\\client\\src"
   ],
-  "SelectedNode": "\\client\\src\\Anasayfa.js",
+  "SelectedNode": "\\client\\src\\Tutanak.css",
   "PreviewInSolutionExplorer": false
 }
