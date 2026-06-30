@@ -98,6 +98,34 @@ const TopluTutanak = () => {
     const [selectedIds, setSelectedIds] = useState([]);
     const [hata, setHata] = useState(null);
 
+    // ✅ Tablo sütun filtreleri
+    const [tableFilters, setTableFilters] = useState({
+        tedarikci: '',
+        musteri: '',
+        firma: '',
+        sefer: '',
+        plaka: '',
+        durum: '',
+    });
+
+    const updateTableFilter = (key, value) => {
+        setTableFilters((prev) => ({
+            ...prev,
+            [key]: value,
+        }));
+    };
+
+    const clearTableFilters = () => {
+        setTableFilters({
+            tedarikci: '',
+            musteri: '',
+            firma: '',
+            sefer: '',
+            plaka: '',
+            durum: '',
+        });
+    };
+
     // ✅ VKN GETİR için ek state'ler
     const [firmaEslesmeleri, setFirmaEslesmeleri] = useState({});
     const [vknLoading, setVknLoading] = useState(false);
@@ -119,6 +147,7 @@ const TopluTutanak = () => {
         setLoading(true);
         setHata(null);
         setSelectedIds([]);
+        clearTableFilters();
 
         // ✅ Yeni sorguda VKN eşleşmelerini sıfırla
         setFirmaEslesmeleri({});
@@ -503,7 +532,7 @@ const TopluTutanak = () => {
     const handleExcelExport = () => {
         const rows = (selectedIds.length > 0
             ? veriler.filter(v => selectedIds.includes(v.TMSDespatchId))
-            : veriler
+            : filteredVeriler
         );
 
         if (!rows.length) return;
@@ -563,6 +592,50 @@ const TopluTutanak = () => {
         )}_${rows.length}_satir.xlsx`;
 
         XLSX.writeFile(wb, fileName);
+    };
+
+
+    const filteredVeriler = veriler.filter((item) => {
+        const supplier = U(item.SupplierCurrentAccountFullTitle);
+        const customer = U(item.CustomerFullTitle);
+        const documentNo = U(item.DocumentNo);
+        const dateText = U(formatDateISO(item.DespatchDate));
+        const plate = U(item.PlateNumber);
+        const trailer = U(item.TrailerPlateNumber);
+        const durumText = U(durumAciklamalari[item.TMSDespatchDocumentStatu] || item.TMSDespatchDocumentStatu);
+
+        const firmaKey = U(item.SupplierCurrentAccountFullTitle);
+        const matches = firmaEslesmeleri[firmaKey] || [];
+        const firmaText = U(
+            matches
+                .flatMap((m) => [m.vkn, m.tc, m.kod, m.telefon, m['ıban']])
+                .filter(Boolean)
+                .join(' ')
+        );
+
+        return (
+            supplier.includes(U(tableFilters.tedarikci)) &&
+            customer.includes(U(tableFilters.musteri)) &&
+            firmaText.includes(U(tableFilters.firma)) &&
+            `${documentNo} ${dateText}`.includes(U(tableFilters.sefer)) &&
+            `${plate} ${trailer}`.includes(U(tableFilters.plaka)) &&
+            durumText.includes(U(tableFilters.durum))
+        );
+    });
+
+    const hasActiveTableFilter = Object.values(tableFilters).some((value) => value.trim() !== '');
+    const selectedFilteredIds = filteredVeriler.map((item) => item.TMSDespatchId);
+    const isAllFilteredSelected = filteredVeriler.length > 0 && selectedFilteredIds.every((id) => selectedIds.includes(id));
+
+    const handleSelectAllFiltered = () => {
+        if (filteredVeriler.length === 0) return;
+
+        if (isAllFilteredSelected) {
+            setSelectedIds((prev) => prev.filter((id) => !selectedFilteredIds.includes(id)));
+            return;
+        }
+
+        setSelectedIds((prev) => Array.from(new Set([...prev, ...selectedFilteredIds])));
     };
 
     return (
@@ -743,14 +816,24 @@ const TopluTutanak = () => {
                                     <h2>Toplu Tutanak Listesi</h2>
                                 </div>
                                 <div className="tt-table-actions">
+                                    {hasActiveTableFilter && (
+                                        <button type="button" className="tt-clear-filters" onClick={clearTableFilters}>
+                                            Filtreleri Temizle
+                                        </button>
+                                    )}
+
+                                    <span className="tt-filter-count">
+                                        {filteredVeriler.length} / {veriler.length} kayıt
+                                    </span>
+
                                     <button
                                         type="button"
-                                        className={`tt-select-all ${selectedIds.length === veriler.length && veriler.length > 0 ? 'tt-select-all--active' : ''}`}
-                                        onClick={() => setSelectedIds(selectedIds.length === veriler.length ? [] : veriler.map((i) => i.TMSDespatchId))}
-                                        disabled={veriler.length === 0}
+                                        className={`tt-select-all ${isAllFilteredSelected ? 'tt-select-all--active' : ''}`}
+                                        onClick={handleSelectAllFiltered}
+                                        disabled={filteredVeriler.length === 0}
                                     >
                                         <CheckCircle2 size={17} />
-                                        {selectedIds.length === veriler.length && veriler.length > 0 ? 'Seçimi Kaldır' : 'Tümünü Seç'}
+                                        {isAllFilteredSelected ? 'Seçimi Kaldır' : 'Görünenleri Seç'}
                                     </button>
                                 </div>
                             </div>
@@ -766,22 +849,71 @@ const TopluTutanak = () => {
                                             <th>Plaka</th>
                                             <th>Durum</th>
                                         </tr>
+                                        <tr className="tt-filter-row">
+                                            <th className="tt-col-check"></th>
+                                            <th>
+                                                <input
+                                                    className={`tt-column-filter ${tableFilters.tedarikci ? 'tt-column-filter--active' : ''}`}
+                                                    placeholder="Tedarikçi ara..."
+                                                    value={tableFilters.tedarikci}
+                                                    onChange={(e) => updateTableFilter('tedarikci', e.target.value)}
+                                                />
+                                                <input
+                                                    className={`tt-column-filter tt-column-filter--mt ${tableFilters.musteri ? 'tt-column-filter--active' : ''}`}
+                                                    placeholder="Müşteri ara..."
+                                                    value={tableFilters.musteri}
+                                                    onChange={(e) => updateTableFilter('musteri', e.target.value)}
+                                                />
+                                            </th>
+                                            <th>
+                                                <input
+                                                    className={`tt-column-filter ${tableFilters.firma ? 'tt-column-filter--active' : ''}`}
+                                                    placeholder="VKN / TC / Kod / IBAN ara..."
+                                                    value={tableFilters.firma}
+                                                    onChange={(e) => updateTableFilter('firma', e.target.value)}
+                                                />
+                                            </th>
+                                            <th>
+                                                <input
+                                                    className={`tt-column-filter ${tableFilters.sefer ? 'tt-column-filter--active' : ''}`}
+                                                    placeholder="Sefer no / tarih ara..."
+                                                    value={tableFilters.sefer}
+                                                    onChange={(e) => updateTableFilter('sefer', e.target.value)}
+                                                />
+                                            </th>
+                                            <th>
+                                                <input
+                                                    className={`tt-column-filter ${tableFilters.plaka ? 'tt-column-filter--active' : ''}`}
+                                                    placeholder="Plaka ara..."
+                                                    value={tableFilters.plaka}
+                                                    onChange={(e) => updateTableFilter('plaka', e.target.value)}
+                                                />
+                                            </th>
+                                            <th>
+                                                <input
+                                                    className={`tt-column-filter ${tableFilters.durum ? 'tt-column-filter--active' : ''}`}
+                                                    placeholder="Durum ara..."
+                                                    value={tableFilters.durum}
+                                                    onChange={(e) => updateTableFilter('durum', e.target.value)}
+                                                />
+                                            </th>
+                                        </tr>
                                     </thead>
 
                                     <tbody>
-                                        {veriler.length === 0 && (
+                                        {filteredVeriler.length === 0 && (
                                             <tr>
                                                 <td colSpan="6" className="tt-empty">
                                                     <div className="tt-empty-box">
                                                         <FileCheck2 size={34} />
-                                                        <strong>Henüz veri yok</strong>
-                                                        <span>Tarih aralığı seçip Sorgula butonuna basın.</span>
+                                                        <strong>{veriler.length === 0 ? 'Henüz veri yok' : 'Filtreye uygun kayıt yok'}</strong>
+                                                        <span>{veriler.length === 0 ? 'Tarih aralığı seçip Sorgula butonuna basın.' : 'Filtreleri temizleyip tekrar deneyin.'}</span>
                                                     </div>
                                                 </td>
                                             </tr>
                                         )}
 
-                                        {veriler.map((item) => {
+                                        {filteredVeriler.map((item) => {
                                             const isSelected = selectedIds.includes(item.TMSDespatchId);
                                             const key = U(item.SupplierCurrentAccountFullTitle);
                                             const matches = firmaEslesmeleri[key] || [];
