@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: evrak-takip-api
+    runtime: docker
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: ./server
+    healthCheckPath: /api/pdf/compress/health
+    autoDeploy: true
+    envVars:
+      - key: API_TOKEN
+        sync: false

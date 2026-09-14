@@ -1,1331 +1,1145 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "./supabaseClient";
 import Layout from "./components/Layout";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import Select from "react-select";
 import { useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-    FiFilter,
-    FiDownload,
-    FiRotateCcw,
-    FiSearch,
-    FiEdit2,
-    FiX,
-    FiCalendar,
-    FiTruck,
-    FiFileText,
-    FiPackage,
-    FiUsers,
-    FiCopy,
-    FiCheck,
-    FiTrash2,
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  BarChart, Bar, PieChart, Pie, Cell
+} from "recharts";
+import {
+  FiActivity,
+  FiArrowLeft,
+  FiBarChart2,
+  FiCalendar,
+  FiCheck,
+  FiChevronLeft,
+  FiChevronRight,
+  FiCopy,
+  FiDownload,
+  FiEdit2,
+  FiFileText,
+  FiFilter,
+  FiInfo,
+  FiLayers,
+  FiPackage,
+  FiRefreshCw,
+  FiSearch,
+  FiSend,
+  FiSliders,
+  FiStar,
+  FiTrash2,
+  FiTruck,
+  FiUsers,
+  FiX,
+  FiZap,
+  FiEye,
+  FiEyeOff,
+  FiSave,
+  FiAlertTriangle,
+  FiTrendingUp,
+  FiDatabase,
+  FiColumns,
+  FiClock,
+  FiGrid,
+  FiBarChart,
+  FiPieChart,
+  FiCheckCircle,
 } from "react-icons/fi";
 
-function cx(...c) {
-    return c.filter(Boolean).join(" ");
+function cx(...classes) {
+  return classes.filter(Boolean).join(" ");
 }
 
-function splitCodes(str) {
-    return String(str || "")
-        .split("-")
-        .map((s) => s.trim())
-        .filter(Boolean);
+const PAGE_SIZE = 100;
+
+const FIELD_META = {
+  irsaliye_adi: { label: "İrsaliye Adı", icon: FiFileText },
+  kargo_firmasi: { label: "Kargo Firması", icon: FiTruck },
+  gonderen_firma: { label: "Gönderen Firma", icon: FiSend },
+};
+
+function toInputDate(date) {
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
-/** ✅ Dark mode tespiti (html class değişimini de yakalar) */
+function normalizeText(value) {
+  return String(value || "")
+    .trim()
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ı/g, "i")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function compactText(value) {
+  return normalizeText(value).replace(/\s+/g, "");
+}
+
+function uniqueValues(rows, field) {
+  const map = new Map();
+  rows.forEach((row) => {
+    const raw = String(row?.[field] || "").trim();
+    if (!raw) return;
+    if (!map.has(raw)) map.set(raw, raw);
+  });
+  return [...map.values()].sort((a, b) => a.localeCompare(b, "tr"));
+}
+
+function groupVariants(values) {
+  const groups = new Map();
+  values.forEach((value) => {
+    const key = compactText(value);
+    if (!key) return;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(value);
+  });
+  return groups;
+}
+
+function formatDate(value) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleDateString("tr-TR");
+}
+
+function splitCodes(value) {
+  return String(value || "")
+    .split("-")
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
 function useIsDark() {
-    const [isDark, setIsDark] = useState(() =>
-        document?.documentElement?.classList?.contains("dark")
-    );
-
-    useEffect(() => {
-        const el = document.documentElement;
-        const obs = new MutationObserver(() => {
-            setIsDark(el.classList.contains("dark"));
-        });
-        obs.observe(el, { attributes: true, attributeFilter: ["class"] });
-        return () => obs.disconnect();
-    }, []);
-
-    return isDark;
+  const [dark, setDark] = useState(() => document?.documentElement?.classList?.contains("dark"));
+  useEffect(() => {
+    const root = document.documentElement;
+    const observer = new MutationObserver(() => setDark(root.classList.contains("dark")));
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+  return dark;
 }
 
-function Toast({ show, type = "success", text }) {
-    if (!show) return null;
-    const cls =
-        type === "success"
-            ? "bg-emerald-600 text-white"
-            : type === "error"
-                ? "bg-rose-600 text-white"
-                : "bg-zinc-950 text-white";
+function Toast({ toast }) {
+  if (!toast.show) return null;
+  const tone = toast.type === "error" ? "bg-rose-600" : toast.type === "info" ? "bg-slate-900" : "bg-emerald-600";
+  return (
+    <div className="fixed right-5 top-5 z-[100] animate-[cargoToast_.22s_ease-out]">
+      <div className={cx("flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold text-white shadow-2xl", tone)}>
+        {toast.type === "error" ? <FiX /> : <FiCheck />}
+        {toast.text}
+      </div>
+      <style>{`@keyframes cargoToast{from{opacity:0;transform:translateY(-12px) scale(.98)}to{opacity:1;transform:none}}`}</style>
+    </div>
+  );
+}
 
-    return (
-        <div className="fixed right-5 top-5 z-[80]">
-            <div
-                className={cx(
-                    "rounded-2xl px-4 py-3 shadow-2xl",
-                    cls,
-                    "animate-[toast_.18s_ease-out]"
-                )}
-            >
-                <div className="text-sm font-semibold">{text}</div>
-            </div>
-            <style>{`@keyframes toast{0%{transform:translateY(-10px);opacity:0}100%{transform:none;opacity:1}}`}</style>
+function Modal({ title, subtitle, onClose, children, footer, wide = false }) {
+  return (
+    <div className="fixed inset-0 z-[90] grid place-items-center p-4">
+      <button aria-label="Kapat" onClick={onClose} className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm" />
+      <div className={cx("relative z-10 max-h-[92vh] w-full overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-white/10 dark:bg-[#101722]", wide ? "max-w-5xl" : "max-w-2xl")}>
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5 dark:border-white/10">
+          <div>
+            <h3 className="text-lg font-black text-slate-900 dark:text-white">{title}</h3>
+            {subtitle && <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{subtitle}</p>}
+          </div>
+          <button onClick={onClose} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-slate-500 transition hover:rotate-90 hover:bg-slate-50 hover:text-slate-900 dark:border-white/10 dark:hover:bg-white/5 dark:hover:text-white">
+            <FiX />
+          </button>
         </div>
-    );
+        <div className="max-h-[68vh] overflow-y-auto p-6">{children}</div>
+        {footer && <div className="border-t border-slate-200 px-6 py-4 dark:border-white/10">{footer}</div>}
+      </div>
+    </div>
+  );
 }
 
-function Pill({ tone = "neutral", children }) {
-    const tones = {
-        neutral:
-            "bg-black/5 text-gray-800 dark:bg-white/10 dark:text-white border border-black/10 dark:border-white/10",
-        purple:
-            "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-200 border border-violet-200/70 dark:border-violet-800/40",
-    };
-    return (
-        <span
-            className={cx(
-                "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-extrabold",
-                tones[tone] || tones.neutral
-            )}
-        >
-            {children}
-        </span>
-    );
+function Kpi({ icon: Icon, label, value, helper }) {
+  return (
+    <div className="group flex min-w-[180px] flex-1 items-center gap-4 rounded-2xl border border-slate-200/90 bg-white px-4 py-3 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-[#111925]">
+      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-sky-50 text-sky-600 transition duration-300 group-hover:scale-110 group-hover:rotate-3 dark:bg-sky-500/10 dark:text-sky-300">
+        <Icon size={20} />
+      </div>
+      <div className="min-w-0">
+        <div className="text-[11px] font-extrabold uppercase tracking-[.12em] text-slate-400">{label}</div>
+        <div className="mt-0.5 truncate text-xl font-black text-slate-900 dark:text-white">{value}</div>
+        {helper && <div className="truncate text-[11px] font-medium text-slate-400">{helper}</div>}
+      </div>
+    </div>
+  );
 }
 
-function ModalShell({ title, onClose, children, footer }) {
-    return (
-        <div className="fixed inset-0 z-50 grid place-items-center">
-            <div
-                className="absolute inset-0 bg-black/60 backdrop-blur-md"
-                onClick={onClose}
-            />
-            <div className="relative z-10 w-[min(96vw,920px)] rounded-3xl bg-white/90 dark:bg-zinc-950/85 border border-black/10 dark:border-white/10 backdrop-blur-2xl shadow-2xl overflow-hidden">
-                <div className="px-5 py-4 border-b border-black/5 dark:border-white/10 flex items-center justify-between">
-                    <div className="text-base font-extrabold">{title}</div>
-                    <button
-                        onClick={onClose}
-                        className="h-10 w-10 rounded-2xl border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 grid place-items-center"
-                        aria-label="Kapat"
-                    >
-                        <FiX />
-                    </button>
+function Distribution({ title, icon: Icon, items, total }) {
+  return (
+    <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-[#111925]">
+      <div className="mb-4 flex items-center gap-2 text-sm font-black text-slate-800 dark:text-slate-100">
+        <Icon className="text-sky-500" /> {title}
+      </div>
+      <div className="space-y-3">
+        {items.length === 0 ? (
+          <div className="py-5 text-center text-xs font-medium text-slate-400">Veri bulunamadı.</div>
+        ) : (
+          items.map(([name, count]) => {
+            const percent = total ? Math.max(4, Math.round((count / total) * 100)) : 0;
+            return (
+              <div key={name} className="group">
+                <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+                  <span className="truncate font-bold text-slate-700 dark:text-slate-200" title={name}>{name}</span>
+                  <span className="shrink-0 font-black text-slate-400">{count}</span>
                 </div>
-                <div className="p-5">{children}</div>
-                {footer && (
-                    <div className="px-5 py-4 border-t border-black/5 dark:border-white/10">
-                        {footer}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
+                <div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-white/5">
+                  <div className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-400 transition-all duration-700 group-hover:brightness-110" style={{ width: `${percent}%` }} />
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
 }
 
-const rsStyles = (isDark) => ({
-    control: (base, state) => ({
-        ...base,
-        borderRadius: 16,
-        minHeight: 46,
-        borderColor: state.isFocused
-            ? "rgba(139,92,246,.55)"
-            : isDark
-                ? "rgba(255,255,255,.12)"
-                : "rgba(0,0,0,.10)",
-        backgroundColor: isDark ? "rgba(24,24,27,.55)" : "rgba(255,255,255,.80)",
-        boxShadow: state.isFocused ? "0 0 0 4px rgba(139,92,246,.18)" : "none",
-        ":hover": { borderColor: "rgba(139,92,246,.55)" },
-    }),
-    menu: (base) => ({
-        ...base,
-        borderRadius: 18,
-        overflow: "hidden",
-        backgroundColor: isDark ? "rgba(9,9,11,.95)" : "white",
-        border: isDark
-            ? "1px solid rgba(255,255,255,.10)"
-            : "1px solid rgba(0,0,0,.08)",
-        boxShadow: "0 16px 40px rgba(0,0,0,.22)",
-    }),
-    option: (base, state) => ({
-        ...base,
-        backgroundColor: state.isSelected
-            ? "rgba(139,92,246,.18)"
-            : state.isFocused
-                ? isDark
-                    ? "rgba(255,255,255,.06)"
-                    : "rgba(0,0,0,.04)"
-                : "transparent",
-        color: isDark ? "white" : "#111827",
-        padding: "10px 12px",
-    }),
-    multiValue: (base) => ({
-        ...base,
-        borderRadius: 999,
-        backgroundColor: isDark ? "rgba(139,92,246,.18)" : "rgba(139,92,246,.12)",
-    }),
-    multiValueLabel: (base) => ({
-        ...base,
-        color: isDark ? "rgba(255,255,255,.92)" : "#111827",
-        fontWeight: 800,
-    }),
-    multiValueRemove: (base) => ({
-        ...base,
-        borderRadius: 999,
-        ":hover": {
-            backgroundColor: "rgba(244,63,94,.18)",
-            color: isDark ? "white" : "#111827",
-        },
-    }),
-    input: (base) => ({ ...base, color: isDark ? "white" : "#111827" }),
-    singleValue: (base) => ({ ...base, color: isDark ? "white" : "#111827", fontWeight: 700 }),
-    placeholder: (base) => ({
-        ...base,
-        color: isDark ? "rgba(255,255,255,.55)" : "rgba(17,24,39,.45)",
-    }),
+const selectStyles = (dark) => ({
+  control: (base, state) => ({
+    ...base,
+    minHeight: 44,
+    borderRadius: 14,
+    borderColor: state.isFocused ? "#38bdf8" : dark ? "rgba(255,255,255,.1)" : "#e2e8f0",
+    backgroundColor: dark ? "#111925" : "#fff",
+    boxShadow: state.isFocused ? "0 0 0 3px rgba(56,189,248,.12)" : "none",
+    ":hover": { borderColor: "#38bdf8" },
+  }),
+  menu: (base) => ({ ...base, zIndex: 70, borderRadius: 14, overflow: "hidden", backgroundColor: dark ? "#111925" : "#fff" }),
+  option: (base, state) => ({
+    ...base,
+    fontSize: 13,
+    backgroundColor: state.isSelected ? "rgba(14,165,233,.18)" : state.isFocused ? (dark ? "rgba(255,255,255,.06)" : "#f8fafc") : "transparent",
+    color: dark ? "#e2e8f0" : "#334155",
+  }),
+  multiValue: (base) => ({ ...base, borderRadius: 999, backgroundColor: dark ? "rgba(14,165,233,.16)" : "#e0f2fe" }),
+  multiValueLabel: (base) => ({ ...base, color: dark ? "#bae6fd" : "#0369a1", fontWeight: 800 }),
+  multiValueRemove: (base) => ({ ...base, borderRadius: 999, ":hover": { backgroundColor: "#fecdd3", color: "#be123c" } }),
+  input: (base) => ({ ...base, color: dark ? "#fff" : "#0f172a" }),
+  placeholder: (base) => ({ ...base, color: dark ? "#64748b" : "#94a3b8", fontSize: 13 }),
 });
 
-function MiniStat({ icon, label, value, tone = "purple" }) {
-    const tones = {
-        purple:
-            "bg-violet-600/10 border-violet-500/20 text-violet-800 dark:text-violet-200",
-        indigo:
-            "bg-indigo-600/10 border-indigo-500/20 text-indigo-800 dark:text-indigo-200",
-        emerald:
-            "bg-emerald-600/10 border-emerald-500/20 text-emerald-800 dark:text-emerald-200",
-    };
-    return (
-        <div className={cx("inline-flex items-center gap-2 rounded-2xl px-3 py-2 border", tones[tone])}>
-            <span className="opacity-90">{icon}</span>
-            <div className="leading-tight">
-                <div className="text-[11px] font-extrabold opacity-70">{label}</div>
-                <div className="text-sm font-extrabold">{value}</div>
-            </div>
-        </div>
-    );
-}
 
-function GridSkeleton() {
-    return (
-        <div className="space-y-3">
-            {Array.from({ length: 10 }).map((_, i) => (
-                <div
-                    key={i}
-                    className="h-14 rounded-2xl border border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5 animate-pulse"
-                />
-            ))}
-        </div>
-    );
-}
+const ALL_COLUMNS = [
+  ["tarih", "Tarih"], ["kargo_firmasi", "Kargo Firması"], ["gonderi_numarasi", "Gönderi No"],
+  ["gonderen_firma", "Gönderen Firma"], ["irsaliye_adi", "İrsaliye Adı"], ["irsaliye_no", "İrsaliye No"],
+  ["odak_evrak_no", "Odak Evrak No"], ["evrak_adedi", "Evrak"], ["actions", "İşlem"],
+];
+const DEFAULT_COLUMNS = ALL_COLUMNS.map(([key]) => key);
+const CHART_COLORS = ["#0ea5e9", "#06b6d4", "#22c55e", "#f59e0b", "#8b5cf6", "#f43f5e"];
 
-function Field({ label, children, span }) {
-    return (
-        <div className={span ? "sm:col-span-2 space-y-1.5" : "space-y-1.5"}>
-            <label className="text-xs font-extrabold text-gray-600 dark:text-gray-300">
-                {label}
-            </label>
-            {children}
-        </div>
-    );
+function getSavedJson(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key) || "") || fallback; } catch { return fallback; }
 }
-
-function Switch({ checked, onChange }) {
-    return (
-        <button
-            type="button"
-            onClick={() => onChange(!checked)}
-            className={cx(
-                "relative inline-flex h-8 w-14 items-center rounded-full transition border",
-                checked
-                    ? "bg-emerald-600 border-emerald-600"
-                    : "bg-gray-200 border-gray-200 dark:bg-zinc-700 dark:border-zinc-700"
-            )}
-            aria-pressed={checked}
-            title={checked ? "Açık" : "Kapalı"}
-        >
-            <span
-                className={cx(
-                    "inline-block h-6 w-6 transform rounded-full bg-white shadow transition",
-                    checked ? "translate-x-7" : "translate-x-1"
-                )}
-            />
-        </button>
-    );
+function setSavedJson(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+}
+function dayKey(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value).slice(0, 10);
+  return toInputDate(d);
+}
+function smartSearchMatch(row, query) {
+  const tokens = normalizeText(query).split(" ").filter(Boolean);
+  if (!tokens.length) return true;
+  const haystack = normalizeText([
+    row.kargo_firmasi, row.gonderi_numarasi, row.gonderen_firma, row.irsaliye_adi,
+    row.irsaliye_no, row.odak_evrak_no, row.tarih
+  ].filter(Boolean).join(" "));
+  return tokens.every((token) => haystack.includes(token));
+}
+function CargoLoadingExperience({ progress }) {
+  return (
+    <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="overflow-hidden rounded-[26px] border border-sky-200/70 bg-white p-6 shadow-sm dark:border-sky-400/15 dark:bg-[#111925]">
+      <div className="mx-auto flex max-w-2xl flex-col items-center py-8 text-center">
+        <div className="relative h-28 w-44">
+          <motion.div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-sky-600 dark:text-sky-300"
+            animate={{y:[0,-8,0], rotate:[0,-2,2,0]}} transition={{duration:1.4,repeat:Infinity}}>
+            <FiPackage size={64}/>
+          </motion.div>
+          {[0,1,2].map(i => <motion.div key={i} className="absolute top-3 text-cyan-400" style={{left: 24+i*52}}
+            animate={{x:[-12,18],y:[0,34],opacity:[0,1,0],rotate:[0,18]}} transition={{duration:1.5,repeat:Infinity,delay:i*.32}}>
+            <FiFileText size={22}/>
+          </motion.div>)}
+          <motion.div className="absolute bottom-0 left-0 right-0 h-1 rounded-full bg-sky-100 dark:bg-white/5">
+            <motion.div className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-400" animate={{width:["8%","92%","38%"]}} transition={{duration:2.2,repeat:Infinity}}/>
+          </motion.div>
+        </div>
+        <h3 className="mt-4 text-lg font-black text-slate-900 dark:text-white">Kargo kayıtları hazırlanıyor…</h3>
+        <p className="mt-1 text-sm font-medium text-slate-500">Seçtiğiniz dönem okunuyor, kayıtlar analiz için hazırlanıyor.</p>
+        <div className="mt-5 w-full max-w-md overflow-hidden rounded-full bg-slate-100 p-1 dark:bg-white/5">
+          <motion.div className="h-2 rounded-full bg-gradient-to-r from-sky-600 via-cyan-400 to-sky-500" animate={{width:`${progress}%`}} transition={{ease:"easeOut"}}/>
+        </div>
+        <div className="mt-2 text-xs font-black text-sky-600 dark:text-sky-300">%{progress}</div>
+      </div>
+    </motion.div>
+  );
+}
+function SkeletonTable() {
+  return <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white dark:border-white/10 dark:bg-[#111925]">
+    <div className="grid grid-cols-8 gap-3 bg-slate-950 px-4 py-4">{Array.from({length:8}).map((_,i)=><div key={i} className="h-3 rounded bg-white/10"/>)}</div>
+    {Array.from({length:8}).map((_,r)=><div key={r} className="grid grid-cols-8 gap-3 border-t border-slate-100 px-4 py-4 dark:border-white/5">
+      {Array.from({length:8}).map((_,c)=><motion.div key={c} className="h-4 rounded-lg bg-slate-100 dark:bg-white/5" animate={{opacity:[.45,1,.45]}} transition={{duration:1.2,repeat:Infinity,delay:(r+c)*.035}}/>)}
+    </div>)}
+  </div>
 }
 
 export default function TumKargoBilgileri() {
-    const navigate = useNavigate();
-    const isDark = useIsDark();
+  const navigate = useNavigate();
+  const isDark = useIsDark();
+  const toastTimer = useRef(null);
 
-    const [veriler, setVeriler] = useState([]);
-    const [filteredVeriler, setFilteredVeriler] = useState([]);
-    const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [queryStart, setQueryStart] = useState("");
+  const [queryEnd, setQueryEnd] = useState("");
+  const [loadedRange, setLoadedRange] = useState(null);
+  const [rangeError, setRangeError] = useState("");
 
-    const [tarihBaslangic, setTarihBaslangic] = useState("");
-    const [tarihBitis, setTarihBitis] = useState("");
-    const [yilSecenekleri, setYilSecenekleri] = useState([]);
-    const [secilenYil, setSecilenYil] = useState("");
+  const [quickSearch, setQuickSearch] = useState("");
+  const [irsaliyeNo, setIrsaliyeNo] = useState("");
+  const [selectedIrsaliye, setSelectedIrsaliye] = useState([]);
+  const [selectedKargo, setSelectedKargo] = useState([]);
+  const [selectedGonderen, setSelectedGonderen] = useState([]);
+  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [analysisOpen, setAnalysisOpen] = useState(true);
+  const [page, setPage] = useState(1);
 
-    const [irsaliyeOptions, setIrsaliyeOptions] = useState([]);
-    const [kargoOptions, setKargoOptions] = useState([]);
-    const [gonderenOptions, setGonderenOptions] = useState([]);
+  const [toast, setToast] = useState({ show: false, type: "success", text: "" });
+  const [detail, setDetail] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [extraEnabled, setExtraEnabled] = useState(false);
+  const [extraCount, setExtraCount] = useState("");
+  const [suggestion, setSuggestion] = useState(null);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [qualityOpen, setQualityOpen] = useState(false);
+  const [columnsOpen, setColumnsOpen] = useState(false);
+  const [excelPreviewOpen, setExcelPreviewOpen] = useState(false);
+  const [comparisonOpen, setComparisonOpen] = useState(false);
+  const [compareA, setCompareA] = useState("");
+  const [compareB, setCompareB] = useState("");
+  const [visibleColumns, setVisibleColumns] = useState(() => getSavedJson("cargoVisibleColumns", DEFAULT_COLUMNS));
+  const [savedView, setSavedView] = useState(() => getSavedJson("cargoSavedView", null));
+  const [highlightId, setHighlightId] = useState(null);
+  const [presetName, setPresetName] = useState("");
 
-    const [selectedIrsaliye, setSelectedIrsaliye] = useState([]);
-    const [selectedKargo, setSelectedKargo] = useState([]);
-    const [selectedGonderen, setSelectedGonderen] = useState([]);
 
-    const [modalIcerik, setModalIcerik] = useState("");
-    const [modalBaslik, setModalBaslik] = useState("");
-    const [modalGoster, setModalGoster] = useState(false);
-    const [excelModalAcik, setExcelModalAcik] = useState(false);
+  const showToast = (type, text) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ show: true, type, text });
+    toastTimer.current = setTimeout(() => setToast((x) => ({ ...x, show: false })), 2500);
+  };
 
-    const [duzenlenenVeri, setDuzenlenenVeri] = useState(null);
-    const [duzenleModalAcik, setDuzenleModalAcik] = useState(false);
+  useEffect(() => () => toastTimer.current && clearTimeout(toastTimer.current), []);
+  useEffect(() => {
+    const last = getSavedJson("cargoLastRange", null);
+    if (last?.start && last?.end) setLoadedRange((old) => old || { ...last, remembered: true });
+  }, []);
+  useEffect(() => { setSavedJson("cargoVisibleColumns", visibleColumns); }, [visibleColumns]);
 
-    const [ekstraVar, setEkstraVar] = useState(false);
-    const [ekstraEvrakSayisi, setEkstraEvrakSayisi] = useState("");
 
-    const [irsaliyeNoInput, setIrsaliyeNoInput] = useState("");
-    const [quickSearch, setQuickSearch] = useState("");
-    const [filtersOpen, setFiltersOpen] = useState(true);
+  const setPreset = (preset) => {
+    const today = new Date();
+    let start = new Date(today);
+    let end = new Date(today);
+    if (preset === "yesterday") {
+      start.setDate(start.getDate() - 1);
+      end = new Date(start);
+    }
+    if (preset === "7days") start.setDate(start.getDate() - 6);
+    if (preset === "month") start = new Date(today.getFullYear(), today.getMonth(), 1);
+    setQueryStart(toInputDate(start));
+    setQueryEnd(toInputDate(end));
+    setRangeError("");
+  };
 
-    const [toast, setToast] = useState({ show: false, type: "success", text: "" });
-    const toastRef = useRef(null);
-
-    const showToast = (type, text) => {
-        if (toastRef.current) clearTimeout(toastRef.current);
-        setToast({ show: true, type, text });
-        toastRef.current = setTimeout(() => setToast((t) => ({ ...t, show: false })), 2200);
+  const applyFacetFilters = (sourceRows, excludedField = null) => {
+    let data = [...sourceRows];
+    const selectedSets = {
+      irsaliye_adi: new Set(selectedIrsaliye.map((x) => x.value)),
+      kargo_firmasi: new Set(selectedKargo.map((x) => x.value)),
+      gonderen_firma: new Set(selectedGonderen.map((x) => x.value)),
     };
 
-    const getYil = (tarih) => {
-        if (!tarih) return "";
-        const date = new Date(tarih);
-        return isNaN(date) ? "" : String(date.getFullYear());
+    Object.entries(selectedSets).forEach(([field, set]) => {
+      if (field !== excludedField && set.size) {
+        data = data.filter((row) => set.has(row?.[field]));
+      }
+    });
+
+    if (irsaliyeNo.trim()) {
+      const q = normalizeText(irsaliyeNo);
+      data = data.filter((row) => normalizeText(row.irsaliye_no).includes(q));
+    }
+
+    if (quickSearch.trim()) {
+      data = data.filter((row) => smartSearchMatch(row, quickSearch));
+    }
+
+    return data;
+  };
+
+  const buildFacetOptions = (field) => {
+    const scopedRows = applyFacetFilters(rows, field);
+    const counts = new Map();
+    scopedRows.forEach((row) => {
+      const value = String(row?.[field] ?? "").trim();
+      if (!value) return;
+      counts.set(value, (counts.get(value) || 0) + 1);
+    });
+
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "tr"))
+      .map(([value, count]) => ({
+        value,
+        label: `${value} (${count.toLocaleString("tr-TR")})`,
+      }));
+  };
+
+  const irsaliyeOptions = useMemo(
+    () => buildFacetOptions("irsaliye_adi"),
+    [rows, selectedKargo, selectedGonderen, irsaliyeNo, quickSearch]
+  );
+  const kargoOptions = useMemo(
+    () => buildFacetOptions("kargo_firmasi"),
+    [rows, selectedIrsaliye, selectedGonderen, irsaliyeNo, quickSearch]
+  );
+  const gonderenOptions = useMemo(
+    () => buildFacetOptions("gonderen_firma"),
+    [rows, selectedIrsaliye, selectedKargo, irsaliyeNo, quickSearch]
+  );
+
+  const variantGroups = useMemo(() => ({
+    irsaliye_adi: groupVariants(uniqueValues(rows, "irsaliye_adi")),
+    kargo_firmasi: groupVariants(uniqueValues(rows, "kargo_firmasi")),
+    gonderen_firma: groupVariants(uniqueValues(rows, "gonderen_firma")),
+  }), [rows]);
+
+  const detectSuggestion = (field, selected) => {
+    if (!selected?.length) {
+      if (suggestion?.field === field) setSuggestion(null);
+      return;
+    }
+    const selectedValues = new Set(selected.map((x) => x.value));
+    const variants = new Set();
+    selected.forEach((item) => {
+      const group = variantGroups[field]?.get(compactText(item.value)) || [];
+      group.forEach((v) => { if (!selectedValues.has(v)) variants.add(v); });
+    });
+    if (variants.size) {
+      setSuggestion({ field, variants: [...variants], base: selected.map((x) => x.value) });
+    } else if (suggestion?.field === field) {
+      setSuggestion(null);
+    }
+  };
+
+  const handleSelect = (field, value) => {
+    if (field === "irsaliye_adi") setSelectedIrsaliye(value || []);
+    if (field === "kargo_firmasi") setSelectedKargo(value || []);
+    if (field === "gonderen_firma") setSelectedGonderen(value || []);
+    detectSuggestion(field, value || []);
+    setPage(1);
+  };
+
+  const addSuggestedVariants = () => {
+    if (!suggestion) return;
+    const additions = suggestion.variants.map((value) => ({ value, label: value }));
+    const merge = (current) => {
+      const seen = new Set(current.map((x) => x.value));
+      return [...current, ...additions.filter((x) => !seen.has(x.value))];
     };
+    if (suggestion.field === "irsaliye_adi") setSelectedIrsaliye(merge(selectedIrsaliye));
+    if (suggestion.field === "kargo_firmasi") setSelectedKargo(merge(selectedKargo));
+    if (suggestion.field === "gonderen_firma") setSelectedGonderen(merge(selectedGonderen));
+    showToast("success", `${suggestion.variants.length} benzer değer filtreye eklendi.`);
+    setSuggestion(null);
+  };
 
-    const tarihFormatla = (tarihStr) => {
-        const tarih = new Date(tarihStr);
-        return isNaN(tarih) ? "" : tarih.toLocaleDateString("tr-TR");
-    };
+  const fetchRange = async () => {
+    setRangeError("");
+    if (!queryStart || !queryEnd) {
+      setRangeError("Lütfen başlangıç ve bitiş tarihini seçin.");
+      return;
+    }
+    if (queryStart > queryEnd) {
+      setRangeError("Başlangıç tarihi bitiş tarihinden sonra olamaz.");
+      return;
+    }
 
-    const kisalt = (metin, limit = 34) => (metin?.length > limit ? metin.slice(0, limit) + "…" : metin);
+    setLoading(true);
+    setLoadingProgress(8);
+    setRows([]);
+    setPage(1);
+    setSuggestion(null);
+    setSelectedIrsaliye([]);
+    setSelectedKargo([]);
+    setSelectedGonderen([]);
+    setQuickSearch("");
+    setIrsaliyeNo("");
 
-    const modalAc = (baslik, icerik) => {
-        setModalBaslik(baslik);
-        setModalIcerik(icerik || "");
-        setModalGoster(true);
-    };
+    try {
+      const pageSize = 1000;
+      let from = 0;
+      let all = [];
+      let keepGoing = true;
+      while (keepGoing) {
+        const { data, error } = await supabase
+          .from("kargo_bilgileri")
+          .select("*")
+          .gte("tarih", queryStart)
+          .lte("tarih", queryEnd)
+          .order("tarih", { ascending: false })
+          .order("id", { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        const batch = data || [];
+        all = all.concat(batch);
+        setLoadingProgress((p) => Math.min(88, Math.max(p + 12, 22)));
+        keepGoing = batch.length === pageSize;
+        from += pageSize;
+      }
+      setLoadingProgress(96);
+      setRows(all);
+      setLoadedRange({ start: queryStart, end: queryEnd });
+      setSavedJson("cargoLastRange", { start: queryStart, end: queryEnd });
+      setHasLoaded(true);
+      showToast("success", `${all.length.toLocaleString("tr-TR")} kayıt yüklendi.`);
+    } catch (err) {
+      console.error(err);
+      setHasLoaded(false);
+      showToast("error", "Kargo verileri alınamadı.");
+    } finally {
+      setLoadingProgress(100);
+      setTimeout(() => setLoading(false), 280);
+    }
+  };
 
-    /**
-     * ✅ FIX: yearOrNull null ise TÜM yıllar gelir (tarih filtresi uygulanmaz)
-     * ✅ FIX: tek useEffect ile çağırıyoruz (çift çağrı bug'ı yok)
-     */
-    const veriGetir = async (yearOrNull) => {
-        setLoading(true);
+  const filteredRows = useMemo(
+    () => applyFacetFilters(rows),
+    [rows, selectedIrsaliye, selectedKargo, selectedGonderen, irsaliyeNo, quickSearch]
+  );
 
-        const pageSize = 1000;
-        let from = 0;
-        let to = pageSize - 1;
-        let hasMore = true;
-        let allData = [];
+  useEffect(() => setPage(1), [quickSearch, irsaliyeNo]);
 
-        const start = yearOrNull ? `${yearOrNull}-01-01` : null;
-        const end = yearOrNull ? `${yearOrNull}-12-31` : null;
+  const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+  const visibleRows = useMemo(() => filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filteredRows, page]);
+  useEffect(() => { if (page > pageCount) setPage(pageCount); }, [page, pageCount]);
 
-        while (hasMore) {
-            let q = supabase
-                .from("kargo_bilgileri")
-                .select("*")
-                .order("id", { ascending: false })
-                .range(from, to);
+  const totalDocuments = useMemo(() => filteredRows.reduce((sum, row) => sum + (Number.parseInt(row.evrak_adedi, 10) || 0), 0), [filteredRows]);
+  const uniqueCargo = useMemo(() => new Set(filteredRows.map((x) => compactText(x.kargo_firmasi)).filter(Boolean)).size, [filteredRows]);
+  const uniqueSender = useMemo(() => new Set(filteredRows.map((x) => compactText(x.gonderen_firma)).filter(Boolean)).size, [filteredRows]);
+  const uniqueInvoiceNames = useMemo(() => new Set(filteredRows.map((x) => compactText(x.irsaliye_adi)).filter(Boolean)).size, [filteredRows]);
 
-            if (start && end) {
-                q = q.gte("tarih", start).lte("tarih", end);
-            }
+  const topBy = (field) => {
+    const map = new Map();
+    filteredRows.forEach((row) => {
+      const name = String(row?.[field] || "Boş").trim() || "Boş";
+      map.set(name, (map.get(name) || 0) + 1);
+    });
+    return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+  };
+  const topCargo = useMemo(() => topBy("kargo_firmasi"), [filteredRows]);
+  const topSender = useMemo(() => topBy("gonderen_firma"), [filteredRows]);
+  const topInvoice = useMemo(() => topBy("irsaliye_adi"), [filteredRows]);
 
-            const { data, error } = await q;
-
-            if (error) {
-                console.error("Veri çekme hatası:", error);
-                showToast("error", "Veri çekme hatası.");
-                break;
-            }
-
-            if (data && data.length > 0) {
-                allData = allData.concat(data);
-                from += pageSize;
-                to += pageSize;
-                hasMore = data.length === pageSize;
-            } else {
-                hasMore = false;
-            }
+  const dataQuality = useMemo(() => {
+    const fields = ["irsaliye_adi", "kargo_firmasi", "gonderen_firma"];
+    let variantFamilies = 0;
+    let affectedValues = 0;
+    fields.forEach((field) => {
+      variantGroups[field].forEach((variants) => {
+        if (variants.length > 1) {
+          variantFamilies += 1;
+          affectedValues += variants.length;
         }
+      });
+    });
+    return { variantFamilies, affectedValues };
+  }, [variantGroups]);
 
-        setVeriler(allData);
-        setFilteredVeriler(allData);
 
-        const irsaliyeSet = [...new Set(allData.map((v) => v.irsaliye_adi).filter(Boolean))];
-        const kargoSet = [...new Set(allData.map((v) => v.kargo_firmasi).filter(Boolean))];
-        const gonderenSet = [...new Set(allData.map((v) => v.gonderen_firma).filter(Boolean))];
+  const qualityFamilies = useMemo(() => {
+    const result = [];
+    Object.entries(variantGroups).forEach(([field, groups]) => groups.forEach((variants, key) => {
+      if (variants.length > 1) result.push({ field, key, variants, canonical: variants.slice().sort((a,b)=>a.length-b.length || a.localeCompare(b,"tr"))[0] });
+    }));
+    return result.sort((a,b)=>b.variants.length-a.variants.length);
+  }, [variantGroups]);
 
-        setIrsaliyeOptions(irsaliyeSet.map((v) => ({ label: v, value: v })));
-        setKargoOptions(kargoSet.map((v) => ({ label: v, value: v })));
-        setGonderenOptions(gonderenSet.map((v) => ({ label: v, value: v })));
+  const anomalies = useMemo(() => {
+    const list = [];
+    const missingInvoice = filteredRows.filter(r => !String(r.irsaliye_adi || "").trim()).length;
+    const missingSender = filteredRows.filter(r => !String(r.gonderen_firma || "").trim()).length;
+    const missingCargo = filteredRows.filter(r => !String(r.kargo_firmasi || "").trim()).length;
+    if (missingInvoice) list.push({type:"Eksik İrsaliye Adı", count:missingInvoice, field:"irsaliye_adi"});
+    if (missingSender) list.push({type:"Eksik Gönderen Firma", count:missingSender, field:"gonderen_firma"});
+    if (missingCargo) list.push({type:"Eksik Kargo Firması", count:missingCargo, field:"kargo_firmasi"});
+    const cargoCounts = new Map();
+    filteredRows.forEach(r => { const k=String(r.kargo_firmasi||"").trim(); if(k)cargoCounts.set(k,(cargoCounts.get(k)||0)+1); });
+    const vals=[...cargoCounts.values()];
+    const avg=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0;
+    [...cargoCounts.entries()].filter(([,n])=>avg && n>avg*2.5 && n>=10).slice(0,3).forEach(([name,count])=>list.push({type:`Yoğun trafik: ${name}`,count,field:"kargo_firmasi",value:name}));
+    return list;
+  }, [filteredRows]);
 
-        setLoading(false);
+  const dailyTrend = useMemo(() => {
+    const map = new Map();
+    filteredRows.forEach(r => { const k=dayKey(r.tarih); if(k) map.set(k,(map.get(k)||0)+1); });
+    return [...map.entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([date,count])=>({date,label:formatDate(date),count}));
+  }, [filteredRows]);
+
+  const cargoChart = useMemo(() => topCargo.map(([name,count])=>({name,count})), [topCargo]);
+  const senderChart = useMemo(() => topSender.map(([name,count])=>({name,count})), [topSender]);
+
+  const filterChips = useMemo(() => {
+    const chips = [];
+    selectedKargo.forEach(x=>chips.push({kind:"kargo",label:x.value}));
+    selectedGonderen.forEach(x=>chips.push({kind:"gonderen",label:x.value}));
+    selectedIrsaliye.forEach(x=>chips.push({kind:"irsaliye",label:x.value}));
+    if (irsaliyeNo.trim()) chips.push({kind:"no",label:`İrsaliye No: ${irsaliyeNo}`});
+    if (quickSearch.trim()) chips.push({kind:"search",label:`Arama: ${quickSearch}`});
+    if (loadedRange) chips.unshift({kind:"range",label:`${formatDate(loadedRange.start)} – ${formatDate(loadedRange.end)}`, locked:true});
+    return chips;
+  }, [selectedKargo,selectedGonderen,selectedIrsaliye,irsaliyeNo,quickSearch,loadedRange]);
+
+  const removeChip = (chip) => {
+    if(chip.kind==="kargo") setSelectedKargo(v=>v.filter(x=>x.value!==chip.label));
+    if(chip.kind==="gonderen") setSelectedGonderen(v=>v.filter(x=>x.value!==chip.label));
+    if(chip.kind==="irsaliye") setSelectedIrsaliye(v=>v.filter(x=>x.value!==chip.label));
+    if(chip.kind==="no") setIrsaliyeNo("");
+    if(chip.kind==="search") setQuickSearch("");
+    setPage(1);
+  };
+
+  const applyView = (name) => {
+    setPresetName(name); setAnalysisOpen(true); setFiltersOpen(true);
+    if(name==="Eksik Veri Kontrolü") { setQuickSearch(""); setSelectedKargo([]); setSelectedGonderen([]); setSelectedIrsaliye([]); }
+    if(name==="Kargo Firma Analizi") setComparisonOpen(false);
+    if(name==="Gönderen Firma Analizi") setComparisonOpen(false);
+    showToast("info", `${name} görünümü hazırlandı.`);
+  };
+
+  const saveCurrentView = () => {
+    const view={visibleColumns, filtersOpen, analysisOpen};
+    setSavedView(view); setSavedJson("cargoSavedView", view); showToast("success","Görünüm kaydedildi.");
+  };
+  const restoreSavedView = () => {
+    if(!savedView) return showToast("info","Henüz kaydedilmiş görünüm yok.");
+    setVisibleColumns(savedView.visibleColumns || DEFAULT_COLUMNS); setFiltersOpen(savedView.filtersOpen ?? true); setAnalysisOpen(savedView.analysisOpen ?? true);
+    showToast("success","Kaydedilmiş görünüm uygulandı.");
+  };
+
+  const fixQualityFamily = async (family) => {
+    const field = family.field;
+    const affected = rows.filter(r => family.variants.includes(String(r?.[field]||"").trim()));
+    if(!affected.length) return;
+    if(!window.confirm(`${affected.length} kayıtta ${FIELD_META[field]?.label} değeri "${family.canonical}" olarak düzeltilecek. Devam edilsin mi?`)) return;
+    const ids = affected.map(r=>r.id).filter(Boolean);
+    const { error } = await supabase.from("kargo_bilgileri").update({[field]:family.canonical}).in("id", ids);
+    if(error) return showToast("error","Veritabanı düzeltmesi başarısız.");
+    setRows(prev=>prev.map(r=>ids.includes(r.id)?{...r,[field]:family.canonical}:r));
+    showToast("success",`${ids.length} kayıt standartlaştırıldı.`);
+  };
+
+  const comparison = useMemo(() => {
+    const countFor=(name)=>filteredRows.filter(r=>r.kargo_firmasi===name).length;
+    const a=countFor(compareA), b=countFor(compareB);
+    return {a,b,diff:a-b,pct:b?Math.round(((a-b)/b)*100):0};
+  },[filteredRows,compareA,compareB]);
+
+  const isCol = (key) => visibleColumns.includes(key);
+
+  const activeFilterCount = [selectedIrsaliye.length, selectedKargo.length, selectedGonderen.length, irsaliyeNo.trim(), quickSearch.trim()].filter(Boolean).length;
+
+  const clearFilters = () => {
+    setSelectedIrsaliye([]);
+    setSelectedKargo([]);
+    setSelectedGonderen([]);
+    setIrsaliyeNo("");
+    setQuickSearch("");
+    setSuggestion(null);
+    setPage(1);
+  };
+
+  const exportExcel = async () => {
+    if (!filteredRows.length) {
+      showToast("info", "Excel'e aktarılacak kayıt bulunamadı.");
+      return;
+    }
+    const wb = new ExcelJS.Workbook();
+    wb.creator = "Odak Lojistik";
+    wb.created = new Date();
+    const ws = wb.addWorksheet("Kargo Analizi", { views: [{ state: "frozen", ySplit: 5 }] });
+    ws.mergeCells("A1:H1");
+    ws.getCell("A1").value = "ODAK LOJİSTİK • KARGO ANALİZ RAPORU";
+    ws.getCell("A1").font = { bold: true, size: 18, color: { argb: "FFFFFFFF" } };
+    ws.getCell("A1").fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F172A" } };
+    ws.getCell("A1").alignment = { vertical: "middle", horizontal: "left" };
+    ws.getRow(1).height = 34;
+
+    ws.mergeCells("A2:H2");
+    ws.getCell("A2").value = `Dönem: ${formatDate(loadedRange?.start)} - ${formatDate(loadedRange?.end)}  •  Filtrelenmiş kayıt: ${filteredRows.length}  •  Evrak: ${totalDocuments}`;
+    ws.getCell("A2").font = { size: 10, color: { argb: "FF475569" } };
+    ws.getCell("A2").fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } };
+    ws.getRow(2).height = 24;
+
+    ws.mergeCells("A3:H3");
+    ws.getCell("A3").value = `Oluşturulma: ${new Date().toLocaleString("tr-TR")}  •  Kargo firması: ${uniqueCargo}  •  Gönderen firma: ${uniqueSender}  •  İrsaliye adı: ${uniqueInvoiceNames}`;
+    ws.getCell("A3").font = { size: 9, italic: true, color: { argb: "FF64748B" } };
+    ws.getRow(3).height = 22;
+
+    const headers = ["Tarih", "Kargo Firması", "Gönderi No", "Gönderen Firma", "İrsaliye Adı", "İrsaliye No", "Odak Evrak No", "Evrak Adedi"];
+    const headerRow = ws.getRow(5);
+    headers.forEach((h, index) => {
+      const cell = headerRow.getCell(index + 1);
+      cell.value = h;
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0284C7" } };
+      cell.alignment = { vertical: "middle", horizontal: index === 7 ? "center" : "left" };
+      cell.border = { bottom: { style: "thin", color: { argb: "FF0369A1" } } };
+    });
+    headerRow.height = 27;
+
+    filteredRows.forEach((row, idx) => {
+      const excelRow = ws.addRow([
+        formatDate(row.tarih), row.kargo_firmasi || "", row.gonderi_numarasi || "", row.gonderen_firma || "",
+        row.irsaliye_adi || "", row.irsaliye_no || "", row.odak_evrak_no || "", Number(row.evrak_adedi) || 0,
+      ]);
+      excelRow.height = 22;
+      excelRow.eachCell((cell, col) => {
+        cell.font = { size: 10, color: { argb: "FF334155" } };
+        cell.alignment = { vertical: "middle", wrapText: true, horizontal: col === 8 ? "center" : "left" };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: idx % 2 ? "FFF8FAFC" : "FFFFFFFF" } };
+        cell.border = { bottom: { style: "hair", color: { argb: "FFE2E8F0" } } };
+      });
+    });
+    ws.autoFilter = { from: "A5", to: `H${5 + filteredRows.length}` };
+    ws.columns = [
+      { width: 14 }, { width: 24 }, { width: 22 }, { width: 30 }, { width: 30 }, { width: 30 }, { width: 30 }, { width: 14 },
+    ];
+    ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 };
+    ws.headerFooter.oddFooter = "&LOdak Lojistik&C Kargo Analizi&R Sayfa &P / &N";
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    saveAs(blob, `kargo_analizi_${loadedRange?.start || "baslangic"}_${loadedRange?.end || "bitis"}.xlsx`);
+    showToast("success", "Modern Excel raporu indirildi.");
+  };
+
+  const openEdit = (row) => {
+    setEditing({ ...row });
+    setExtraEnabled(false);
+    setExtraCount("");
+  };
+
+  const computedDocumentCount = useMemo(() => {
+    if (!editing) return 0;
+    return splitCodes(editing.irsaliye_no).length + splitCodes(editing.odak_evrak_no).length + (extraEnabled ? (Number.parseInt(extraCount, 10) || 0) : 0);
+  }, [editing, extraEnabled, extraCount]);
+
+  const saveEdit = async () => {
+    if (!editing?.id) return;
+    const payload = {
+      tarih: editing.tarih,
+      kargo_firmasi: editing.kargo_firmasi,
+      gonderi_numarasi: editing.gonderi_numarasi,
+      gonderen_firma: editing.gonderen_firma,
+      irsaliye_adi: editing.irsaliye_adi,
+      irsaliye_no: editing.irsaliye_no,
+      odak_evrak_no: editing.odak_evrak_no,
+      evrak_adedi: computedDocumentCount,
     };
+    const { error } = await supabase.from("kargo_bilgileri").update(payload).eq("id", editing.id);
+    if (error) return showToast("error", "Güncelleme başarısız.");
+    setRows((prev) => prev.map((row) => row.id === editing.id ? { ...row, ...payload } : row));
+    setEditing(null);
+    showToast("success", "Kargo kaydı güncellendi.");
+  };
 
-    // İlk açılış: TÜM yıllar + yıl seçenekleri
-    useEffect(() => {
-        veriGetir(null);
+  const deleteRow = async (row) => {
+    if (!row?.id || !window.confirm("Bu kaydı silmek istediğinize emin misiniz?")) return;
+    const { error } = await supabase.from("kargo_bilgileri").delete().eq("id", row.id);
+    if (error) return showToast("error", "Silme işlemi başarısız.");
+    setRows((prev) => prev.filter((x) => x.id !== row.id));
+    if (editing?.id === row.id) setEditing(null);
+    showToast("success", "Kayıt silindi.");
+  };
 
-        const current = new Date().getFullYear();
-        const years = [];
-        for (let y = current; y >= 2020; y--) years.push(String(y));
-        setYilSecenekleri(years);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+  const copy = async (text) => {
+    try {
+      await navigator.clipboard.writeText(String(text || ""));
+      showToast("success", "Kopyalandı.");
+    } catch {
+      showToast("error", "Kopyalanamadı.");
+    }
+  };
 
-    // ✅ FIX: tek effect
-    useEffect(() => {
-        veriGetir(secilenYil || null);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [secilenYil]);
+  return (
+    <Layout>
+      <Toast toast={toast} />
+      <div className="min-h-screen w-full px-3 pb-8 pt-4 sm:px-5 lg:px-6">
+        <style>{`
+          @keyframes cargoFade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+          @keyframes cargoPulse{0%,100%{opacity:.45;transform:scale(1)}50%{opacity:.8;transform:scale(1.06)}}
+          .cargo-enter{animation:cargoFade .42s cubic-bezier(.2,.8,.2,1) both}
+          .cargo-row{animation:cargoFade .28s ease both;transition:transform .25s ease,background-color .25s ease,opacity .25s ease}.cargo-row:hover{transform:translateX(2px)}
+        `}</style>
 
-    const filtrele = () => {
-        let filtrelenmis = [...veriler];
+        <header className="cargo-enter mb-4 overflow-hidden rounded-[26px] border border-slate-200/90 bg-white shadow-sm dark:border-white/10 dark:bg-[#111925]">
+          <div className="relative px-5 py-5 sm:px-6">
+            <div className="pointer-events-none absolute -right-12 -top-16 h-44 w-44 rounded-full bg-sky-400/10 blur-3xl" />
+            <div className="pointer-events-none absolute right-32 top-0 h-24 w-24 rounded-full bg-cyan-300/10 blur-2xl" />
+            <div className="relative flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex min-w-0 items-center gap-4">
+                <button onClick={() => navigate("/anasayfa")} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 text-slate-500 transition duration-300 hover:-translate-x-1 hover:bg-slate-50 hover:text-sky-600 dark:border-white/10 dark:hover:bg-white/5 dark:hover:text-sky-300" title="Anasayfa">
+                  <FiArrowLeft />
+                </button>
+                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-sky-500 to-cyan-500 text-white shadow-lg shadow-sky-500/20">
+                  <FiPackage size={23} />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="text-xl font-black tracking-tight text-slate-950 sm:text-2xl dark:text-white">Tüm Kargo Bilgileri</h1>
+                    <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-sky-700 dark:border-sky-400/20 dark:bg-sky-500/10 dark:text-sky-300">Analiz Merkezi</span>
+                  </div>
+                  <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">Tarih aralığına göre hızlı sorgula, veri kalitesini yakala ve kargo akışını analiz et.</p>
+                </div>
+              </div>
 
-        if (secilenYil) filtrelenmis = filtrelenmis.filter((v) => getYil(v.tarih) === secilenYil);
-        if (tarihBaslangic) filtrelenmis = filtrelenmis.filter((v) => new Date(v.tarih) >= new Date(tarihBaslangic));
-        if (tarihBitis) filtrelenmis = filtrelenmis.filter((v) => new Date(v.tarih) <= new Date(tarihBitis));
+              <div className="flex flex-wrap items-center gap-2">
+                <AnimatePresence mode="wait">
+          {loading && <motion.div key="loading" className="mb-4"><CargoLoadingExperience progress={loadingProgress}/><div className="mt-3"><SkeletonTable/></div></motion.div>}
+        </AnimatePresence>
 
-        if (selectedIrsaliye.length > 0) {
-            const secilen = selectedIrsaliye.map((o) => o.value.toLowerCase());
-            filtrelenmis = filtrelenmis.filter((v) => secilen.includes(v.irsaliye_adi?.toLowerCase()));
-        }
-        if (selectedKargo.length > 0) {
-            const secilen = selectedKargo.map((o) => o.value.toLowerCase());
-            filtrelenmis = filtrelenmis.filter((v) => secilen.includes(v.kargo_firmasi?.toLowerCase()));
-        }
-        if (selectedGonderen.length > 0) {
-            const secilen = selectedGonderen.map((o) => o.value.toLowerCase());
-            filtrelenmis = filtrelenmis.filter((v) => secilen.includes(v.gonderen_firma?.toLowerCase()));
-        }
+        {hasLoaded && (
+                  <button onClick={fetchRange} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-extrabold text-slate-700 transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-sky-600 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
+                    <FiRefreshCw className={loading ? "animate-spin" : ""} /> Yenile
+                  </button>
+                )}
+                <button onClick={() => setExcelPreviewOpen(true)} disabled={!filteredRows.length} className="group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-cyan-500 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-sky-500/20 transition duration-300 hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-40">
+                  <FiEye className="transition group-hover:scale-110" /> Excel Ön İzle
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
 
-        if (irsaliyeNoInput.trim() !== "") {
-            const aranan = irsaliyeNoInput.trim().toLowerCase();
-            filtrelenmis = filtrelenmis.filter((v) => (v.irsaliye_no || "").toLowerCase().includes(aranan));
-        }
-
-        if (quickSearch.trim() !== "") {
-            const q = quickSearch.trim().toLowerCase();
-            filtrelenmis = filtrelenmis.filter((v) => {
-                const fields = [
-                    v.kargo_firmasi,
-                    v.gonderi_numarasi,
-                    v.gonderen_firma,
-                    v.irsaliye_adi,
-                    v.irsaliye_no,
-                    v.odak_evrak_no,
-                ].map((x) => String(x || "").toLowerCase());
-                return fields.some((f) => f.includes(q));
-            });
-        }
-
-        setFilteredVeriler(filtrelenmis);
-    };
-
-    useEffect(() => {
-        if (!loading) filtrele();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [
-        veriler,
-        secilenYil,
-        tarihBaslangic,
-        tarihBitis,
-        selectedIrsaliye,
-        selectedKargo,
-        selectedGonderen,
-        irsaliyeNoInput,
-        quickSearch,
-        loading,
-    ]);
-
-    const hasActiveFilters = useMemo(() => {
-        return (
-            !!secilenYil ||
-            !!tarihBaslangic ||
-            !!tarihBitis ||
-            selectedIrsaliye.length > 0 ||
-            selectedKargo.length > 0 ||
-            selectedGonderen.length > 0 ||
-            irsaliyeNoInput.trim() !== "" ||
-            quickSearch.trim() !== ""
-        );
-    }, [
-        secilenYil,
-        tarihBaslangic,
-        tarihBitis,
-        selectedIrsaliye,
-        selectedKargo,
-        selectedGonderen,
-        irsaliyeNoInput,
-        quickSearch,
-    ]);
-
-    const activeFilterCount = useMemo(() => {
-        let n = 0;
-        if (secilenYil) n++;
-        if (tarihBaslangic) n++;
-        if (tarihBitis) n++;
-        if (selectedIrsaliye.length) n++;
-        if (selectedKargo.length) n++;
-        if (selectedGonderen.length) n++;
-        if (irsaliyeNoInput.trim()) n++;
-        if (quickSearch.trim()) n++;
-        return n;
-    }, [secilenYil, tarihBaslangic, tarihBitis, selectedIrsaliye, selectedKargo, selectedGonderen, irsaliyeNoInput, quickSearch]);
-
-    const filtreleriTemizle = () => {
-        setSecilenYil("");
-        setTarihBaslangic("");
-        setTarihBitis("");
-        setSelectedIrsaliye([]);
-        setSelectedKargo([]);
-        setSelectedGonderen([]);
-        setIrsaliyeNoInput("");
-        setQuickSearch("");
-        // filteredVeriler zaten effect ile güncellenecek
-    };
-
-    const activeChips = useMemo(() => {
-        const chips = [];
-        if (secilenYil) chips.push({ k: "yil", label: `Yıl: ${secilenYil}`, clear: () => setSecilenYil("") });
-        if (tarihBaslangic) chips.push({ k: "tb", label: `Başlangıç: ${tarihBaslangic}`, clear: () => setTarihBaslangic("") });
-        if (tarihBitis) chips.push({ k: "tt", label: `Bitiş: ${tarihBitis}`, clear: () => setTarihBitis("") });
-        if (selectedIrsaliye.length) chips.push({ k: "ia", label: `İrsaliye Adı: ${selectedIrsaliye.length}`, clear: () => setSelectedIrsaliye([]) });
-        if (selectedKargo.length) chips.push({ k: "kf", label: `Kargo: ${selectedKargo.length}`, clear: () => setSelectedKargo([]) });
-        if (selectedGonderen.length) chips.push({ k: "gf", label: `Gönderen: ${selectedGonderen.length}`, clear: () => setSelectedGonderen([]) });
-        if (irsaliyeNoInput.trim()) chips.push({ k: "ino", label: `İrsaliye No: "${irsaliyeNoInput.trim()}"`, clear: () => setIrsaliyeNoInput("") });
-        if (quickSearch.trim()) chips.push({ k: "qs", label: `Arama: "${quickSearch.trim()}"`, clear: () => setQuickSearch("") });
-        return chips;
-    }, [secilenYil, tarihBaslangic, tarihBitis, selectedIrsaliye, selectedKargo, selectedGonderen, irsaliyeNoInput, quickSearch]);
-
-    const excelAktarVeri = (veri, tur) => {
-        const aktarilacak = veri.map((item) => ({
-            Tarih: tarihFormatla(item.tarih),
-            "Kargo Firması": item.kargo_firmasi,
-            "Gönderi No": item.gonderi_numarasi,
-            "Gönderen Firma": item.gonderen_firma,
-            "İrsaliye Adı": item.irsaliye_adi,
-            "İrsaliye No": item.irsaliye_no,
-            "Odak Evrak No": item.odak_evrak_no,
-            "Evrak Adedi": item.evrak_adedi,
-        }));
-
-        const worksheet = XLSX.utils.json_to_sheet(aktarilacak);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Kargo Verileri");
-        const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-        const blob = new Blob([excelBuffer], { type: "application/octet-stream" });
-        saveAs(blob, `kargo_bilgileri_${tur}.xlsx`);
-    };
-
-    // ✅ FIX: yıl seçiliyse o yıl, değilse tüm yıllar export
-    const tumVeriyiExceleAktar = async () => {
-        const yearOrNull = secilenYil || null;
-
-        const pageSize = 1000;
-        let allData = [];
-        let from = 0;
-        let to = pageSize - 1;
-        let hasMore = true;
-
-        const start = yearOrNull ? `${yearOrNull}-01-01` : null;
-        const end = yearOrNull ? `${yearOrNull}-12-31` : null;
-
-        while (hasMore) {
-            let q = supabase.from("kargo_bilgileri").select("*").range(from, to);
-            if (start && end) q = q.gte("tarih", start).lte("tarih", end);
-
-            const { data, error } = await q;
-
-            if (error) {
-                console.error("Veri çekme hatası:", error);
-                showToast("error", "Excel için veri çekme hatası.");
-                break;
-            }
-            if (data && data.length > 0) {
-                allData = allData.concat(data);
-                from += pageSize;
-                to += pageSize;
-                hasMore = data.length === pageSize;
-            } else {
-                hasMore = false;
-            }
-        }
-
-        excelAktarVeri(allData, yearOrNull ? `yil_${yearOrNull}` : "tum_yillar");
-        setExcelModalAcik(false);
-        showToast("success", "Excel indirildi.");
-    };
-
-    // Edit
-    const duzenleModaliAc = (veri) => {
-        setDuzenlenenVeri({ ...veri });
-        setDuzenleModalAcik(true);
-        setEkstraEvrakSayisi("");
-        setEkstraVar(false);
-    };
-
-    const handleDuzenleInputChange = (e) => {
-        const { name, value } = e.target;
-        setDuzenlenenVeri((prev) => ({ ...prev, [name]: value }));
-    };
-
-    const duzenleEvrakAdedi = useMemo(() => {
-        if (!duzenlenenVeri) return 0;
-        const irs = splitCodes(duzenlenenVeri.irsaliye_no).length;
-        const odak = splitCodes(duzenlenenVeri.odak_evrak_no).length;
-        const ekstra = ekstraVar ? (parseInt(ekstraEvrakSayisi, 10) || 0) : 0;
-        return irs + odak + ekstra;
-    }, [duzenlenenVeri, ekstraVar, ekstraEvrakSayisi]);
-
-    const duzenleVeriyiGuncelle = async () => {
-        const {
-            id,
-            tarih,
-            kargo_firmasi,
-            gonderi_numarasi,
-            gonderen_firma,
-            irsaliye_adi,
-            irsaliye_no,
-            odak_evrak_no,
-        } = duzenlenenVeri;
-
-        const { error } = await supabase
-            .from("kargo_bilgileri")
-            .update({
-                tarih,
-                kargo_firmasi,
-                gonderi_numarasi,
-                gonderen_firma,
-                irsaliye_adi,
-                irsaliye_no,
-                odak_evrak_no,
-                evrak_adedi: duzenleEvrakAdedi,
-            })
-            .eq("id", id);
-
-        if (!error) {
-            setVeriler((prev) =>
-                prev.map((v) =>
-                    v.id === id ? { ...duzenlenenVeri, evrak_adedi: duzenleEvrakAdedi } : v
-                )
-            );
-            setDuzenleModalAcik(false);
-            showToast("success", "✅ Güncellendi.");
-        } else {
-            showToast("error", "❌ Güncelleme başarısız.");
-        }
-    };
-
-    const duzenleVeriyiSil = async () => {
-        if (!duzenlenenVeri?.id) return;
-        if (!window.confirm("Bu kaydı silmek istediğinize emin misiniz?")) return;
-
-        const { error } = await supabase.from("kargo_bilgileri").delete().eq("id", duzenlenenVeri.id);
-
-        if (!error) {
-            setVeriler((prev) => prev.filter((v) => v.id !== duzenlenenVeri.id));
-            setDuzenleModalAcik(false);
-            showToast("success", "🗑️ Kayıt silindi.");
-        } else {
-            showToast("error", "❌ Silme başarısız.");
-        }
-    };
-
-    // Satırdan hızlı sil (buton)
-    const satirSil = async (row) => {
-        if (!row?.id) return;
-        if (!window.confirm("Bu kaydı silmek istediğinize emin misiniz?")) return;
-
-        const { error } = await supabase.from("kargo_bilgileri").delete().eq("id", row.id);
-        if (!error) {
-            setVeriler((prev) => prev.filter((v) => v.id !== row.id));
-            showToast("success", "🗑️ Kayıt silindi.");
-        } else {
-            showToast("error", "❌ Silme başarısız.");
-        }
-    };
-
-    // KPI
-    const toplamKayit = veriler.length;
-    const toplamFiltreli = filteredVeriler.length;
-    const toplamEvrak = useMemo(
-        () => filteredVeriler.reduce((sum, v) => sum + (parseInt(v.evrak_adedi, 10) || 0), 0),
-        [filteredVeriler]
-    );
-
-    // Copy helper
-    const [copied, setCopied] = useState(false);
-    const copyToClipboard = async (txt) => {
-        try {
-            await navigator.clipboard.writeText(txt || "");
-            setCopied(true);
-            showToast("success", "Kopyalandı.");
-            setTimeout(() => setCopied(false), 900);
-        } catch {
-            showToast("error", "Kopyalama başarısız.");
-        }
-    };
-
-    return (
-        <Layout>
-            <Toast show={toast.show} type={toast.type} text={toast.text} />
-
-            {/* Premium background */}
-            <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-                <div className="absolute -top-40 left-1/2 h-[32rem] w-[60rem] -translate-x-1/2 rounded-full bg-gradient-to-r from-violet-500/25 via-purple-500/20 to-indigo-500/25 blur-3xl" />
-                <div className="absolute bottom-[-8rem] right-[-6rem] h-[26rem] w-[26rem] rounded-full bg-gradient-to-tr from-purple-400/15 to-indigo-400/10 blur-3xl" />
-                <div className="absolute bottom-24 left-6 h-[18rem] w-[18rem] rounded-full bg-gradient-to-tr from-fuchsia-400/10 to-violet-400/10 blur-3xl" />
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,.06)_1px,transparent_0)] [background-size:20px_20px] opacity-40 dark:opacity-20" />
+        <section className="cargo-enter mb-4 rounded-[24px] border border-slate-200/90 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#111925]" style={{ animationDelay: ".05s" }}>
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-end">
+            <div className="min-w-0 flex-1">
+              <div className="mb-3 flex items-center gap-2">
+                <div className="grid h-8 w-8 place-items-center rounded-lg bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-300"><FiCalendar /></div>
+                <div>
+                  <h2 className="text-sm font-black text-slate-900 dark:text-white">Önce çalışma dönemini seçin</h2>
+                  <p className="text-[11px] font-medium text-slate-400">Ekran açılışında veri yüklenmez. Sadece seçtiğiniz dönem sunucudan getirilir.</p>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:max-w-2xl">
+                <label className="space-y-1.5">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Başlangıç</span>
+                  <input type="date" value={queryStart} onChange={(e) => { setQueryStart(e.target.value); setRangeError(""); }} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-500/10 dark:border-white/10 dark:bg-[#0d141f] dark:text-slate-200" />
+                </label>
+                <label className="space-y-1.5">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Bitiş</span>
+                  <input type="date" value={queryEnd} onChange={(e) => { setQueryEnd(e.target.value); setRangeError(""); }} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-500/10 dark:border-white/10 dark:bg-[#0d141f] dark:text-slate-200" />
+                </label>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {[["today", "Bugün"], ["yesterday", "Dün"], ["7days", "Son 7 Gün"], ["month", "Bu Ay"]].map(([key, label]) => (
+                  <button key={key} onClick={() => setPreset(key)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-extrabold text-slate-500 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 dark:border-white/10 dark:hover:bg-sky-500/10 dark:hover:text-sky-300">{label}</button>
+                ))}
+              </div>
+              {rangeError && <div className="mt-3 flex items-center gap-2 text-xs font-bold text-rose-600"><FiInfo /> {rangeError}</div>}
             </div>
 
-            <div className="mx-auto max-w-7xl px-4 py-6 text-gray-900 dark:text-white">
-                {/* Top App Bar */}
-                <div className="mb-6">
-                    <div className="rounded-[28px] border border-black/10 dark:border-white/10 bg-white/70 dark:bg-zinc-950/60 backdrop-blur-2xl shadow-sm overflow-hidden">
-                        <div className="px-6 py-5">
-                            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                                <div className="min-w-0">
-                                    <div className="flex flex-wrap items-center gap-3">
-                                        <div className="inline-flex items-center gap-2 rounded-2xl bg-violet-600/10 dark:bg-violet-500/10 px-3 py-2 border border-violet-500/20">
-                                            <span className="text-lg">📦</span>
-                                            <span className="font-extrabold tracking-tight text-violet-700 dark:text-violet-200">
-                                                Kargo Dashboard
-                                            </span>
-                                        </div>
+            <button onClick={fetchRange} disabled={loading} className="group inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 text-sm font-black text-white shadow-lg transition duration-300 hover:-translate-y-0.5 hover:bg-sky-600 disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-sky-400">
+              {loading ? <FiRefreshCw className="animate-spin" /> : <FiZap className="transition group-hover:scale-125" />}
+              {loading ? "Veriler getiriliyor…" : "Dönemi Getir"}
+            </button>
+          </div>
+        </section>
 
-                                        <Pill tone={hasActiveFilters ? "purple" : "neutral"}>
-                                            {hasActiveFilters ? `Filtre: ${activeFilterCount}` : "Filtre yok"}
-                                        </Pill>
-
-                                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                                            {secilenYil ? `${secilenYil} yılı` : "Tüm yıllar"} •{" "}
-                                            {toplamFiltreli.toLocaleString("tr-TR")} kayıt
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                        Hızlı arama, filtreler, düzenleme ve Excel export tek ekranda.
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-wrap gap-2">
-                                    <button
-                                        onClick={() => navigate("/anasayfa")}
-                                        className="inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 font-semibold
-                    border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5"
-                                    >
-                                        Anasayfa
-                                    </button>
-
-                                    <button
-                                        onClick={() => setFiltersOpen((v) => !v)}
-                                        className={cx(
-                                            "inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 font-semibold border",
-                                            filtersOpen
-                                                ? "border-violet-500/30 bg-violet-600/10 text-violet-800 dark:text-violet-200 dark:bg-violet-500/10"
-                                                : "border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5"
-                                        )}
-                                    >
-                                        <FiFilter /> {filtersOpen ? "Filtreyi Gizle" : "Filtreyi Göster"}
-                                    </button>
-
-                                    <button
-                                        onClick={() => setExcelModalAcik(true)}
-                                        className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2.5 text-white font-semibold shadow-sm hover:opacity-95"
-                                    >
-                                        <FiDownload /> Excel
-                                    </button>
-
-                                    <button
-                                        onClick={filtreleriTemizle}
-                                        disabled={!hasActiveFilters}
-                                        className={cx(
-                                            "inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 font-semibold",
-                                            hasActiveFilters
-                                                ? "bg-zinc-950 text-white hover:opacity-90 dark:bg-white dark:text-zinc-950"
-                                                : "bg-gray-200 text-gray-500 cursor-not-allowed dark:bg-zinc-800 dark:text-gray-400"
-                                        )}
-                                    >
-                                        <FiRotateCcw /> Temizle
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="mt-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                                <div className="relative w-full lg:max-w-2xl">
-                                    <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
-                                    <input
-                                        value={quickSearch}
-                                        onChange={(e) => setQuickSearch(e.target.value)}
-                                        placeholder="Hızlı arama… (kargo / gönderi no / gönderen / irsaliye / odak)"
-                                        className="w-full pl-11 pr-4 py-3 rounded-2xl
-                    border border-black/10 dark:border-white/10 bg-white/85 dark:bg-zinc-900/60
-                    outline-none focus:ring-4 focus:ring-violet-200/70 dark:focus:ring-violet-900/30"
-                                    />
-                                    {quickSearch?.trim() && (
-                                        <button
-                                            onClick={() => setQuickSearch("")}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 h-9 w-9 rounded-xl border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 grid place-items-center"
-                                            title="Temizle"
-                                        >
-                                            <FiX />
-                                        </button>
-                                    )}
-                                </div>
-
-                                <div className="flex flex-wrap gap-2">
-                                    <MiniStat icon={<FiFileText />} label="Toplam" value={toplamKayit.toLocaleString("tr-TR")} />
-                                    <MiniStat icon={<FiSearch />} label="Filtreli" value={toplamFiltreli.toLocaleString("tr-TR")} tone="indigo" />
-                                    <MiniStat icon={<FiPackage />} label="Evrak" value={toplamEvrak.toLocaleString("tr-TR")} tone="emerald" />
-                                </div>
-                            </div>
-
-                            {hasActiveFilters && (
-                                <div className="mt-4 flex flex-wrap gap-2">
-                                    {activeChips.map((c) => (
-                                        <button
-                                            key={c.k}
-                                            onClick={c.clear}
-                                            className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-extrabold
-                      bg-violet-100 text-violet-800 border border-violet-200
-                      dark:bg-violet-900/25 dark:text-violet-200 dark:border-violet-800/40 hover:opacity-90"
-                                            title="Bu filtreyi kaldır"
-                                        >
-                                            {c.label} <FiX />
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Main grid */}
-                <div className="grid grid-cols-1 gap-5 lg:grid-cols-[360px_1fr]">
-                    {/* Filter Panel */}
-                    <div className={cx(filtersOpen ? "block" : "hidden", "lg:block")}>
-                        <div className="rounded-[28px] border border-black/10 dark:border-white/10 bg-white/70 dark:bg-zinc-950/55 backdrop-blur-2xl shadow-sm overflow-hidden">
-                            <div className="px-5 py-4 border-b border-black/5 dark:border-white/10 flex items-center justify-between">
-                                <div className="flex items-center gap-2 font-extrabold">
-                                    <FiFilter /> Filtreler
-                                </div>
-                                <Pill tone={hasActiveFilters ? "purple" : "neutral"}>{activeFilterCount} aktif</Pill>
-                            </div>
-
-                            <div className="p-5 grid gap-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-extrabold text-gray-600 dark:text-gray-300">
-                                        <FiCalendar className="inline" /> Yıl
-                                    </label>
-                                    <select
-                                        className="w-full rounded-2xl border border-black/10 dark:border-white/10 bg-white/85 dark:bg-zinc-900/60 px-3 py-2.5 outline-none
-                    focus:ring-4 focus:ring-violet-200/70 dark:focus:ring-violet-900/30"
-                                        value={secilenYil}
-                                        onChange={(e) => setSecilenYil(e.target.value)}
-                                    >
-                                        <option value="">Tüm Yıllar</option>
-                                        {yilSecenekleri.map((yil) => (
-                                            <option key={yil} value={yil}>
-                                                {yil}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-extrabold text-gray-600 dark:text-gray-300">Başlangıç</label>
-                                        <input
-                                            type="date"
-                                            className="w-full rounded-2xl border border-black/10 dark:border-white/10 bg-white/85 dark:bg-zinc-900/60 px-3 py-2.5 outline-none
-                      focus:ring-4 focus:ring-violet-200/70 dark:focus:ring-violet-900/30"
-                                            value={tarihBaslangic}
-                                            onChange={(e) => setTarihBaslangic(e.target.value)}
-                                        />
-                                    </div>
-
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-extrabold text-gray-600 dark:text-gray-300">Bitiş</label>
-                                        <input
-                                            type="date"
-                                            className="w-full rounded-2xl border border-black/10 dark:border-white/10 bg-white/85 dark:bg-zinc-900/60 px-3 py-2.5 outline-none
-                      focus:ring-4 focus:ring-violet-200/70 dark:focus:ring-violet-900/30"
-                                            value={tarihBitis}
-                                            onChange={(e) => setTarihBitis(e.target.value)}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-extrabold text-gray-600 dark:text-gray-300">İrsaliye Adı</label>
-                                    <Select
-                                        styles={rsStyles(isDark)}
-                                        options={irsaliyeOptions}
-                                        value={selectedIrsaliye}
-                                        onChange={setSelectedIrsaliye}
-                                        isMulti
-                                        classNamePrefix="rs"
-                                    />
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-extrabold text-gray-600 dark:text-gray-300">
-                                        <FiTruck className="inline" /> Kargo Firması
-                                    </label>
-                                    <Select
-                                        styles={rsStyles(isDark)}
-                                        options={kargoOptions}
-                                        value={selectedKargo}
-                                        onChange={setSelectedKargo}
-                                        isMulti
-                                        classNamePrefix="rs"
-                                    />
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-extrabold text-gray-600 dark:text-gray-300">
-                                        <FiUsers className="inline" /> Gönderen Firma
-                                    </label>
-                                    <Select
-                                        styles={rsStyles(isDark)}
-                                        options={gonderenOptions}
-                                        value={selectedGonderen}
-                                        onChange={setSelectedGonderen}
-                                        isMulti
-                                        classNamePrefix="rs"
-                                    />
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-extrabold text-gray-600 dark:text-gray-300">İrsaliye No (içerir)</label>
-                                    <input
-                                        type="text"
-                                        className="w-full rounded-2xl border border-black/10 dark:border-white/10 bg-white/85 dark:bg-zinc-900/60 px-3 py-2.5 outline-none
-                    focus:ring-4 focus:ring-violet-200/70 dark:focus:ring-violet-900/30"
-                                        placeholder="Örn: 2025-..."
-                                        value={irsaliyeNoInput}
-                                        onChange={(e) => setIrsaliyeNoInput(e.target.value)}
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-2 pt-1">
-                                    <button
-                                        onClick={filtrele}
-                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2.5 text-white font-extrabold hover:opacity-95"
-                                    >
-                                        <FiSearch /> Uygula
-                                    </button>
-                                    <button
-                                        onClick={filtreleriTemizle}
-                                        disabled={!hasActiveFilters}
-                                        className={cx(
-                                            "inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 font-extrabold",
-                                            hasActiveFilters
-                                                ? "bg-zinc-950 text-white hover:opacity-90 dark:bg-white dark:text-zinc-950"
-                                                : "bg-gray-200 text-gray-500 cursor-not-allowed dark:bg-zinc-800 dark:text-gray-400"
-                                        )}
-                                    >
-                                        <FiRotateCcw /> Temizle
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Data Panel */}
-                    <div className="min-w-0">
-                        <div className="rounded-[28px] border border-black/10 dark:border-white/10 bg-white/70 dark:bg-zinc-950/55 backdrop-blur-2xl shadow-sm overflow-hidden">
-                            <div className="px-5 py-4 border-b border-black/5 dark:border-white/10 flex items-center justify-between">
-                                <div className="font-extrabold">Kayıtlar</div>
-                                <div className="text-xs text-gray-500 dark:text-gray-400">
-                                    İrsaliye/Odak tıklanabilir • İşlem butonları hep görünür
-                                </div>
-                            </div>
-
-                            {loading ? (
-                                <div className="p-5">
-                                    <GridSkeleton />
-                                </div>
-                            ) : filteredVeriler.length === 0 ? (
-                                <div className="p-10 text-center">
-                                    <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-violet-600/10 border border-violet-500/20 text-violet-700 dark:text-violet-200">
-                                        <FiSearch />
-                                    </div>
-                                    <div className="mt-4 text-lg font-extrabold">Sonuç bulunamadı</div>
-                                    <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                                        Filtreleri değiştirerek tekrar deneyebilirsin.
-                                    </div>
-                                    <button
-                                        onClick={filtreleriTemizle}
-                                        className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-3 text-white font-extrabold hover:opacity-95"
-                                    >
-                                        <FiRotateCcw /> Filtreleri Temizle
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="max-h-[72vh] overflow-auto">
-                                    <div className="min-w-[980px]">
-                                        <div className="sticky top-0 z-10 bg-white/85 dark:bg-zinc-950/75 backdrop-blur-xl border-b border-black/5 dark:border-white/10">
-                                            <div className="grid grid-cols-[120px_140px_160px_180px_160px_200px_200px_90px_160px] px-4 py-3 text-xs font-extrabold text-gray-600 dark:text-gray-300">
-                                                <div>Tarih</div>
-                                                <div>Kargo</div>
-                                                <div>Gönderi No</div>
-                                                <div>Gönderen</div>
-                                                <div>İrsaliye Adı</div>
-                                                <div>İrsaliye No</div>
-                                                <div>Odak No</div>
-                                                <div className="text-center">Evrak</div>
-                                                <div className="text-right pr-2">İşlem</div>
-                                            </div>
-                                        </div>
-
-                                        <div className="divide-y divide-black/5 dark:divide-white/10">
-                                            {filteredVeriler.map((item, idx) => (
-                                                <div
-                                                    key={item.id ?? idx}
-                                                    className="group grid grid-cols-[120px_140px_160px_180px_160px_200px_200px_90px_160px] items-center px-4 py-3
-                          hover:bg-violet-50/60 dark:hover:bg-white/5 transition"
-                                                >
-                                                    <div className="text-sm font-semibold">{tarihFormatla(item.tarih)}</div>
-
-                                                    <div className="text-sm font-extrabold text-violet-700 dark:text-violet-200">
-                                                        {item.kargo_firmasi || "—"}
-                                                    </div>
-
-                                                    <div className="text-sm text-gray-800 dark:text-gray-200">
-                                                        {item.gonderi_numarasi || "—"}
-                                                    </div>
-
-                                                    <div className="text-sm text-gray-800 dark:text-gray-200 truncate" title={item.gonderen_firma || ""}>
-                                                        {item.gonderen_firma || "—"}
-                                                    </div>
-
-                                                    <div className="text-sm text-gray-800 dark:text-gray-200 truncate" title={item.irsaliye_adi || ""}>
-                                                        {item.irsaliye_adi || "—"}
-                                                    </div>
-
-                                                    <button
-                                                        onClick={() => modalAc("İrsaliye No", item.irsaliye_no)}
-                                                        className="text-left text-sm font-semibold text-indigo-700 dark:text-indigo-300 underline underline-offset-4 hover:opacity-80 truncate"
-                                                        title={item.irsaliye_no || ""}
-                                                    >
-                                                        {kisalt(item.irsaliye_no)}
-                                                    </button>
-
-                                                    <button
-                                                        onClick={() => modalAc("Odak Evrak No", item.odak_evrak_no)}
-                                                        className="text-left text-sm font-semibold text-indigo-700 dark:text-indigo-300 underline underline-offset-4 hover:opacity-80 truncate"
-                                                        title={item.odak_evrak_no || ""}
-                                                    >
-                                                        {kisalt(item.odak_evrak_no)}
-                                                    </button>
-
-                                                    <div className="text-center">
-                                                        <span
-                                                            className="inline-flex items-center justify-center rounded-2xl px-3 py-1.5 text-xs font-extrabold
-                              bg-violet-600/10 border border-violet-500/20 text-violet-800 dark:text-violet-200"
-                                                        >
-                                                            {item.evrak_adedi ?? 0}
-                                                        </span>
-                                                    </div>
-
-                                                    {/* ✅ FIX: butonlar hover beklemeden hep görünsün */}
-                                                    <div className="flex justify-end gap-2">
-                                                        <button
-                                                            onClick={() => duzenleModaliAc(item)}
-                                                            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-2 text-white font-extrabold hover:opacity-95"
-                                                        >
-                                                            <FiEdit2 /> Düzenle
-                                                        </button>
-
-                                                        <button
-                                                            onClick={() => satirSil(item)}
-                                                            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 px-3 py-2 text-white font-extrabold hover:opacity-95"
-                                                            title="Sil"
-                                                        >
-                                                            <FiTrash2 /> Sil
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="lg:hidden p-4 text-xs text-gray-500 dark:text-gray-400">
-                                        Mobilde yatay kaydırma vardır.
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Modal - long text */}
-                {modalGoster && (
-                    <ModalShell
-                        title={modalBaslik}
-                        onClose={() => {
-                            setModalGoster(false);
-                            setModalBaslik("");
-                            setModalIcerik("");
-                        }}
-                        footer={
-                            <div className="flex items-center justify-between">
-                                <div className="text-xs text-gray-500 dark:text-gray-300">
-                                    Uzun içerik • kopyalayabilirsiniz
-                                </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => copyToClipboard(modalIcerik)}
-                                        className="inline-flex items-center gap-2 rounded-2xl px-4 py-2 font-extrabold
-                    bg-zinc-950 text-white hover:opacity-90 dark:bg-white dark:text-zinc-950"
-                                    >
-                                        {copied ? <FiCheck /> : <FiCopy />} Kopyala
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setModalGoster(false);
-                                            setModalBaslik("");
-                                            setModalIcerik("");
-                                        }}
-                                        className="inline-flex items-center gap-2 rounded-2xl px-4 py-2 font-extrabold border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5"
-                                    >
-                                        Kapat
-                                    </button>
-                                </div>
-                            </div>
-                        }
-                    >
-                        <pre className="max-h-[60vh] whitespace-pre-wrap break-words overflow-y-auto rounded-2xl bg-black/5 dark:bg-white/5 p-4 text-sm text-gray-900 dark:text-gray-100">
-                            {modalIcerik || "—"}
-                        </pre>
-                    </ModalShell>
-                )}
-
-                {/* Modal - Excel */}
-                {excelModalAcik && (
-                    <ModalShell
-                        title="Excel Aktarımı"
-                        onClose={() => setExcelModalAcik(false)}
-                        footer={
-                            <div className="flex items-center justify-end">
-                                <button
-                                    onClick={() => setExcelModalAcik(false)}
-                                    className="text-sm font-semibold text-gray-600 hover:underline dark:text-gray-300"
-                                >
-                                    Vazgeç
-                                </button>
-                            </div>
-                        }
-                    >
-                        <p className="mb-5 text-sm text-gray-600 dark:text-gray-300">
-                            Hangi verileri Excel’e aktarmak istersiniz?
-                        </p>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                            <button
-                                onClick={() => {
-                                    excelAktarVeri(filteredVeriler, "filtreli");
-                                    setExcelModalAcik(false);
-                                    showToast("success", "Excel indirildi.");
-                                }}
-                                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-3 text-white font-extrabold hover:opacity-95"
-                            >
-                                <FiDownload /> Filtreli Aktar
-                            </button>
-                            <button
-                                onClick={tumVeriyiExceleAktar}
-                                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-3 text-white font-extrabold hover:opacity-95"
-                            >
-                                <FiDownload /> Tümünü Aktar
-                            </button>
-                        </div>
-                    </ModalShell>
-                )}
-
-                {/* Modal - Edit */}
-                {duzenleModalAcik && duzenlenenVeri && (
-                    <ModalShell
-                        title="Kargo Bilgisi Düzenle"
-                        onClose={() => setDuzenleModalAcik(false)}
-                        footer={
-                            <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={duzenleVeriyiGuncelle}
-                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-600 to-green-600 px-4 py-2.5 text-white font-extrabold hover:opacity-95"
-                                    >
-                                        Güncelle
-                                    </button>
-                                    <button
-                                        onClick={duzenleVeriyiSil}
-                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 px-4 py-2.5 text-white font-extrabold hover:opacity-95"
-                                    >
-                                        Sil
-                                    </button>
-                                </div>
-                                <button
-                                    onClick={() => setDuzenleModalAcik(false)}
-                                    className="inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 font-extrabold border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5"
-                                >
-                                    Vazgeç
-                                </button>
-                            </div>
-                        }
-                    >
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <Field label="Tarih">
-                                <input
-                                    type="date"
-                                    name="tarih"
-                                    value={(duzenlenenVeri.tarih || "").slice(0, 10)}
-                                    onChange={handleDuzenleInputChange}
-                                    className="w-full rounded-2xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-900/60 px-3 py-2.5 outline-none
-                  focus:ring-4 focus:ring-violet-200/70 dark:focus:ring-violet-900/30"
-                                />
-                            </Field>
-
-                            <Field label="Kargo Firması">
-                                <input
-                                    name="kargo_firmasi"
-                                    value={duzenlenenVeri.kargo_firmasi || ""}
-                                    onChange={handleDuzenleInputChange}
-                                    className="w-full rounded-2xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-900/60 px-3 py-2.5 outline-none
-                  focus:ring-4 focus:ring-violet-200/70 dark:focus:ring-violet-900/30"
-                                />
-                            </Field>
-
-                            <Field label="Gönderi No">
-                                <input
-                                    name="gonderi_numarasi"
-                                    value={duzenlenenVeri.gonderi_numarasi || ""}
-                                    onChange={handleDuzenleInputChange}
-                                    className="w-full rounded-2xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-900/60 px-3 py-2.5 outline-none
-                  focus:ring-4 focus:ring-violet-200/70 dark:focus:ring-violet-900/30"
-                                />
-                            </Field>
-
-                            <Field label="Gönderen Firma">
-                                <input
-                                    name="gonderen_firma"
-                                    value={duzenlenenVeri.gonderen_firma || ""}
-                                    onChange={handleDuzenleInputChange}
-                                    className="w-full rounded-2xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-900/60 px-3 py-2.5 outline-none
-                  focus:ring-4 focus:ring-violet-200/70 dark:focus:ring-violet-900/30"
-                                />
-                            </Field>
-
-                            <Field label="İrsaliye Adı">
-                                <input
-                                    name="irsaliye_adi"
-                                    value={duzenlenenVeri.irsaliye_adi || ""}
-                                    onChange={handleDuzenleInputChange}
-                                    className="w-full rounded-2xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-900/60 px-3 py-2.5 outline-none
-                  focus:ring-4 focus:ring-violet-200/70 dark:focus:ring-violet-900/30"
-                                />
-                            </Field>
-
-                            <div className="sm:col-span-2">
-                                <Field label="İrsaliye No">
-                                    <textarea
-                                        name="irsaliye_no"
-                                        rows="2"
-                                        value={duzenlenenVeri.irsaliye_no || ""}
-                                        onChange={handleDuzenleInputChange}
-                                        className="w-full rounded-2xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-900/60 px-3 py-2.5 outline-none
-                    focus:ring-4 focus:ring-violet-200/70 dark:focus:ring-violet-900/30"
-                                    />
-                                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                                        <span className="inline-flex items-center rounded-full px-3 py-1 font-extrabold bg-indigo-600/10 border border-indigo-500/20 text-indigo-800 dark:text-indigo-200">
-                                            Adet: {splitCodes(duzenlenenVeri.irsaliye_no).length}
-                                        </span>
-                                    </div>
-                                </Field>
-                            </div>
-
-                            <div className="sm:col-span-2">
-                                <Field label="Odak Evrak No">
-                                    <textarea
-                                        name="odak_evrak_no"
-                                        rows="2"
-                                        value={duzenlenenVeri.odak_evrak_no || ""}
-                                        onChange={handleDuzenleInputChange}
-                                        className="w-full rounded-2xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-900/60 px-3 py-2.5 outline-none
-                    focus:ring-4 focus:ring-violet-200/70 dark:focus:ring-violet-900/30"
-                                    />
-                                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                                        <span className="inline-flex items-center rounded-full px-3 py-1 font-extrabold bg-indigo-600/10 border border-indigo-500/20 text-indigo-800 dark:text-indigo-200">
-                                            Adet: {splitCodes(duzenlenenVeri.odak_evrak_no).length}
-                                        </span>
-                                    </div>
-                                </Field>
-                            </div>
-
-                            <div className="sm:col-span-2 rounded-3xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-4">
-                                <div className="flex items-center justify-between">
-                                    <div className="font-extrabold">Ekstra evrak var mı?</div>
-                                    <Switch checked={ekstraVar} onChange={setEkstraVar} />
-                                </div>
-
-                                {ekstraVar && (
-                                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                                        <Field label="Ekstra Evrak Sayısı">
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                value={ekstraEvrakSayisi}
-                                                onChange={(e) => setEkstraEvrakSayisi(e.target.value)}
-                                                className="w-full rounded-2xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-zinc-900/60 px-3 py-2.5 outline-none
-                        focus:ring-4 focus:ring-violet-200/70 dark:focus:ring-violet-900/30"
-                                            />
-                                        </Field>
-
-                                        <div className="rounded-3xl border border-black/10 dark:border-white/10 bg-white/60 dark:bg-zinc-950/40 p-4">
-                                            <div className="text-xs text-gray-500 dark:text-gray-300">
-                                                Toplam Evrak (otomatik)
-                                            </div>
-                                            <div className="mt-1 text-2xl font-extrabold">{duzenleEvrakAdedi}</div>
-                                            <div className="mt-1 text-xs text-gray-500 dark:text-gray-300">
-                                                İrsaliye + Odak + Ekstra
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {!ekstraVar && (
-                                    <div className="mt-3 text-sm">
-                                        <span className="text-gray-600 dark:text-gray-300">Toplam Evrak (otomatik): </span>
-                                        <b>{duzenleEvrakAdedi}</b>
-                                    </div>
-                                )}
-                            </div>
-
-                            <Field label="Evrak Adedi (otomatik)" span>
-                                <input
-                                    readOnly
-                                    value={duzenleEvrakAdedi}
-                                    className="w-full rounded-2xl border border-black/10 dark:border-white/10 bg-gray-50 dark:bg-zinc-900/60 px-3 py-2.5 text-gray-900 dark:text-white font-extrabold"
-                                />
-                            </Field>
-                        </div>
-                    </ModalShell>
-                )}
+        {!hasLoaded && !loading && (
+          <section className="cargo-enter relative grid min-h-[420px] place-items-center overflow-hidden rounded-[28px] border border-dashed border-slate-300 bg-white/70 p-8 text-center dark:border-white/10 dark:bg-[#111925]/80" style={{ animationDelay: ".1s" }}>
+            <div className="pointer-events-none absolute h-64 w-64 rounded-full bg-sky-400/10 blur-3xl" style={{ animation: "cargoPulse 4s ease-in-out infinite" }} />
+            <div className="relative max-w-xl">
+              <div className="mx-auto mb-5 grid h-20 w-20 place-items-center rounded-[24px] bg-gradient-to-br from-sky-500 to-cyan-400 text-white shadow-xl shadow-sky-500/20"><FiActivity size={32} /></div>
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white">Analiz için bir dönem seçin</h2>
+              <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-500 dark:text-slate-400">Tüm veriyi açılışta yüklemek yerine sadece ihtiyacınız olan gün veya tarih aralığını getiriyoruz. Bu sayede ekran çok daha hızlı açılır ve filtreler daha akıcı çalışır.</p>
+              <div className="mt-6 flex flex-wrap justify-center gap-2 text-xs font-bold text-slate-500">
+                <span className="rounded-full bg-slate-100 px-3 py-1.5 dark:bg-white/5">Akıllı benzer değer önerileri</span>
+                <span className="rounded-full bg-slate-100 px-3 py-1.5 dark:bg-white/5">Kargo & gönderen analizi</span>
+                <span className="rounded-full bg-slate-100 px-3 py-1.5 dark:bg-white/5">Modern Excel raporu</span>
+              </div>
             </div>
-        </Layout>
-    );
+          </section>
+        )}
+
+        {loading && (
+          <section className="grid min-h-[380px] place-items-center rounded-[28px] border border-slate-200 bg-white dark:border-white/10 dark:bg-[#111925]">
+            <div className="text-center">
+              <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-300"><FiRefreshCw size={26} className="animate-spin" /></div>
+              <div className="mt-4 text-base font-black text-slate-800 dark:text-white">Seçilen dönem yükleniyor</div>
+              <div className="mt-1 text-xs font-medium text-slate-400">Yalnızca {formatDate(queryStart)} – {formatDate(queryEnd)} aralığı sorgulanıyor.</div>
+            </div>
+          </section>
+        )}
+
+        {hasLoaded && !loading && (
+          <div className="space-y-4">
+            <section className="cargo-enter flex flex-wrap gap-3" style={{ animationDelay: ".08s" }}>
+              <Kpi icon={FiLayers} label="Kayıt" value={filteredRows.length.toLocaleString("tr-TR")} helper={`${rows.length.toLocaleString("tr-TR")} yüklenen`} />
+              <Kpi icon={FiFileText} label="Toplam Evrak" value={totalDocuments.toLocaleString("tr-TR")} helper="Filtrelenen kayıtlar" />
+              <Kpi icon={FiTruck} label="Kargo Firması" value={uniqueCargo.toLocaleString("tr-TR")} helper="Benzer yazımlar birleştirilmiş" />
+              <Kpi icon={FiUsers} label="Gönderen Firma" value={uniqueSender.toLocaleString("tr-TR")} helper={`${uniqueInvoiceNames} irsaliye adı`} />
+            </section>
+
+            {dataQuality.variantFamilies > 0 && (
+              <section className="cargo-enter flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-amber-400/20 dark:bg-amber-500/10" style={{ animationDelay: ".12s" }}>
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300"><FiStar /></div>
+                  <div>
+                    <div className="text-sm font-black text-amber-900 dark:text-amber-100">Veri kalitesi uyarısı: {dataQuality.variantFamilies} benzer değer ailesi bulundu</div>
+                    <div className="mt-0.5 text-xs font-medium text-amber-700/80 dark:text-amber-200/70">Büyük/küçük harf, boşluk ve Türkçe karakter farklılıkları nedeniyle aynı firma veya irsaliye farklı yazılmış olabilir. Bir filtre seçtiğinizde benzerlerini size önereceğim.</div>
+                  </div>
+                </div>
+                <span className="shrink-0 rounded-full bg-white/70 px-3 py-1.5 text-xs font-black text-amber-700 dark:bg-black/10 dark:text-amber-200">{dataQuality.affectedValues} varyasyon</span>
+              </section>
+            )}
+
+            
+            <motion.section layout className="mb-4 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#111925]">
+              <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 xl:flex-row xl:items-center xl:justify-between dark:border-white/5">
+                <div className="flex flex-wrap gap-2">
+                  {["Kargo Firma Analizi","Gönderen Firma Analizi","Eksik Veri Kontrolü","İrsaliye Analizi"].map(name=>
+                    <button key={name} onClick={()=>applyView(name)} className={cx("rounded-xl border px-3 py-2 text-xs font-black transition hover:-translate-y-0.5",presetName===name?"border-sky-300 bg-sky-50 text-sky-700 dark:bg-sky-500/10":"border-slate-200 text-slate-600 hover:border-sky-300 dark:border-white/10 dark:text-slate-300")}>{name}</button>)}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={()=>setColumnsOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 transition hover:border-sky-300 hover:text-sky-600 dark:border-white/10 dark:text-slate-300"><FiColumns/> Kolonlar</button>
+                  <button onClick={saveCurrentView} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 transition hover:border-sky-300 hover:text-sky-600 dark:border-white/10 dark:text-slate-300"><FiSave/> Görünümü Kaydet</button>
+                  <button onClick={restoreSavedView} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 transition hover:border-sky-300 hover:text-sky-600 dark:border-white/10 dark:text-slate-300"><FiGrid/> Kayıtlı Görünüm</button>
+                  <button onClick={()=>setQualityOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-700 transition hover:-translate-y-0.5 dark:border-amber-400/15 dark:bg-amber-500/10 dark:text-amber-300"><FiDatabase/> Veri Kalitesi <span className="rounded-full bg-white/80 px-1.5">{qualityFamilies.length}</span></button>
+                  <button onClick={()=>setComparisonOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white transition hover:-translate-y-0.5 hover:bg-sky-600 dark:bg-white dark:text-slate-950"><FiTrendingUp/> Karşılaştır</button>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 px-4 py-3">
+                <span className="mr-1 text-[10px] font-black uppercase tracking-wider text-slate-400">Aktif filtreler</span>
+                <AnimatePresence initial={false}>
+                  {filterChips.map((chip,i)=><motion.button layout initial={{opacity:0,scale:.85,y:-4}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:.8}} key={`${chip.kind}-${chip.label}-${i}`} disabled={chip.locked} onClick={()=>!chip.locked&&removeChip(chip)} className={cx("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-black",chip.locked?"border-slate-200 bg-slate-50 text-slate-500 dark:border-white/10 dark:bg-white/5":"border-sky-200 bg-sky-50 text-sky-700 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 dark:border-sky-400/15 dark:bg-sky-500/10 dark:text-sky-300")}>{chip.kind==="range"?<FiCalendar/>:<FiFilter/>}{chip.label}{!chip.locked&&<FiX/>}</motion.button>)}
+                </AnimatePresence>
+                {activeFilterCount>0&&<button onClick={clearFilters} className="ml-auto text-xs font-black text-rose-500 hover:underline">Tüm filtreleri temizle</button>}
+              </div>
+              <motion.div layout className="flex items-center gap-3 border-t border-slate-100 bg-sky-50/50 px-4 py-3 dark:border-white/5 dark:bg-sky-500/[.04]">
+                <motion.div key={filteredRows.length} initial={{scale:.7,opacity:0}} animate={{scale:1,opacity:1}} className="grid h-9 min-w-9 place-items-center rounded-xl bg-sky-600 px-2 text-sm font-black text-white">{filteredRows.length.toLocaleString("tr-TR")}</motion.div>
+                <div><div className="text-xs font-black text-slate-700 dark:text-slate-200">Bu filtrelerle {filteredRows.length.toLocaleString("tr-TR")} kayıt görüntülenecek</div><div className="text-[11px] font-medium text-slate-400">Filtreler değiştikçe sonuç ve diğer filtre seçenekleri canlı güncellenir.</div></div>
+              </motion.div>
+            </motion.section>
+
+
+            <AnimatePresence>
+              {analysisOpen && (
+                <motion.section initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} className="mb-4 grid gap-4 xl:grid-cols-[1.45fr_.8fr]">
+                  <div className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#111925]">
+                    <div className="mb-4 flex items-center justify-between"><div><h3 className="text-sm font-black text-slate-900 dark:text-white">Günlük Kargo Trendi</h3><p className="text-[11px] text-slate-400">Grafikte bir güne tıklayarak o güne odaklanabilirsiniz.</p></div><FiTrendingUp className="text-sky-500"/></div>
+                    <div className="h-64"><ResponsiveContainer width="100%" height="100%"><AreaChart data={dailyTrend} onClick={(e)=>{const d=e?.activePayload?.[0]?.payload?.date;if(d){setQuickSearch(formatDate(d));setPage(1);}}}><defs><linearGradient id="cargoArea" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#0ea5e9" stopOpacity={.35}/><stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" opacity={.15}/><XAxis dataKey="label" tick={{fontSize:10}} minTickGap={24}/><YAxis tick={{fontSize:10}}/><Tooltip/><Area type="monotone" dataKey="count" stroke="#0ea5e9" strokeWidth={3} fill="url(#cargoArea)" activeDot={{r:6}}/></AreaChart></ResponsiveContainer></div>
+                  </div>
+                  <div className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#111925]">
+                    <div className="mb-3 flex items-center justify-between"><div><h3 className="text-sm font-black text-slate-900 dark:text-white">Dikkat Gerektiren Kayıtlar</h3><p className="text-[11px] text-slate-400">Eksik ve sıra dışı dağılımlar.</p></div><FiAlertTriangle className="text-amber-500"/></div>
+                    <div className="space-y-2">{anomalies.length?anomalies.map((a,i)=><motion.button whileHover={{x:3}} key={i} onClick={()=>{if(a.value){handleSelect(a.field,[{value:a.value,label:a.value}])}else if(a.field==="irsaliye_adi"){setPresetName("Eksik Veri Kontrolü")}}} className="flex w-full items-center justify-between rounded-xl border border-slate-100 px-3 py-3 text-left transition hover:border-amber-200 hover:bg-amber-50/50 dark:border-white/5 dark:hover:bg-amber-500/5"><span className="text-xs font-bold text-slate-600 dark:text-slate-300">{a.type}</span><span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-black text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">{a.count}</span></motion.button>):<div className="rounded-xl bg-emerald-50 p-4 text-xs font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"><FiCheckCircle className="mb-2"/>Belirgin anomali bulunamadı.</div>}</div>
+                  </div>
+                </motion.section>
+              )}
+            </AnimatePresence>
+<section className="cargo-enter overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#111925]" style={{ animationDelay: ".14s" }}>
+              <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 dark:border-white/10 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <div className="relative min-w-0 flex-1 lg:max-w-xl">
+                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input value={quickSearch} onChange={(e) => setQuickSearch(e.target.value)} placeholder="Kargo, gönderi no, gönderen, irsaliye veya Odak evrak ara…" className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm font-semibold text-slate-700 outline-none transition focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-500/10 dark:border-white/10 dark:bg-[#0d141f] dark:text-slate-200 dark:focus:bg-[#0d141f]" />
+                  </div>
+                  {loadedRange && <div className="hidden shrink-0 text-xs font-bold text-slate-400 xl:block"><FiCalendar className="mr-1 inline" /> {formatDate(loadedRange.start)} – {formatDate(loadedRange.end)}</div>}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => setFiltersOpen((v) => !v)} className={cx("inline-flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-sm font-extrabold transition hover:-translate-y-0.5", filtersOpen ? "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-400/20 dark:bg-sky-500/10 dark:text-sky-300" : "border-slate-200 text-slate-600 dark:border-white/10 dark:text-slate-300")}><FiSliders /> Filtreler {activeFilterCount > 0 && <span className="rounded-full bg-sky-600 px-1.5 py-0.5 text-[10px] text-white">{activeFilterCount}</span>}</button>
+                  <button onClick={() => setAnalysisOpen((v) => !v)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-extrabold text-slate-600 transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-sky-600 dark:border-white/10 dark:text-slate-300"><FiBarChart2 /> Analiz</button>
+                  {activeFilterCount > 0 && <button onClick={clearFilters} className="inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-extrabold text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-500/10"><FiX /> Temizle</button>}
+                </div>
+              </div>
+
+              {filtersOpen && (
+                <div className="border-b border-slate-200 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-white/[.02]">
+                  <div className="mb-3 flex items-start gap-2 rounded-xl border border-sky-100 bg-white/80 px-3 py-2.5 text-xs font-semibold text-slate-500 shadow-sm dark:border-sky-400/10 dark:bg-white/[.03] dark:text-slate-400">
+                    <FiZap className="mt-0.5 shrink-0 text-sky-500" />
+                    <span><strong className="text-slate-700 dark:text-slate-200">Akıllı bağlı filtreler aktif.</strong> Bir alan seçtiğinizde diğer filtrelerin seçenekleri yalnızca o seçime uyan kayıtlardan yeniden hesaplanır. Parantez içindeki sayı, o seçeneğin mevcut filtrelerle kaç kaydı temsil ettiğini gösterir.</span>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  <div>
+                    <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-400"><FiFileText /> İrsaliye Adı</div>
+                    <Select isMulti value={selectedIrsaliye} options={irsaliyeOptions} onChange={(v) => handleSelect("irsaliye_adi", v)} styles={selectStyles(isDark)} placeholder="İrsaliye adı seç…" noOptionsMessage={() => "Sonuç yok"} />
+                  </div>
+                  <div>
+                    <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-400"><FiTruck /> Kargo Firması</div>
+                    <Select isMulti value={selectedKargo} options={kargoOptions} onChange={(v) => handleSelect("kargo_firmasi", v)} styles={selectStyles(isDark)} placeholder="Kargo firması seç…" noOptionsMessage={() => "Sonuç yok"} />
+                  </div>
+                  <div>
+                    <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-400"><FiSend /> Gönderen Firma</div>
+                    <Select isMulti value={selectedGonderen} options={gonderenOptions} onChange={(v) => handleSelect("gonderen_firma", v)} styles={selectStyles(isDark)} placeholder="Gönderen firma seç…" noOptionsMessage={() => "Sonuç yok"} />
+                  </div>
+                  <label>
+                    <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-400"><FiSearch /> İrsaliye No</div>
+                    <input value={irsaliyeNo} onChange={(e) => setIrsaliyeNo(e.target.value)} placeholder="İrsaliye no içinde ara…" className="h-11 w-full rounded-[14px] border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-500/10 dark:border-white/10 dark:bg-[#111925] dark:text-slate-200" />
+                  </label>
+                  </div>
+                </div>
+              )}
+
+              {suggestion && (
+                <div className="mx-4 mt-4 flex flex-col gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-sky-400/20 dark:bg-sky-500/10">
+                  <div className="flex items-start gap-3">
+                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-sky-600 shadow-sm dark:bg-white/10 dark:text-sky-300"><FiStar /></div>
+                    <div>
+                      <div className="text-sm font-black text-sky-900 dark:text-sky-100">Buna benzeyen {suggestion.variants.length} değer daha buldum</div>
+                      <div className="mt-1 text-xs font-medium text-sky-700/80 dark:text-sky-200/70">{suggestion.variants.slice(0, 4).join(" • ")}{suggestion.variants.length > 4 ? ` • +${suggestion.variants.length - 4}` : ""}</div>
+                      <div className="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Harf büyüklüğü, boşluk ve Türkçe karakter farklılıkları benzer kabul edildi.</div>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <button onClick={() => setSuggestion(null)} className="rounded-xl px-3 py-2 text-xs font-black text-slate-500 transition hover:bg-white dark:hover:bg-white/5">Hayır</button>
+                    <button onClick={addSuggestedVariants} className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-3.5 py-2 text-xs font-black text-white shadow-md transition hover:-translate-y-0.5 hover:bg-sky-700"><FiCheck /> Filtreye Ekle</button>
+                  </div>
+                </div>
+              )}
+
+              {analysisOpen && (
+                <div className="grid gap-3 border-b border-slate-200 p-4 dark:border-white/10 lg:grid-cols-3">
+                  <Distribution title="Kargo Firmaları" icon={FiTruck} items={topCargo} total={filteredRows.length} />
+                  <Distribution title="Gönderen Firmalar" icon={FiUsers} items={topSender} total={filteredRows.length} />
+                  <Distribution title="İrsaliye Adları" icon={FiFileText} items={topInvoice} total={filteredRows.length} />
+                </div>
+              )}
+
+              <div className="overflow-x-auto">
+                <table className="min-w-[1450px] w-full border-collapse">
+                  <thead className="sticky top-0 z-10 bg-slate-950 text-left text-[10px] font-black uppercase tracking-[.11em] text-slate-300 dark:bg-[#080d14]">
+                    <tr>
+                      <th className="px-4 py-3.5">Tarih</th>
+                      <th className="px-4 py-3.5">Kargo Firması</th>
+                      <th className="px-4 py-3.5">Gönderi No</th>
+                      <th className="px-4 py-3.5">Gönderen Firma</th>
+                      <th className="px-4 py-3.5">İrsaliye Adı</th>
+                      <th className="px-4 py-3.5">İrsaliye No</th>
+                      <th className="px-4 py-3.5">Odak Evrak No</th>
+                      <th className="px-4 py-3.5 text-center">Evrak</th>
+                      <th className="px-4 py-3.5 text-right">İşlem</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                    {visibleRows.length === 0 ? (
+                      <tr><td colSpan={9} className="px-6 py-16 text-center"><div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-white/5"><FiSearch size={23} /></div><div className="mt-3 text-sm font-black text-slate-600 dark:text-slate-300">Filtrelere uygun kayıt bulunamadı</div><div className="mt-1 text-xs text-slate-400">Filtreleri değiştirerek tekrar deneyin.</div></td></tr>
+                    ) : visibleRows.map((row, index) => (
+                      <tr key={row.id ?? `${page}-${index}`} className="cargo-row group bg-white transition hover:bg-sky-50/55 dark:bg-transparent dark:hover:bg-sky-500/[.055]" style={{ animationDelay: `${Math.min(index, 15) * 18}ms` }}>
+                        <td className="whitespace-nowrap px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400">{formatDate(row.tarih)}</td>
+                        <td className="px-4 py-3"><div className="flex items-center gap-2"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-sky-50 text-sky-600 transition group-hover:scale-105 dark:bg-sky-500/10 dark:text-sky-300"><FiTruck size={14} /></span><span className="max-w-[190px] truncate text-sm font-black text-slate-800 dark:text-slate-100" title={row.kargo_firmasi}>{row.kargo_firmasi || "—"}</span></div></td>
+                        <td className="px-4 py-3"><button onClick={() => setDetail({ title: "Gönderi Numarası", value: row.gonderi_numarasi })} className="max-w-[180px] truncate font-mono text-xs font-bold text-sky-700 hover:underline dark:text-sky-300" title={row.gonderi_numarasi}>{row.gonderi_numarasi || "—"}</button></td>
+                        <td className="px-4 py-3"><span className="block max-w-[230px] truncate text-sm font-semibold text-slate-700 dark:text-slate-200" title={row.gonderen_firma}>{row.gonderen_firma || "—"}</span></td>
+                        <td className="px-4 py-3"><span className="inline-flex max-w-[220px] items-center gap-2 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-extrabold text-slate-700 dark:bg-white/5 dark:text-slate-200" title={row.irsaliye_adi}><FiFileText className="shrink-0 text-sky-500" /><span className="truncate">{row.irsaliye_adi || "—"}</span></span></td>
+                        <td className="px-4 py-3"><button onClick={() => setDetail({ title: "İrsaliye Numarası", value: row.irsaliye_no })} className="block max-w-[220px] truncate text-left text-xs font-bold text-sky-700 hover:underline dark:text-sky-300" title={row.irsaliye_no}>{row.irsaliye_no || "—"}</button></td>
+                        <td className="px-4 py-3"><button onClick={() => setDetail({ title: "Odak Evrak Numarası", value: row.odak_evrak_no })} className="block max-w-[220px] truncate text-left text-xs font-bold text-slate-600 hover:text-sky-600 hover:underline dark:text-slate-300" title={row.odak_evrak_no}>{row.odak_evrak_no || "—"}</button></td>
+                        <td className="px-4 py-3 text-center"><span className="inline-flex min-w-9 justify-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">{row.evrak_adedi ?? 0}</span></td>
+                        <td className="px-4 py-3"><div className="flex justify-end gap-1.5"><button onClick={() => openEdit(row)} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600 dark:border-white/10 dark:hover:bg-amber-500/10" title="Düzenle"><FiEdit2 /></button><button onClick={() => deleteRow(row)} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 dark:border-white/10 dark:hover:bg-rose-500/10" title="Sil"><FiTrash2 /></button></div></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/10">
+                <div className="text-xs font-semibold text-slate-400">{filteredRows.length.toLocaleString("tr-TR")} kaydın {filteredRows.length ? ((page - 1) * PAGE_SIZE + 1).toLocaleString("tr-TR") : 0}–{Math.min(page * PAGE_SIZE, filteredRows.length).toLocaleString("tr-TR")} arası gösteriliyor.</div>
+                <div className="flex items-center gap-2">
+                  <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-sky-300 hover:text-sky-600 disabled:opacity-30 dark:border-white/10"><FiChevronLeft /></button>
+                  <span className="min-w-24 text-center text-xs font-black text-slate-600 dark:text-slate-300">{page} / {pageCount}</span>
+                  <button disabled={page >= pageCount} onClick={() => setPage((p) => Math.min(pageCount, p + 1))} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-sky-300 hover:text-sky-600 disabled:opacity-30 dark:border-white/10"><FiChevronRight /></button>
+                </div>
+              </div>
+            </section>
+          </div>
+        )}
+      </div>
+
+
+      {columnsOpen && <Modal title="Kolon Yönetimi" subtitle="Tabloda görmek istediğiniz alanları seçin. Seçiminiz bu tarayıcıda kaydedilir." onClose={()=>setColumnsOpen(false)} footer={<div className="flex justify-between"><button onClick={()=>setVisibleColumns(DEFAULT_COLUMNS)} className="text-sm font-black text-slate-500">Tümünü Göster</button><button onClick={()=>setColumnsOpen(false)} className="rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-black text-white">Uygula</button></div>}>
+        <div className="grid gap-2 sm:grid-cols-2">{ALL_COLUMNS.map(([key,label])=><button key={key} onClick={()=>setVisibleColumns(v=>v.includes(key)?v.filter(x=>x!==key):[...v,key])} className={cx("flex items-center justify-between rounded-xl border px-3 py-3 text-sm font-bold transition",visibleColumns.includes(key)?"border-sky-200 bg-sky-50 text-sky-700 dark:bg-sky-500/10":"border-slate-200 text-slate-400 dark:border-white/10")}><span>{label}</span>{visibleColumns.includes(key)?<FiEye/>:<FiEyeOff/>}</button>)}</div>
+        <p className="mt-4 text-xs text-slate-400">Not: Kolon görünürlüğü kaydedilir; tablo dışa aktarma verisinin tamamını korur.</p>
+      </Modal>}
+
+      {excelPreviewOpen && <Modal wide title="Excel Ön İzleme" subtitle={`${filteredRows.length.toLocaleString("tr-TR")} filtrelenmiş kayıt dışa aktarılacak.`} onClose={()=>setExcelPreviewOpen(false)} footer={<div className="flex justify-end gap-2"><button onClick={()=>setExcelPreviewOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-black dark:border-white/10">Vazgeç</button><button onClick={async()=>{setExcelPreviewOpen(false);await exportExcel();}} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-cyan-500 px-4 py-2.5 text-sm font-black text-white"><FiDownload/> Excel'i İndir</button></div>}>
+        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4"><Kpi icon={FiLayers} label="Kayıt" value={filteredRows.length}/><Kpi icon={FiFileText} label="Evrak" value={totalDocuments}/><Kpi icon={FiTruck} label="Kargo" value={uniqueCargo}/><Kpi icon={FiUsers} label="Gönderen" value={uniqueSender}/></div>
+        <div className="overflow-auto rounded-2xl border border-slate-200 dark:border-white/10"><table className="min-w-full text-xs"><thead className="bg-slate-950 text-white"><tr>{["Tarih","Kargo","Gönderen","İrsaliye Adı","İrsaliye No"].map(h=><th key={h} className="px-3 py-3 text-left">{h}</th>)}</tr></thead><tbody>{filteredRows.slice(0,12).map((r,i)=><tr key={i} className="border-t border-slate-100 dark:border-white/5"><td className="px-3 py-2">{formatDate(r.tarih)}</td><td className="px-3 py-2">{r.kargo_firmasi}</td><td className="px-3 py-2">{r.gonderen_firma}</td><td className="px-3 py-2">{r.irsaliye_adi}</td><td className="px-3 py-2">{r.irsaliye_no}</td></tr>)}</tbody></table></div>
+        {filteredRows.length>12&&<div className="mt-3 text-center text-xs font-bold text-slate-400">Ön izlemede ilk 12 kayıt gösteriliyor. Excel dosyasında {filteredRows.length.toLocaleString("tr-TR")} kaydın tamamı olacak.</div>}
+      </Modal>}
+
+      {qualityOpen && <Modal wide title="Veri Kalite Merkezi" subtitle="Aynı anlama gelebilecek farklı yazımları inceleyin; analizde birleştirin veya onayla veritabanında standartlaştırın." onClose={()=>setQualityOpen(false)}>
+        <div className="space-y-3">{qualityFamilies.length?qualityFamilies.map((f,i)=><motion.div layout key={`${f.field}-${f.key}`} className="rounded-2xl border border-slate-200 p-4 dark:border-white/10">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><div className="text-[10px] font-black uppercase tracking-wider text-sky-500">{FIELD_META[f.field]?.label}</div><div className="mt-1 text-sm font-black text-slate-800 dark:text-white">Önerilen standart: {f.canonical}</div><div className="mt-2 flex flex-wrap gap-1.5">{f.variants.map(v=><span key={v} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 dark:bg-white/5 dark:text-slate-300">{v}</span>)}</div></div>
+          <div className="flex shrink-0 gap-2"><button onClick={()=>handleSelect(f.field,f.variants.map(v=>({value:v,label:v})))} className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-black text-sky-700 dark:bg-sky-500/10">Birleştirilmiş Analiz</button><button onClick={()=>fixQualityFamily(f)} className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white dark:bg-white dark:text-slate-950">Veritabanında Düzelt</button></div></div>
+        </motion.div>):<div className="rounded-2xl bg-emerald-50 p-6 text-center text-sm font-black text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">Benzer yazılmış değer ailesi bulunamadı.</div>}</div>
+      </Modal>}
+
+      {comparisonOpen && <Modal wide title="Karşılaştırma Modu" subtitle="Yüklü tarih aralığında iki kargo firmasını yan yana karşılaştırın." onClose={()=>setComparisonOpen(false)}>
+        <div className="grid gap-4 md:grid-cols-2">{[["A",compareA,setCompareA],["B",compareB,setCompareB]].map(([label,val,setter])=><label key={label}><div className="mb-1.5 text-[11px] font-black uppercase text-slate-400">Firma {label}</div><select value={val} onChange={e=>setter(e.target.value)} className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 font-bold dark:border-white/10 dark:bg-[#0d141f]">{uniqueValues(filteredRows,"kargo_firmasi").map(v=><option key={v}>{v}</option>)}</select></label>)}</div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-3"><Kpi icon={FiTruck} label={compareA||"Firma A"} value={comparison.a}/><Kpi icon={FiTruck} label={compareB||"Firma B"} value={comparison.b}/><Kpi icon={FiTrendingUp} label="Fark" value={`${comparison.diff>0?"+":""}${comparison.diff} (${comparison.pct}%)`}/></div>
+        <div className="mt-5 h-64"><ResponsiveContainer width="100%" height="100%"><BarChart data={[{name:compareA||"A",count:comparison.a},{name:compareB||"B",count:comparison.b}]}><CartesianGrid strokeDasharray="3 3" opacity={.15}/><XAxis dataKey="name"/><YAxis/><Tooltip/><Bar dataKey="count" fill="#0ea5e9" radius={[10,10,0,0]}/></BarChart></ResponsiveContainer></div>
+      </Modal>}
+
+      {detail && (
+        <Modal title={detail.title} subtitle="Uzun değerleri görüntüleyebilir veya kopyalayabilirsiniz." onClose={() => setDetail(null)} footer={<div className="flex justify-end gap-2"><button onClick={() => copy(detail.value)} className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white transition hover:bg-sky-600 dark:bg-white dark:text-slate-950"><FiCopy /> Kopyala</button></div>}>
+          <div className="whitespace-pre-wrap break-words rounded-2xl bg-slate-50 p-4 font-mono text-sm leading-6 text-slate-700 dark:bg-black/20 dark:text-slate-200">{detail.value || "—"}</div>
+        </Modal>
+      )}
+
+      {editing && (
+        <Modal wide title="Kargo Kaydını Düzenle" subtitle="Değişiklikler doğrudan seçili kayda uygulanır." onClose={() => setEditing(null)} footer={<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><button onClick={() => deleteRow(editing)} className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black text-rose-600 transition hover:bg-rose-50 dark:hover:bg-rose-500/10"><FiTrash2 /> Kaydı Sil</button><div className="flex gap-2"><button onClick={() => setEditing(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-black text-slate-600 dark:border-white/10 dark:text-slate-300">Vazgeç</button><button onClick={saveEdit} className="rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-black text-white transition hover:bg-sky-700">Güncelle</button></div></div>}>
+          <div className="grid gap-4 md:grid-cols-2">
+            {[
+              ["tarih", "Tarih", "date"], ["kargo_firmasi", "Kargo Firması", "text"], ["gonderi_numarasi", "Gönderi Numarası", "text"], ["gonderen_firma", "Gönderen Firma", "text"], ["irsaliye_adi", "İrsaliye Adı", "text"], ["irsaliye_no", "İrsaliye No", "text"], ["odak_evrak_no", "Odak Evrak No", "text"],
+            ].map(([key, label, type]) => (
+              <label key={key} className={key === "irsaliye_no" || key === "odak_evrak_no" ? "md:col-span-2" : ""}>
+                <div className="mb-1.5 text-[11px] font-black uppercase tracking-wider text-slate-400">{label}</div>
+                <input type={type} value={editing[key] || ""} onChange={(e) => setEditing((old) => ({ ...old, [key]: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-500/10 dark:border-white/10 dark:bg-[#0d141f] dark:text-slate-200" />
+              </label>
+            ))}
+          </div>
+          <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:bg-white/[.02]">
+            <label className="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-200"><input type="checkbox" checked={extraEnabled} onChange={(e) => setExtraEnabled(e.target.checked)} className="h-4 w-4 accent-sky-600" /> Ekstra evrak adedi ekle</label>
+            <div className="flex items-center gap-3">{extraEnabled && <input type="number" min="0" value={extraCount} onChange={(e) => setExtraCount(e.target.value)} className="h-10 w-24 rounded-xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-sky-400 dark:border-white/10 dark:bg-[#0d141f]" />}<span className="rounded-full bg-sky-100 px-3 py-1.5 text-xs font-black text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">Hesaplanan evrak: {computedDocumentCount}</span></div>
+          </div>
+        </Modal>
+      )}
+    </Layout>
+  );
 }

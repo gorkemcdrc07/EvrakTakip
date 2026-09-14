@@ -205,12 +205,16 @@ export default function Tutanak() {
     };
 
     const fieldDefs = [
-        { key: "tasiyici", label: "Taşıyıcı", accent: "#b8960c" },
-        { key: "musteri", label: "Müşteri", accent: "#1a7f4b" },
-        { key: "plaka", label: "Araç Plakası", accent: "#b91c1c" },
+        { key: "tasiyici", label: "Taşıyıcı", accent: "#0ea5e9" },
+        { key: "musteri", label: "Müşteri", accent: "#06b6d4" },
+        { key: "plaka", label: "Araç Plakası", accent: "#14b8a6" },
         { key: "tarih", label: "Sefer Tarihi", accent: "#64748b" },
-        { key: "seferNo", label: "Sefer Numarası", accent: "#1d4ed8" },
+        { key: "seferNo", label: "Sefer Numarası", accent: "#0284c7" },
     ];
+
+    const completedFields = fieldDefs.filter(({ key }) => String(form[key] || "").trim()).length;
+    const completionPercent = Math.round((completedFields / fieldDefs.length) * 100);
+    const documentReady = completedFields === fieldDefs.length;
 
     return (
         <div className="t-screen">
@@ -256,11 +260,46 @@ export default function Tutanak() {
                         <h1>Tutanak Oluştur</h1>
                         <p>Excel dosyasını yükleyin; veriler otomatik okusun, Word veya PDF çıktısı alın.</p>
                     </div>
-                    <div className="t-status-pill">
+                    <div className={`t-status-pill ${documentReady ? "t-status-pill--ready" : ""}`}>
                         <span className="t-status-dot" />
-                        Hazır
+                        {documentReady ? "Belge Hazır" : `${completionPercent}% Tamamlandı`}
                     </div>
                 </div>
+
+                <section className="t-workflow">
+                    <div className={`t-workflow-step ${fileName ? "is-done" : "is-active"}`}>
+                        <span className="t-workflow-index">{fileName ? "✓" : "1"}</span>
+                        <div>
+                            <strong>Veriyi Hazırla</strong>
+                            <span>{fileName ? "Excel dosyası okundu" : "Excel yükleyin veya alanları elle girin"}</span>
+                        </div>
+                    </div>
+                    <div className={`t-workflow-line ${completionPercent > 0 ? "is-active" : ""}`} />
+                    <div className={`t-workflow-step ${completionPercent > 0 ? (documentReady ? "is-done" : "is-active") : ""}`}>
+                        <span className="t-workflow-index">{documentReady ? "✓" : "2"}</span>
+                        <div>
+                            <strong>Belgeyi Kontrol Et</strong>
+                            <span>{completedFields}/{fieldDefs.length} alan tamamlandı</span>
+                        </div>
+                    </div>
+                    <div className={`t-workflow-line ${documentReady ? "is-active" : ""}`} />
+                    <div className={`t-workflow-step ${documentReady ? "is-active" : ""}`}>
+                        <span className="t-workflow-index">3</span>
+                        <div>
+                            <strong>Çıktıyı Al</strong>
+                            <span>Word, PDF, Excel veya yazdır</span>
+                        </div>
+                    </div>
+                    <div className="t-completion">
+                        <div className="t-completion-top">
+                            <span>Belge Doluluğu</span>
+                            <strong>{completionPercent}%</strong>
+                        </div>
+                        <div className="t-completion-track">
+                            <span style={{ width: `${completionPercent}%` }} />
+                        </div>
+                    </div>
+                </section>
 
                 <div className="t-layout">
 
@@ -437,7 +476,10 @@ export default function Tutanak() {
                                     <span className="t-card-label">Canlı Önizleme</span>
                                     <h2>Belge Görünümü</h2>
                                 </div>
-                                <div className="t-preview-badge">A4</div>
+                                <div className="t-preview-tools">
+                                    <span className="t-preview-live"><i /> Canlı</span>
+                                    <div className="t-preview-badge">A4</div>
+                                </div>
                             </div>
 
                             <div className="t-preview-scroll">

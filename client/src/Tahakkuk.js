@@ -1,5 +1,7 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Layout from "./components/Layout";
+import useDarkMode from "./hooks/useDarkMode";
+import { ArrowLeft, CalendarDays, Check, CircleDollarSign, Download, Edit3, FileSpreadsheet, Plus, Search, Trash2, Users, X } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { motion, AnimatePresence } from "framer-motion";
 import * as XLSX from "xlsx";
@@ -15,14 +17,51 @@ const formatTR = (dateStr, time = false) => {
     return new Intl.DateTimeFormat("tr-TR", options).format(date);
 };
 
+// Turkish-safe comparison/display helpers.
+// Comparison intentionally treats Turkish diacritics as equivalent:
+// i/ı/İ/I, u/ü, o/ö, c/ç, s/ş, g/ğ.
+const normalizeTurkishKey = (value) =>
+    String(value ?? "")
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLocaleLowerCase("tr-TR")
+        .replace(/ı/g, "i")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim()
+        .replace(/\s+/g, " ");
+
+const canonicalTurkishName = (value) =>
+    String(value ?? "")
+        .normalize("NFC")
+        .trim()
+        .replace(/\s+/g, " ")
+        .toLocaleUpperCase("tr-TR");
+
+const dedupeTahakkukRows = (list = []) => {
+    const seen = new Map();
+
+    list.forEach((row) => {
+        const key = normalizeTurkishKey(row?.tedarikci_firma);
+        if (!key) {
+            seen.set(`__id_${row?.id}`, row);
+            return;
+        }
+
+        // Query is already newest-first, so keep the latest record on screen.
+        if (!seen.has(key)) seen.set(key, row);
+    });
+
+    return Array.from(seen.values());
+};
+
 const LargeButton = ({ children, primary = false, disabled = false, ...props }) => (
     <button
         {...props}
         disabled={disabled}
-        className={`px-10 py-5 rounded-2xl font-black text-xl transition-all flex items-center justify-center gap-3 ${disabled ? "opacity-50 cursor-not-allowed" : "active:scale-95"
+        className={`px-5 py-3 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 ${disabled ? "opacity-50 cursor-not-allowed" : "active:scale-95"
             } ${primary
-                ? "bg-indigo-600 text-white shadow-2xl hover:bg-indigo-500"
-                : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                ? "bg-sky-600 text-white shadow-lg shadow-sky-500/20 hover:bg-sky-500"
+                : "bg-white dark:bg-white/[.05] border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:border-sky-300"
             }`}
     >
         {children}
@@ -30,13 +69,14 @@ const LargeButton = ({ children, primary = false, disabled = false, ...props }) 
 );
 
 const STATUS_MAP = {
-    odenecek: { label: "Ödenecek", color: "bg-amber-500", light: "bg-amber-500/10 text-amber-400", icon: "⏳" },
-    odendi: { label: "Ödendi", color: "bg-emerald-500", light: "bg-emerald-500/10 text-emerald-400", icon: "✅" },
-    bulunamadi: { label: "Bulunamadı", color: "bg-rose-500", light: "bg-rose-500/10 text-rose-400", icon: "❌" }
+    odenecek: { label: "Ödenecek", color: "bg-amber-500", light: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300", icon: "⏳" },
+    odendi: { label: "Ödendi", color: "bg-emerald-500", light: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300", icon: "✅" },
+    bulunamadi: { label: "Bulunamadı", color: "bg-rose-500", light: "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300", icon: "❌" }
 };
 
 export default function Tahakkuk() {
-    const adSoyad = localStorage.getItem("ad") ?? "Kullanıcı";
+    useDarkMode();
+    const adSoyad = canonicalTurkishName(localStorage.getItem("ad") ?? "Kullanıcı");
     const [rows, setRows] = useState([]);
     const [q, setQ] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
@@ -89,14 +129,13 @@ export default function Tahakkuk() {
         not: ""
     });
 
-    const normalizedFirmName = (value) =>
-        (value || "").toLocaleLowerCase("tr-TR").trim();
+    const normalizedFirmName = (value) => normalizeTurkishKey(value);
 
     const existingFirmNames = useMemo(() => {
         const uniqueMap = new Map();
 
         rows.forEach((r) => {
-            const original = (r.tedarikci_firma || "").trim();
+            const original = canonicalTurkishName(r.tedarikci_firma);
             const normalized = normalizedFirmName(original);
 
             if (!original) return;
@@ -108,7 +147,7 @@ export default function Tahakkuk() {
         });
 
         return Array.from(uniqueMap.values()).sort((a, b) =>
-            a.localeCompare(b, "tr", { sensitivity: "base" })
+            a.localeCompare(b, "tr-TR", { sensitivity: "base" })
         );
     }, [rows, editingId]);
 
@@ -143,7 +182,7 @@ export default function Tahakkuk() {
             .select("*")
             .order("olusturulma_tarihi", { ascending: false });
 
-        if (data) setRows(data);
+        if (data) setRows(dedupeTahakkukRows(data));
     };
 
     const checkExpiredRows = async () => {
@@ -164,8 +203,9 @@ export default function Tahakkuk() {
             return;
         }
 
-        setExpiredRows(data);
-        setSelectedExpiredIds(data.map((r) => r.id));
+        const uniqueExpired = dedupeTahakkukRows(data);
+        setExpiredRows(uniqueExpired);
+        setSelectedExpiredIds(uniqueExpired.map((r) => r.id));
         setExpiredPanelOpen(true);
     };
 
@@ -180,7 +220,7 @@ export default function Tahakkuk() {
 
     const handleBulkStatusUpdate = async (newStatus) => {
         const now = new Date().toISOString();
-        const islemNotu = `TOPLU ${STATUS_MAP[newStatus].label.toUpperCase()} YAPILDI`;
+        const islemNotu = `TOPLU ${STATUS_MAP[newStatus].label.toLocaleUpperCase("tr-TR")} YAPILDI`;
 
         const { error } = await supabase
             .from("tahakkuk")
@@ -257,10 +297,10 @@ export default function Tahakkuk() {
 
     const exportToExcel = () => {
         const excelData = filteredRows.map((r) => ({
-            FİRMA: r.tedarikci_firma.toUpperCase(),
-            "NOT / AÇIKLAMA": (r.aciklama || "-").toUpperCase(),
+            FİRMA: canonicalTurkishName(r.tedarikci_firma),
+            "NOT / AÇIKLAMA": String(r.aciklama || "-").toLocaleUpperCase("tr-TR"),
             "ÖDEME GÜNÜ": formatTR(r.odeme_gunu),
-            DURUM: STATUS_MAP[r.durum].label.toUpperCase()
+            DURUM: STATUS_MAP[r.durum].label.toLocaleUpperCase("tr-TR")
         }));
 
         const worksheet = XLSX.utils.json_to_sheet(excelData);
@@ -271,7 +311,7 @@ export default function Tahakkuk() {
 
     const updateStatus = async (id, newStatus) => {
         const now = new Date().toISOString();
-        const islemNotu = STATUS_MAP[newStatus].label.toUpperCase() + " YAPILDI";
+        const islemNotu = STATUS_MAP[newStatus].label.toLocaleUpperCase("tr-TR") + " YAPILDI";
 
         const { error } = await supabase
             .from("tahakkuk")
@@ -306,7 +346,7 @@ export default function Tahakkuk() {
         setSaving(true);
 
         const payload = {
-            tedarikci_firma: form.tedarikci_firma.trim(),
+            tedarikci_firma: canonicalTurkishName(form.tedarikci_firma),
             tarih: form.tarih,
             odeme_gunu: form.odeme_gunu,
             aciklama: form.not,
@@ -349,7 +389,7 @@ export default function Tahakkuk() {
         setEditingId(r.id);
         setShowSuggestions(false);
         setForm({
-            tedarikci_firma: r.tedarikci_firma,
+            tedarikci_firma: canonicalTurkishName(r.tedarikci_firma),
             odeme_gunu: r.odeme_gunu,
             tarih: r.tarih,
             not: r.aciklama
@@ -358,9 +398,9 @@ export default function Tahakkuk() {
     };
 
     const filteredRows = rows.filter((r) => {
-        const matchesSearch = `${r.tedarikci_firma || ""} ${r.aciklama || ""}`
-            .toLocaleLowerCase("tr-TR")
-            .includes(q.toLocaleLowerCase("tr-TR"));
+        const matchesSearch = normalizeTurkishKey(
+            `${r.tedarikci_firma || ""} ${r.aciklama || ""}`
+        ).includes(normalizeTurkishKey(q));
 
         const matchesStatus = filterStatus === "all" || r.durum === filterStatus;
         const matchesPaymentDay = filterPaymentDay === "all" || r.odeme_gunu === filterPaymentDay;
@@ -382,7 +422,7 @@ export default function Tahakkuk() {
 
     return (
         <Layout>
-            <div className="min-h-screen bg-black text-slate-100 p-10 font-sans w-full">
+            <div className="min-h-screen bg-slate-50 dark:bg-[#0b1220] text-slate-900 dark:text-slate-100 p-5 sm:p-6 lg:p-8 font-sans w-full transition-colors">
                 {/* Geçmiş Tarihli Kayıtlar Paneli */}
                 <AnimatePresence>
                     {expiredPanelOpen && expiredRows.length > 0 && (
@@ -558,19 +598,19 @@ export default function Tahakkuk() {
                     )}
                 </AnimatePresence>
 
-                <header className="w-full mb-12 flex justify-between items-center border-b border-slate-900 pb-8">
+                <header className="w-full mb-6 flex flex-col xl:flex-row xl:justify-between xl:items-center gap-4 border border-slate-200/80 dark:border-white/[.08] bg-white dark:bg-[#111927] rounded-[22px] p-5 sm:p-6 shadow-sm">
                     <div>
-                        <h1 className="text-6xl font-black tracking-tighter text-white uppercase italic">
-                            Tahakkuk <span className="text-indigo-600">Paneli</span>
+                        <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-950 dark:text-white">
+                            Tahakkuk <span className="text-sky-600 dark:text-sky-400">Paneli</span>
                         </h1>
-                        <p className="text-2xl text-slate-500 font-bold uppercase mt-2">
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-bold mt-1.5">
                             Kullanıcı: {adSoyad}
                         </p>
                     </div>
 
                     <div className="flex gap-4 items-center">
                         <select
-                            className="bg-slate-900 border-2 border-slate-800 text-white p-5 rounded-2xl font-bold text-lg focus:border-indigo-600 outline-none"
+                            className="h-11 bg-slate-50 dark:bg-[#0d141f] border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-100 px-3 rounded-xl font-bold text-xs focus:border-sky-400 outline-none"
                             value={filterPaymentDay}
                             onChange={(e) => setFilterPaymentDay(e.target.value)}
                         >
@@ -584,7 +624,7 @@ export default function Tahakkuk() {
 
                         <button
                             onClick={exportToExcel}
-                            className="px-8 py-5 rounded-2xl font-black text-xl bg-emerald-600 text-white hover:bg-emerald-500 transition-all active:scale-95 flex items-center gap-3 shadow-lg"
+                            className="h-11 px-4 rounded-xl font-black text-xs bg-emerald-600 text-white hover:bg-emerald-500 transition-all active:scale-95 flex items-center gap-2 shadow-sm"
                         >
                             📊 EXCEL
                         </button>
@@ -593,7 +633,7 @@ export default function Tahakkuk() {
                             value={q}
                             onChange={(e) => setQ(e.target.value)}
                             placeholder="ARA..."
-                            className="w-[300px] px-8 py-5 rounded-2xl bg-slate-900 border-2 border-slate-800 text-2xl font-black text-indigo-500 outline-none focus:border-indigo-600 transition-all"
+                            className="h-11 w-full xl:w-[260px] px-4 rounded-xl bg-slate-50 dark:bg-[#0d141f] border border-slate-200 dark:border-white/10 text-sm font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-sky-400 transition-all"
                         />
 
                         <LargeButton
@@ -615,12 +655,12 @@ export default function Tahakkuk() {
                     </div>
                 </header>
 
-                <div className="flex gap-4 mb-8 overflow-x-auto pb-2">
+                <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
                     <button
                         onClick={() => setFilterStatus("all")}
-                        className={`px-8 py-4 rounded-xl font-bold text-xl transition-all ${filterStatus === "all"
-                                ? "bg-white text-black"
-                                : "bg-slate-900 text-slate-500 hover:text-slate-300"
+                        className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all ${filterStatus === "all"
+                                ? "bg-sky-600 text-white"
+                                : "bg-white dark:bg-[#111927] border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:text-sky-600"
                             }`}
                     >
                         TÜMÜ
@@ -630,9 +670,9 @@ export default function Tahakkuk() {
                         <button
                             key={key}
                             onClick={() => setFilterStatus(key)}
-                            className={`px-8 py-4 rounded-xl font-bold text-xl transition-all ${filterStatus === key
+                            className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all ${filterStatus === key
                                     ? `${val.color} text-white`
-                                    : "bg-slate-900 text-slate-500 hover:text-slate-300"
+                                    : "bg-white dark:bg-[#111927] border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:text-sky-600"
                                 }`}
                         >
                             {val.label.toUpperCase()}
@@ -647,19 +687,19 @@ export default function Tahakkuk() {
                                     : filteredRows.map((r) => r.id)
                             )
                         }
-                        className="ml-auto px-6 py-4 rounded-xl border border-slate-800 text-slate-500 font-bold hover:bg-slate-900 transition-all"
+                        className="ml-auto px-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#111927] text-slate-500 dark:text-slate-400 text-xs font-bold hover:text-sky-600 transition-all"
                     >
                         {selectedIds.length === filteredRows.length ? "SEÇİMİ SIFIRLA" : "LİSTEYİ SEÇ"}
                     </button>
                 </div>
 
-                <div className="w-full space-y-6">
+                <div className="w-full space-y-3">
                     {filteredRows.map((r) => (
                         <div
                             key={r.id}
-                            className={`w-full rounded-[3.5rem] border p-10 flex items-center justify-between gap-8 transition-all relative ${selectedIds.includes(r.id)
-                                    ? "bg-indigo-900/20 border-indigo-500"
-                                    : "bg-slate-900/40 border-slate-800 hover:bg-slate-900"
+                            className={`w-full rounded-[20px] border p-4 sm:p-5 flex items-center justify-between gap-4 transition-all relative shadow-sm ${selectedIds.includes(r.id)
+                                    ? "bg-sky-50 dark:bg-sky-500/[.06] border-sky-400"
+                                    : "bg-white dark:bg-[#111927] border-slate-200/80 dark:border-white/[.08] hover:border-sky-200 dark:hover:border-sky-500/20"
                                 }`}
                         >
                             <div className="shrink-0">
@@ -680,26 +720,26 @@ export default function Tahakkuk() {
                                 className="flex-1 min-w-[200px] max-w-[25%] overflow-hidden cursor-pointer"
                                 onClick={() => setSelectedRow(r)}
                             >
-                                <h3 className="text-4xl font-black text-white uppercase truncate group-hover:text-indigo-400">
+                                <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white truncate">
                                     {r.tedarikci_firma}
                                 </h3>
-                                <p className="text-xl text-slate-500 font-bold mt-2 line-clamp-1 break-all italic uppercase">
+                                <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1 line-clamp-1 break-all">
                                     {r.aciklama || "---"}
                                 </p>
                             </div>
 
                             <div className="flex gap-4 shrink-0">
-                                <div className="bg-black px-6 py-4 rounded-[2rem] border border-indigo-900/30 text-center">
+                                <div className="bg-slate-50 dark:bg-[#0d141f] px-4 py-3 rounded-xl border border-slate-200 dark:border-white/[.08] text-center">
                                     <div className="text-[10px] font-black text-indigo-500 mb-1 uppercase tracking-widest">
                                         ÖDEME GÜNÜ
                                     </div>
-                                    <div className="text-2xl font-black text-white">
+                                    <div className="text-sm font-black text-slate-900 dark:text-white">
                                         {formatTR(r.odeme_gunu)}
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="flex gap-6 border-l border-slate-800 pl-8 shrink-0">
+                            <div className="hidden lg:flex gap-4 border-l border-slate-200 dark:border-white/[.08] pl-4 shrink-0">
                                 <div className="min-w-[130px]">
                                     <div className="text-[10px] font-black text-slate-600 uppercase tracking-tighter">
                                         OLUŞTURAN
@@ -740,12 +780,12 @@ export default function Tahakkuk() {
                                     {STATUS_MAP[r.durum].icon} {STATUS_MAP[r.durum].label}
                                 </div>
 
-                                <div className="flex gap-1 bg-black p-2 rounded-[2rem] border border-slate-800">
+                                <div className="flex gap-1 bg-slate-100 dark:bg-[#0d141f] p-1.5 rounded-xl border border-slate-200 dark:border-white/[.08]">
                                     {Object.entries(STATUS_MAP).map(([key, val]) => (
                                         <button
                                             key={key}
                                             onClick={() => updateStatus(r.id, key)}
-                                            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${r.durum === key
+                                            className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${r.durum === key
                                                     ? `${val.color} text-white scale-110 shadow-lg`
                                                     : "hover:bg-slate-800 text-slate-700"
                                                 }`}
@@ -758,7 +798,7 @@ export default function Tahakkuk() {
                                 <div className="flex gap-2 ml-4">
                                     <button
                                         onClick={(e) => openEdit(e, r)}
-                                        className="w-12 h-12 rounded-xl bg-slate-800 text-slate-400 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center text-xl"
+                                        className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-white/[.05] text-slate-500 hover:bg-sky-600 hover:text-white transition-all flex items-center justify-center text-sm"
                                     >
                                         ✏️
                                     </button>
@@ -772,7 +812,7 @@ export default function Tahakkuk() {
                                                 isBulk: false
                                             });
                                         }}
-                                        className="w-12 h-12 rounded-xl bg-slate-800 text-slate-400 hover:bg-rose-600 hover:text-white transition-all flex items-center justify-center text-xl"
+                                        className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-white/[.05] text-slate-500 hover:bg-rose-600 hover:text-white transition-all flex items-center justify-center text-sm"
                                     >
                                         🗑️
                                     </button>
@@ -832,21 +872,21 @@ export default function Tahakkuk() {
 
                 <AnimatePresence>
                     {open && (
-                        <div className="fixed inset-0 z-[200] flex items-center justify-center p-8 bg-black/95 backdrop-blur-md">
+                        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
                             <motion.div
                                 initial={{ y: 100 }}
                                 animate={{ y: 0 }}
-                                className="bg-slate-900 w-full max-w-4xl rounded-[4rem] p-16 border border-slate-800 shadow-2xl"
+                                className="bg-white dark:bg-[#111927] w-full max-w-2xl rounded-[24px] p-6 sm:p-7 border border-slate-200 dark:border-white/[.08] shadow-2xl"
                             >
-                                <h2 className="text-5xl font-black text-white mb-10 text-center uppercase italic tracking-tighter">
+                                <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-6 text-center tracking-tight">
                                     {editingId ? "KAYIT DÜZENLE" : "YENİ KAYIT"}
                                 </h2>
 
-                                <div className="space-y-8">
+                                <div className="space-y-4">
                                     <div className="relative">
                                         <input
                                             value={form.tedarikci_firma}
-                                            className={`w-full p-8 rounded-3xl bg-black border-2 text-3xl font-black text-white focus:border-indigo-500 outline-none uppercase ${duplicateFirm ? "border-rose-500" : "border-slate-800"
+                                            className={`w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-[#0d141f] border text-base font-black text-slate-900 dark:text-white focus:border-sky-400 outline-none ${duplicateFirm ? "border-rose-500" : "border-slate-800"
                                                 }`}
                                             placeholder="FİRMA ADI"
                                             onChange={(e) => {
@@ -858,12 +898,16 @@ export default function Tahakkuk() {
                                             }}
                                             onFocus={() => setShowSuggestions(true)}
                                             onBlur={() => {
+                                                setForm((prev) => ({
+                                                    ...prev,
+                                                    tedarikci_firma: canonicalTurkishName(prev.tedarikci_firma)
+                                                }));
                                                 setTimeout(() => setShowSuggestions(false), 150);
                                             }}
                                         />
 
                                         {duplicateFirm && (
-                                            <div className="mt-3 px-4 py-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm font-bold uppercase tracking-wide">
+                                            <div className="mt-2 px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-300 text-xs font-bold">
                                                 ⚠️ Bu firma listede zaten mevcut.
                                             </div>
                                         )}
@@ -874,7 +918,7 @@ export default function Tahakkuk() {
                                                     initial={{ opacity: 0, y: 8 }}
                                                     animate={{ opacity: 1, y: 0 }}
                                                     exit={{ opacity: 0, y: 8 }}
-                                                    className="absolute left-0 right-0 top-full mt-3 bg-slate-950 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden z-[999]"
+                                                    className="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-[#0d141f] border border-slate-200 dark:border-white/[.08] rounded-xl shadow-2xl overflow-hidden z-[999]"
                                                 >
                                                     {firmSuggestions.map((name) => (
                                                         <button
@@ -883,11 +927,11 @@ export default function Tahakkuk() {
                                                             onMouseDown={() => {
                                                                 setForm({
                                                                     ...form,
-                                                                    tedarikci_firma: name
+                                                                    tedarikci_firma: canonicalTurkishName(name)
                                                                 });
                                                                 setShowSuggestions(false);
                                                             }}
-                                                            className="w-full text-left px-6 py-4 text-lg font-bold text-slate-200 hover:bg-indigo-600 hover:text-white transition-all border-b border-slate-800 last:border-b-0 uppercase"
+                                                            className="w-full text-left px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-sky-600 hover:text-white transition-all border-b border-slate-100 dark:border-white/[.06] last:border-b-0"
                                                         >
                                                             {name}
                                                         </button>
@@ -897,10 +941,10 @@ export default function Tahakkuk() {
                                         </AnimatePresence>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-6">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <input
                                             type="date"
-                                            className="w-full p-8 rounded-3xl bg-black border-2 border-slate-800 text-2xl font-bold text-white uppercase"
+                                            className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-[#0d141f] border border-slate-200 dark:border-white/10 text-sm font-bold text-slate-900 dark:text-white"
                                             value={form.tarih}
                                             onChange={(e) =>
                                                 setForm({ ...form, tarih: e.target.value })
@@ -909,7 +953,7 @@ export default function Tahakkuk() {
 
                                         <select
                                             value={form.odeme_gunu}
-                                            className="w-full p-8 rounded-3xl bg-black border-2 border-slate-800 text-2xl font-bold text-white outline-none"
+                                            className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-[#0d141f] border border-slate-200 dark:border-white/10 text-sm font-bold text-slate-900 dark:text-white outline-none"
                                             onChange={(e) =>
                                                 setForm({ ...form, odeme_gunu: e.target.value })
                                             }
@@ -925,15 +969,15 @@ export default function Tahakkuk() {
                                     <textarea
                                         value={form.not}
                                         rows={3}
-                                        className="w-full p-8 rounded-3xl bg-black border-2 border-slate-800 text-2xl text-white outline-none uppercase"
+                                        className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-[#0d141f] border border-slate-200 dark:border-white/10 text-sm text-slate-900 dark:text-white outline-none"
                                         placeholder="AÇIKLAMA..."
                                         onChange={(e) => setForm({ ...form, not: e.target.value })}
                                     />
                                 </div>
 
-                                <div className="flex gap-8 mt-12">
+                                <div className="flex gap-3 mt-6">
                                     <button
-                                        className="flex-1 text-2xl font-black text-slate-600 hover:text-white transition-all"
+                                        className="flex-1 h-11 rounded-xl border border-slate-200 dark:border-white/10 text-xs font-black text-slate-500 dark:text-slate-300 hover:text-sky-600 transition-all"
                                         onClick={() => {
                                             setOpen(false);
                                             setEditingId(null);

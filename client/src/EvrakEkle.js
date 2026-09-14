@@ -14,8 +14,12 @@ import {
     FiSave,
     FiCheckCircle,
     FiAlertTriangle,
-    FiZap,
-    FiHome,
+    FiMapPin,
+    FiFileText,
+    FiCommand,
+    FiShield,
+    FiArrowLeft,
+    FiRefreshCw,
 } from "react-icons/fi";
 
 /* =========================
@@ -261,6 +265,7 @@ function Btn({
     leftIcon: LeftIcon,
     rightIcon: RightIcon,
     className,
+    children,
     ...props
 }) {
     const sizes = {
@@ -270,36 +275,41 @@ function Btn({
     };
 
     const base =
-        "inline-flex items-center justify-center gap-2 rounded-2xl font-extrabold " +
-        "transition-all duration-200 select-none active:scale-[0.98] " +
+        "group/btn relative isolate inline-flex items-center justify-center gap-2 overflow-hidden rounded-xl font-extrabold " +
+        "transition-all duration-300 select-none active:translate-y-0 active:scale-[0.96] " +
         "disabled:opacity-60 disabled:cursor-not-allowed " +
-        "focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500/20";
+        "focus:outline-none focus-visible:ring-4 focus-visible:ring-cyan-500/20";
 
     const variants = {
         primary:
-            "text-white bg-gradient-to-r from-indigo-600 to-sky-500 " +
-            "shadow-[0_12px_30px_rgba(79,70,229,0.24)] " +
-            "hover:brightness-[1.03] hover:shadow-[0_16px_36px_rgba(79,70,229,0.28)] " +
+            "text-white bg-gradient-to-r from-blue-600 to-cyan-500 " +
+            "shadow-[0_12px_30px_rgba(8,145,178,0.22)] " +
+            "hover:-translate-y-0.5 hover:brightness-[1.04] hover:shadow-[0_16px_36px_rgba(8,145,178,0.28)] " +
             "border border-white/10",
         secondary:
             "text-slate-700 dark:text-slate-100 " +
-            "bg-white/90 dark:bg-slate-800/90 backdrop-blur-md " +
-            "border border-slate-200 dark:border-slate-600 " +
-            "hover:bg-slate-50 dark:hover:bg-slate-700/90",
+            "bg-white dark:bg-white/[0.06] backdrop-blur-md " +
+            "border border-slate-200 dark:border-white/10 shadow-[0_6px_18px_rgba(15,23,42,.06)] " +
+            "hover:-translate-y-0.5 hover:border-cyan-300 hover:text-cyan-700 hover:shadow-[0_12px_28px_rgba(8,145,178,.12)] dark:hover:border-cyan-500/30 dark:hover:bg-cyan-950/20 dark:hover:text-cyan-200",
         ghost:
-            "text-indigo-700 dark:text-indigo-200 bg-transparent border border-transparent " +
-            "hover:bg-indigo-50 dark:hover:bg-slate-800/80",
+            "text-cyan-700 dark:text-cyan-300 bg-transparent border border-transparent " +
+            "hover:bg-cyan-50 dark:hover:bg-cyan-950/30",
         danger:
-            "text-white bg-gradient-to-r from-red-600 via-rose-600 to-red-600 " +
-            "shadow-[0_12px_30px_rgba(239,68,68,0.20)] hover:brightness-[1.04] " +
-            "border border-white/10",
+            "text-rose-600 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/20 " +
+            "shadow-[0_6px_18px_rgba(244,63,94,0.08)] hover:-translate-y-0.5 hover:bg-rose-600 hover:text-white hover:shadow-[0_12px_28px_rgba(244,63,94,0.22)] " +
+            "border border-rose-200 dark:border-rose-500/20",
     };
 
     return (
         <button className={clsx(base, sizes[size], variants[variant], className)} {...props}>
-            {LeftIcon ? <LeftIcon /> : null}
-            {props.children}
-            {RightIcon ? <RightIcon /> : null}
+            <span className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12 bg-white/25 opacity-0 blur-sm transition-all duration-700 group-hover/btn:left-[120%] group-hover/btn:opacity-100" />
+            {LeftIcon ? (
+                <span className="relative z-10 grid h-6 w-6 place-items-center rounded-lg bg-current/10 transition duration-300 group-hover/btn:-rotate-6 group-hover/btn:scale-110">
+                    <LeftIcon className="h-4 w-4" />
+                </span>
+            ) : null}
+            <span className="relative z-10">{children}</span>
+            {RightIcon ? <RightIcon className="relative z-10 transition-transform duration-300 group-hover/btn:translate-x-1" /> : null}
         </button>
     );
 }
@@ -315,7 +325,7 @@ function Tag({ tone = "neutral", children, className = "" }) {
         danger:
             "bg-red-50 border border-red-200 text-red-700 dark:bg-red-950/30 dark:border-red-800 dark:text-red-200",
         info:
-            "bg-indigo-50 border border-indigo-200 text-indigo-700 dark:bg-indigo-950/30 dark:border-indigo-800 dark:text-indigo-200",
+            "bg-cyan-50 border border-cyan-200 text-cyan-700 dark:bg-cyan-950/30 dark:border-cyan-800/60 dark:text-cyan-200",
     };
 
     return (
@@ -376,7 +386,7 @@ function StepPill({ idx, label, active, done }) {
                 done
                     ? "bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-200"
                     : active
-                        ? "bg-indigo-50 border-indigo-200 text-indigo-800 dark:bg-indigo-950/30 dark:border-indigo-800 dark:text-indigo-200"
+                        ? "bg-cyan-50 border-cyan-200 text-cyan-800 dark:bg-cyan-950/30 dark:border-cyan-800 dark:text-cyan-200"
                         : "bg-white/80 border-slate-200 text-slate-600 dark:bg-slate-800/80 dark:border-slate-700 dark:text-slate-300"
             )}
         >
@@ -386,7 +396,7 @@ function StepPill({ idx, label, active, done }) {
                     done
                         ? "bg-emerald-600 text-white"
                         : active
-                            ? "bg-indigo-600 text-white"
+                            ? "bg-gradient-to-br from-blue-600 to-cyan-400 text-white shadow-[0_3px_10px_rgba(6,182,212,.3)]"
                             : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200"
                 )}
             >
@@ -399,10 +409,10 @@ function StepPill({ idx, label, active, done }) {
 
 function Card({ title, icon: Icon, subtitle, right, children }) {
     return (
-        <section className="rounded-[28px] border border-slate-200/80 bg-white/88 shadow-[0_10px_30px_rgba(15,23,42,0.06)] backdrop-blur-md dark:border-slate-700/70 dark:bg-slate-900/72">
+        <section className="group overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_10px_35px_rgba(15,23,42,0.055)] transition duration-300 hover:border-cyan-300/70 hover:shadow-[0_16px_45px_rgba(8,145,178,0.09)] dark:border-white/[0.08] dark:bg-[#111927] dark:hover:border-cyan-500/25">
             <div className="flex items-start justify-between gap-3 border-b border-slate-200/70 px-5 py-4 dark:border-slate-700/70">
                 <div className="flex items-start gap-3">
-                    <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-indigo-600 to-sky-500 text-white shadow-sm">
+                    <div className="grid h-10 w-10 place-items-center rounded-xl border border-cyan-400/20 bg-gradient-to-br from-blue-600 to-cyan-400 text-white shadow-[0_8px_20px_rgba(8,145,178,.22)] transition duration-300 group-hover:scale-105 group-hover:rotate-3">
                         <Icon />
                     </div>
                     <div>
@@ -418,14 +428,14 @@ function Card({ title, icon: Icon, subtitle, right, children }) {
 }
 
 const fieldClass =
-    "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition " +
-    "placeholder:text-slate-400 focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-400 " +
-    "dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100";
+    "w-full rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-900 outline-none transition duration-200 " +
+    "placeholder:text-slate-400 hover:border-slate-300 focus:bg-white focus:ring-4 focus:ring-cyan-500/10 focus:border-cyan-500 " +
+    "dark:border-white/[0.09] dark:bg-[#0b1320] dark:text-slate-100 dark:hover:border-white/20 dark:focus:border-cyan-500";
 
 const selectClass =
-    "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition " +
-    "focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-400 " +
-    "dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100";
+    "w-full rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-900 outline-none transition duration-200 " +
+    "hover:border-slate-300 focus:bg-white focus:ring-4 focus:ring-cyan-500/10 focus:border-cyan-500 " +
+    "dark:border-white/[0.09] dark:bg-[#0b1320] dark:text-slate-100 dark:hover:border-white/20 dark:focus:border-cyan-500";
 
 /* =========================
    Ana bileşen
@@ -764,77 +774,66 @@ export default function EvrakEkle() {
             <Toast show={toast.show} type={toast.type} message={toast.message} />
 
             <div
-                className="min-h-screen bg-[#F6F8FC] dark:bg-[#0F172A]
-        [background-image:radial-gradient(900px_circle_at_18%_10%,rgba(99,102,241,0.10),transparent_55%),radial-gradient(850px_circle_at_82%_40%,rgba(59,130,246,0.08),transparent_60%)]
-        dark:[background-image:radial-gradient(900px_circle_at_18%_10%,rgba(99,102,241,0.14),transparent_55%),radial-gradient(850px_circle_at_82%_40%,rgba(56,189,248,0.10),transparent_60%),radial-gradient(700px_circle_at_50%_85%,rgba(168,85,247,0.07),transparent_55%)]
-        text-slate-900 dark:text-slate-50 transition-colors duration-300"
+                className="min-h-screen bg-[#f5f7fa] text-slate-900 transition-colors duration-300 dark:bg-[#080e18] dark:text-slate-50
+        [background-image:radial-gradient(800px_circle_at_12%_2%,rgba(6,182,212,0.08),transparent_45%),radial-gradient(700px_circle_at_88%_18%,rgba(37,99,235,0.06),transparent_48%)]
+        dark:[background-image:radial-gradient(800px_circle_at_12%_2%,rgba(6,182,212,0.10),transparent_45%),radial-gradient(700px_circle_at_88%_18%,rgba(37,99,235,0.10),transparent_48%)]"
             >
-                <div className="mx-auto max-w-6xl px-4 py-8">
-                    <div className="mb-6 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white/88 shadow-[0_10px_30px_rgba(15,23,42,0.06)] backdrop-blur-md dark:border-slate-700/70 dark:bg-slate-900/72">
-                        <div className="px-6 py-5">
-                            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="mx-auto max-w-[1380px] px-4 py-6 sm:px-6 lg:px-8">
+                    <div className="relative mb-6">
+                        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="flex items-center gap-4">
+                                <button
+                                    type="button"
+                                    onClick={goHome}
+                                    className="group/back grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-[0_6px_20px_rgba(15,23,42,.07)] transition-all duration-300 hover:-translate-x-1 hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-700 hover:shadow-[0_12px_26px_rgba(8,145,178,.13)] active:scale-95 dark:border-white/10 dark:bg-[#111927] dark:text-slate-300 dark:hover:border-cyan-500/30 dark:hover:bg-cyan-950/20 dark:hover:text-cyan-300"
+                                    aria-label="Anasayfaya dön"
+                                    title="Anasayfaya dön"
+                                >
+                                    <FiArrowLeft className="h-5 w-5 transition-transform duration-300 group-hover/back:-translate-x-0.5" />
+                                </button>
+
                                 <div>
-                                    <Tag tone="info">
-                                        <FiZap /> Hızlı Giriş • Excel Yapıştır
-                                    </Tag>
-
-                                    <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-900 dark:text-white">
-                                        Evrak Ekle
-                                    </h2>
-
-                                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                                        Adım {step}/3 —{" "}
-                                        {step === 1
-                                            ? "Temel Bilgiler"
-                                            : step === 2
-                                                ? "Projeler"
-                                                : hasDuplicateSeferNo
-                                                    ? "Mükerrer Kontrol"
-                                                    : "Hazır"}
-                                    </p>
-
-                                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                                        <StepPill idx={1} label="Temel" active={step === 1} done={step > 1} />
-                                        <StepPill idx={2} label="Projeler" active={step === 2} done={step > 2} />
-                                        <StepPill
-                                            idx={3}
-                                            label="Kontrol"
-                                            active={step === 3}
-                                            done={step === 3 && !hasDuplicateSeferNo && validBasics && validProjects}
-                                        />
+                                    <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[.16em] text-cyan-600 dark:text-cyan-400">
+                                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-500" /> Yeni kayıt
                                     </div>
-                                </div>
-
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <Btn variant="secondary" size="md" leftIcon={FiHome} onClick={goHome}>
-                                        Anasayfa
-                                    </Btn>
-
-                                    <Tag tone="neutral">
-                                        Toplam Sefer:
-                                        <b className="ml-1 text-indigo-700 dark:text-indigo-200">{toplamSeferSayisi}</b>
-                                    </Tag>
-
-                                    <Tag tone={isDirty ? "warn" : "ok"}>
-                                        {isDirty ? "Kaydedilmemiş" : "Güncel"}
-                                    </Tag>
-
-                                    <Tag tone="neutral">Ctrl/⌘+S</Tag>
+                                    <div className="mt-1 flex items-center gap-3">
+                                        <h1 className="text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-3xl">Evrak Ekle</h1>
+                                        <span className={clsx("hidden rounded-full px-2.5 py-1 text-[10px] font-black sm:inline-flex", isDirty ? "bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300")}>
+                                            {isDirty ? "TASLAK" : "GÜNCEL"}
+                                        </span>
+                                    </div>
+                                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Yeni evrak ve sefer bilgilerini hızlıca oluştur.</p>
                                 </div>
                             </div>
 
-                            <div className="mt-5 h-2 w-full overflow-hidden rounded-full bg-slate-200/80 dark:bg-slate-800">
-                                <div
-                                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-sky-500 to-violet-500 transition-all"
-                                    style={{ width: `${step === 1 ? 33 : step === 2 ? 66 : 100}%` }}
-                                />
+                            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                                <div className="flex h-11 items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-500 shadow-sm dark:border-white/10 dark:bg-[#111927] dark:text-slate-400">
+                                    <FiFileText className="text-cyan-500" /> Toplam sefer
+                                    <b className="text-base text-slate-950 dark:text-white">{toplamSeferSayisi}</b>
+                                </div>
+                                <div className="hidden h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-500 shadow-sm sm:flex dark:border-white/10 dark:bg-[#111927] dark:text-slate-400">
+                                    <FiCommand className="text-cyan-500" /> Ctrl/⌘ + S
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-3 shadow-[0_8px_28px_rgba(15,23,42,.05)] dark:border-white/[0.08] dark:bg-[#111927]">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <StepPill idx={1} label="Temel Bilgiler" active={step === 1} done={step > 1} />
+                                <div className="hidden h-px flex-1 bg-slate-200 sm:block dark:bg-white/10" />
+                                <StepPill idx={2} label="Proje & Sefer" active={step === 2} done={step > 2} />
+                                <div className="hidden h-px flex-1 bg-slate-200 sm:block dark:bg-white/10" />
+                                <StepPill idx={3} label="Kontrol & Kaydet" active={step === 3} done={step === 3 && !hasDuplicateSeferNo && validBasics && validProjects} />
+                            </div>
+                            <div className="mt-3 h-1 overflow-hidden rounded-full bg-slate-100 dark:bg-white/[0.06]">
+                                <div className="h-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all duration-700" style={{ width: `${step === 1 ? 33 : step === 2 ? 66 : 100}%` }} />
                             </div>
                         </div>
 
                         {mesaj && (
                             <div
                                 className={clsx(
-                                    "px-6 py-4 text-sm font-extrabold",
+                                    "mt-3 rounded-xl px-5 py-3 text-sm font-extrabold",
                                     mesaj.includes("✅")
                                         ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200"
                                         : "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-200"
@@ -845,7 +844,7 @@ export default function EvrakEkle() {
                         )}
                     </div>
 
-                    <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+                    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
                         <div className="space-y-6">
                             <Card
                                 icon={FiClipboard}
@@ -856,7 +855,7 @@ export default function EvrakEkle() {
                                 <textarea
                                     placeholder="Excel'den verileri buraya yapıştır (Ctrl+V)"
                                     onPaste={handlePaste}
-                                    className="w-full min-h-[120px] rounded-3xl border border-slate-200 bg-white p-4 font-mono text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                                    className="min-h-[112px] w-full resize-y rounded-xl border border-dashed border-cyan-300 bg-cyan-50/35 p-4 font-mono text-sm text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-cyan-400 focus:border-cyan-500 focus:bg-white focus:ring-4 focus:ring-cyan-500/10 dark:border-cyan-500/25 dark:bg-cyan-950/10 dark:text-slate-100 dark:focus:bg-[#0b1320]"
                                 />
                             </Card>
 
@@ -894,7 +893,7 @@ export default function EvrakEkle() {
 
                                         <div>
                                             <label className="mb-1 flex items-center gap-2 text-xs font-extrabold text-slate-600 dark:text-slate-300">
-                                                Lokasyon
+                                                <FiMapPin /> Lokasyon
                                             </label>
 
                                             {loading ? (
@@ -933,7 +932,7 @@ export default function EvrakEkle() {
                                         {form.projeler.map((p, i) => (
                                             <div
                                                 key={i}
-                                                className="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm transition hover:shadow-md dark:border-slate-700 dark:bg-slate-900/70"
+                                                className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 transition hover:border-cyan-300 hover:bg-white dark:border-white/[0.08] dark:bg-[#0b1320] dark:hover:border-cyan-500/25"
                                             >
                                                 <div className="grid gap-3 sm:grid-cols-[1fr_180px_auto] sm:items-center">
                                                     {loading ? (
@@ -1031,7 +1030,7 @@ export default function EvrakEkle() {
                                             return (
                                                 <div
                                                     key={i}
-                                                    className="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm transition hover:shadow-md dark:border-slate-700 dark:bg-slate-900/70"
+                                                    className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 transition hover:border-cyan-300 hover:bg-white dark:border-white/[0.08] dark:bg-[#0b1320] dark:hover:border-cyan-500/25"
                                                 >
                                                     <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
                                                         <div>
@@ -1046,7 +1045,7 @@ export default function EvrakEkle() {
                                                                     "w-full rounded-2xl border px-4 py-3 text-sm outline-none transition focus:ring-4",
                                                                     isDupRow
                                                                         ? "border-red-300 bg-red-50 text-red-800 placeholder:text-red-400 focus:ring-red-200/60 dark:border-red-800 dark:bg-red-950/30 dark:text-red-100"
-                                                                        : "border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:ring-indigo-500/15 focus:border-indigo-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                                                                        : "border-slate-200 bg-slate-50/70 text-slate-900 placeholder:text-slate-400 focus:ring-cyan-500/10 focus:border-cyan-500 dark:border-white/[0.09] dark:bg-[#0b1320] dark:text-slate-100"
                                                                 )}
                                                             />
                                                             {isDupRow && (
@@ -1099,7 +1098,7 @@ export default function EvrakEkle() {
                                 </Card>
 
                                 <div className="sticky bottom-0 z-10">
-                                    <div className="rounded-[28px] border border-slate-200/80 bg-white/95 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur-md dark:border-slate-700/70 dark:bg-slate-900/92">
+                                    <div className="rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-[0_16px_40px_rgba(15,23,42,0.10)] backdrop-blur-xl dark:border-white/[0.09] dark:bg-[#111927]/95">
                                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                             <div className="text-xs font-extrabold text-slate-600 dark:text-slate-300">
                                                 {saving ? "Kaydediliyor…" : isDirty ? "Değişiklikler kaydedilmedi." : "Her şey güncel."}
@@ -1113,7 +1112,7 @@ export default function EvrakEkle() {
                                             </div>
 
                                             <div className="flex items-center justify-end gap-2">
-                                                <Btn variant="secondary" size="md" type="button" onClick={clearAll} disabled={saving}>
+                                                <Btn variant="secondary" size="md" type="button" leftIcon={FiRefreshCw} onClick={clearAll} disabled={saving}>
                                                     Temizle
                                                 </Btn>
 
@@ -1153,28 +1152,31 @@ export default function EvrakEkle() {
 
                         <aside className="hidden lg:block">
                             <div className="sticky top-6 space-y-4">
-                                <div className="rounded-[28px] border border-slate-200/80 bg-white/88 p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] backdrop-blur-md dark:border-slate-700/70 dark:bg-slate-900/72">
-                                    <div className="text-sm font-extrabold text-slate-900 dark:text-slate-50">Özet</div>
+                                <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_10px_35px_rgba(15,23,42,0.055)] dark:border-white/[0.08] dark:bg-[#111927]">
+                                    <div className="border-b border-slate-200/70 bg-gradient-to-r from-slate-50 to-cyan-50/60 px-5 py-4 dark:border-white/[0.08] dark:from-[#111927] dark:to-cyan-950/20">
+                                        <div className="flex items-center gap-2 text-sm font-extrabold text-slate-900 dark:text-slate-50"><FiShield className="text-cyan-500" /> Kayıt Özeti</div>
+                                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Kaydetmeden önce canlı kontrol</p>
+                                    </div>
 
-                                    <div className="mt-3 space-y-3 text-sm">
-                                        <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/80">
+                                    <div className="space-y-3 p-5 text-sm">
+                                        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-white/[0.08] dark:bg-[#0b1320]">
                                             <span className="text-slate-600 dark:text-slate-300">Adım</span>
                                             <b className="text-slate-900 dark:text-white">{step}/3</b>
                                         </div>
 
-                                        <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/80">
+                                        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-white/[0.08] dark:bg-[#0b1320]">
                                             <span className="text-slate-600 dark:text-slate-300">Toplam Sefer</span>
-                                            <b className="text-indigo-700 dark:text-indigo-200">{toplamSeferSayisi}</b>
+                                            <b className="text-cyan-700 dark:text-cyan-300">{toplamSeferSayisi}</b>
                                         </div>
 
-                                        <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/80">
+                                        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-white/[0.08] dark:bg-[#0b1320]">
                                             <span className="text-slate-600 dark:text-slate-300">Durum</span>
                                             <b className={isDirty ? "text-amber-600 dark:text-amber-200" : "text-emerald-600 dark:text-emerald-200"}>
                                                 {isDirty ? "Kaydedilmemiş" : "Güncel"}
                                             </b>
                                         </div>
 
-                                        <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/80">
+                                        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-white/[0.08] dark:bg-[#0b1320]">
                                             <span className="text-slate-600 dark:text-slate-300">Mükerrer</span>
                                             <b className={hasDuplicateSeferNo ? "text-red-600 dark:text-red-300" : "text-emerald-600 dark:text-emerald-200"}>
                                                 {hasDuplicateSeferNo ? "Var" : "Yok"}
@@ -1182,13 +1184,13 @@ export default function EvrakEkle() {
                                         </div>
                                     </div>
 
-                                    <div className="mt-4 rounded-2xl bg-gradient-to-r from-indigo-500/10 via-sky-500/10 to-violet-500/10 p-4 text-xs text-slate-600 dark:text-slate-300">
+                                    <div className="mx-5 mb-5 rounded-xl border border-cyan-200/70 bg-cyan-50/70 p-4 text-xs text-slate-600 dark:border-cyan-500/15 dark:bg-cyan-950/15 dark:text-slate-300">
                                         İpucu: Excel yapıştırdıktan sonra sadece eksikleri düzenleyip <b>Ctrl/⌘+S</b> ile kaydedebilirsin.
                                     </div>
                                 </div>
 
-                                <div className="rounded-[28px] border border-slate-200/80 bg-white/88 p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] backdrop-blur-md dark:border-slate-700/70 dark:bg-slate-900/72">
-                                    <div className="text-sm font-extrabold text-slate-900 dark:text-slate-50">Taslak</div>
+                                <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_10px_35px_rgba(15,23,42,0.055)] dark:border-white/[0.08] dark:bg-[#111927]">
+                                    <div className="flex items-center gap-2 text-sm font-extrabold text-slate-900 dark:text-slate-50"><FiSave className="text-cyan-500" /> Akıllı Taslak</div>
                                     <div className="mt-2 text-xs text-slate-600 dark:text-slate-300">
                                         Değişiklikler otomatik taslak olarak saklanır. Kaydet sonrası temizlenir.
                                     </div>

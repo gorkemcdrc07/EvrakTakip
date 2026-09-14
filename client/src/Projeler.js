@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
 import Layout from "./components/Layout";
@@ -15,6 +15,10 @@ import {
     FiCheckCircle,
     FiX,
     FiGrid,
+    FiActivity,
+    FiLayers,
+    FiRefreshCw,
+    FiCommand,
 } from "react-icons/fi";
 
 function Projeler() {
@@ -137,195 +141,65 @@ function Projeler() {
 
     return (
         <Layout>
-            {/* ✅ ETS morumsu arka plan + aynı glow dili */}
-            <div
-                className="min-h-screen text-zinc-950 dark:text-zinc-50 transition-colors duration-300
-        bg-[#F7F5FF] dark:bg-[#070A13]
-        [background-image:radial-gradient(900px_circle_at_18%_10%,rgba(139,92,246,0.14),transparent_55%),radial-gradient(850px_circle_at_82%_40%,rgba(236,72,153,0.10),transparent_60%)]
-        dark:[background-image:radial-gradient(900px_circle_at_18%_10%,rgba(139,92,246,0.18),transparent_55%),radial-gradient(850px_circle_at_82%_40%,rgba(236,72,153,0.10),transparent_60%),radial-gradient(700px_circle_at_50%_85%,rgba(34,211,238,0.08),transparent_55%)]
-      "
-            >
-                <div className="max-w-6xl mx-auto px-4 py-10">
-                    {/* Header */}
-                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
-                        <div className="space-y-4">
-                            <button
-                                onClick={goHome}
-                                type="button"
-                                className="group flex items-center gap-2 text-sm font-semibold text-zinc-600 dark:text-zinc-300 hover:text-violet-400 transition-colors"
-                            >
-                                <FiHome className="group-hover:-translate-y-0.5 transition-transform" />
-                                Ana Sayfaya Dön
+            <div className="min-h-screen bg-slate-50 text-slate-950 transition-colors duration-300 dark:bg-[#0b1220] dark:text-slate-50">
+                <div className="mx-auto w-full max-w-[1680px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+                    <div className="mb-5 flex flex-col gap-5 border-b border-slate-200/80 pb-5 dark:border-white/[0.08] lg:flex-row lg:items-end lg:justify-between">
+                        <div>
+                            <button onClick={goHome} type="button" className="group mb-4 inline-flex items-center gap-2 text-xs font-extrabold text-slate-500 transition hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-300">
+                                <FiHome className="transition-transform duration-200 group-hover:-translate-y-0.5" /> Ana Sayfaya Dön
                             </button>
-
-                            <div className="flex items-center gap-4">
-                                <div className="p-3.5 rounded-2xl bg-violet-600/90 text-white shadow-xl shadow-violet-200/60 dark:shadow-none">
-                                    <FiGrid size={28} />
-                                </div>
-                                <div>
-                                    <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
-                                        Proje Yönetimi
-                                    </h1>
-                                    <p className="text-zinc-600 dark:text-zinc-300 font-medium mt-1">
-                                        Sistemdeki projeleri düzenleyin ve takip edin.
-                                    </p>
-                                </div>
+                            <div className="flex items-center gap-3">
+                                <div className="grid h-11 w-11 place-items-center rounded-2xl border border-slate-200 bg-white text-blue-600 shadow-sm dark:border-white/10 dark:bg-white/[0.05] dark:text-blue-300"><FiFolder size={21}/></div>
+                                <div><p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-blue-600 dark:text-blue-300">Operasyon Tanımları</p><h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Proje Yönetimi</h1></div>
                             </div>
+                            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">Projeleri tek ekrandan yönetin, arayın ve gerektiğinde hızlıca düzenleyin.</p>
                         </div>
-
-                        <div className="flex items-center gap-3">
-                            <div className="px-4 py-2 bg-white/70 dark:bg-white/[0.04] border border-violet-200/60 dark:border-white/10 rounded-xl shadow-sm backdrop-blur-xl">
-                                <span className="text-sm font-extrabold text-violet-700 dark:text-violet-200">
-                                    {projeler.length}
-                                </span>
-                                <span className="text-sm text-zinc-500 dark:text-zinc-300 ml-1.5 uppercase tracking-wider font-semibold">
-                                    Toplam
-                                </span>
-                            </div>
-
-                            <button
-                                onClick={() => setAddOpen(true)}
-                                className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 active:scale-95
-                  text-white px-6 py-3 rounded-xl font-extrabold
-                  shadow-lg shadow-violet-200/60 dark:shadow-none transition-all"
-                            >
-                                <FiPlus size={20} /> Yeni Proje
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Toolbar */}
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-8">
-                        <div className="md:col-span-9 relative group">
-                            <FiSearch
-                                className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-violet-400 transition-colors"
-                                size={20}
-                            />
-                            <input
-                                value={q}
-                                onChange={(e) => setQ(e.target.value)}
-                                placeholder="Proje ismine göre ara..."
-                                className="w-full pl-12 pr-4 py-3.5 rounded-2xl
-                  bg-white/70 dark:bg-white/[0.04] backdrop-blur-xl
-                  border border-violet-200/60 dark:border-white/10
-                  focus:ring-4 focus:ring-violet-500/15 focus:border-violet-300/70 outline-none transition-all font-semibold"
-                            />
-                        </div>
-
-                        <button
-                            onClick={() => setSortAsc((v) => !v)}
-                            className="md:col-span-3 flex items-center justify-center gap-3 rounded-2xl
-                bg-white/70 dark:bg-white/[0.04] backdrop-blur-xl
-                border border-violet-200/60 dark:border-white/10
-                hover:bg-violet-50/70 dark:hover:bg-white/[0.06]
-                transition-all font-extrabold text-zinc-700 dark:text-zinc-200"
-                        >
-                            {sortAsc ? <FiChevronDown /> : <FiChevronUp />}
-                            {sortAsc ? "A'dan Z'ye" : "Z'den A'ya"}
+                        <button onClick={() => setAddOpen(true)} className="group inline-flex items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-cyan-950/10 transition duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-cyan-950/15 active:translate-y-0 active:scale-[.98]">
+                            <FiPlus className="transition-transform duration-300 group-hover:rotate-90" size={18}/> Yeni Proje
                         </button>
                     </div>
 
-                    {/* Error */}
-                    {errorMsg && (
-                        <div className="flex items-center gap-3 p-4 mb-6 rounded-2xl
-              bg-red-50 border border-red-100 text-red-700
-              dark:bg-red-900/20 dark:border-red-900/30 dark:text-red-300 animate-in fade-in slide-in-from-top-2"
-                        >
-                            <FiAlertTriangle size={20} />
-                            <span className="font-semibold">{errorMsg}</span>
+                    <div className="mb-5 rounded-2xl border border-slate-200/80 bg-white p-2 shadow-[0_10px_35px_rgba(15,23,42,.045)] dark:border-white/[0.08] dark:bg-[#111927]">
+                        <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                            <div className="relative min-w-0 flex-1 group">
+                                <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-blue-500" size={18}/>
+                                <input value={q} onChange={(e)=>setQ(e.target.value)} placeholder="Proje ara..." className="w-full rounded-xl border border-transparent bg-slate-50 py-3 pl-11 pr-11 text-sm font-semibold outline-none transition focus:border-blue-400/40 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:bg-white/[0.04] dark:focus:bg-white/[0.055]"/>
+                                {q && <button onClick={()=>setQ("")} className="absolute right-3 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-white"><FiX size={16}/></button>}
+                            </div>
+                            <div className="flex gap-2">
+                                <button onClick={()=>setSortAsc(v=>!v)} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-xs font-extrabold text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-white/10 dark:text-slate-300 dark:hover:border-blue-400/30 dark:hover:bg-blue-500/10 dark:hover:text-blue-300 md:flex-none">{sortAsc ? <FiChevronDown/> : <FiChevronUp/>}{sortAsc ? "A → Z" : "Z → A"}</button>
+                                <button onClick={fetchProjects} className="group inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-xs font-extrabold text-slate-600 transition hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-700 dark:border-white/10 dark:text-slate-300 dark:hover:border-cyan-400/30 dark:hover:bg-cyan-500/10 dark:hover:text-cyan-300 md:flex-none"><FiRefreshCw className="transition-transform duration-500 group-hover:rotate-180"/> Yenile</button>
+                            </div>
                         </div>
-                    )}
+                    </div>
 
-                    {/* Content */}
-                    {listLoading ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {[...Array(6)].map((_, i) => (
-                                <div
-                                    key={i}
-                                    className="h-28 rounded-[2rem] bg-white/70 dark:bg-white/[0.04]
-                    border border-violet-200/60 dark:border-white/10 animate-pulse"
-                                />
-                            ))}
-                        </div>
-                    ) : filtered.length ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                            {filtered.map((proje) => (
-                                <div
-                                    key={proje.id}
-                                    className="group relative
-                    bg-white/70 dark:bg-white/[0.04] backdrop-blur-xl
-                    border border-violet-200/60 dark:border-white/10
-                    p-5 rounded-[2rem] shadow-sm
-                    hover:shadow-xl hover:border-violet-300/70 dark:hover:border-violet-400/25
-                    hover:-translate-y-1 transition-all duration-300"
-                                >
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className="p-3 rounded-2xl
-                      bg-violet-50/80 dark:bg-white/[0.06]
-                      text-zinc-500 group-hover:text-violet-700 dark:group-hover:text-violet-200
-                      group-hover:bg-violet-100/80 dark:group-hover:bg-violet-500/10 transition-colors"
-                                        >
-                                            <FiFolder size={24} />
+                    <div className="mb-3 flex items-center justify-between px-1"><p className="text-xs font-bold text-slate-400"><span className="text-slate-700 dark:text-slate-200">{filtered.length}</span> proje gösteriliyor</p>{q && <span className="rounded-full bg-blue-500/10 px-2.5 py-1 text-[10px] font-extrabold text-blue-600 dark:text-blue-300">Arama aktif</span>}</div>
+                    {errorMsg && <div className="mb-5 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/30 dark:bg-red-900/15 dark:text-red-300"><FiAlertTriangle size={18}/>{errorMsg}</div>}
+
+                    <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_10px_35px_rgba(15,23,42,.045)] dark:border-white/[0.08] dark:bg-[#111927]">
+                        <div className="hidden grid-cols-[64px_1fr_150px] items-center border-b border-slate-200 bg-slate-50/70 px-5 py-3 text-[10px] font-extrabold uppercase tracking-[.12em] text-slate-400 sm:grid dark:border-white/[0.06] dark:bg-white/[0.018]"><span>#</span><span>Proje</span><span className="text-right">İşlemler</span></div>
+                        {listLoading ? (
+                            <div className="divide-y divide-slate-100 dark:divide-white/[0.05]">{[...Array(6)].map((_,i)=><div key={i} className="h-[74px] animate-pulse bg-slate-50/60 dark:bg-white/[0.015]" />)}</div>
+                        ) : filtered.length ? (
+                            <div className="divide-y divide-slate-100 dark:divide-white/[0.05]">
+                                {filtered.map((proje,index)=>(
+                                    <div key={proje.id} style={{ animationDelay: `${Math.min(index * 24, 220)}ms` }} className="group grid gap-3 px-4 py-3.5 animate-in fade-in slide-in-from-bottom-1 transition duration-300 hover:bg-slate-50/90 dark:hover:bg-white/[0.025] sm:grid-cols-[64px_1fr_150px] sm:items-center sm:px-5">
+                                        <div className="hidden sm:block"><span className="inline-flex h-8 min-w-8 items-center justify-center rounded-lg bg-slate-100 px-2 text-[11px] font-black text-slate-500 transition group-hover:bg-blue-500/10 group-hover:text-blue-600 dark:bg-white/[0.05] dark:text-slate-400 dark:group-hover:text-blue-300">{String(index+1).padStart(2,'0')}</span></div>
+                                        <div className="flex min-w-0 items-center gap-3">
+                                            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition duration-200 group-hover:-translate-y-0.5 group-hover:border-blue-300 group-hover:text-blue-600 dark:border-white/10 dark:bg-white/[0.035] dark:group-hover:border-blue-400/30 dark:group-hover:text-blue-300"><FiFolder size={18}/></div>
+                                            <div className="min-w-0"><h3 className="truncate text-sm font-extrabold text-slate-800 dark:text-slate-100">{proje.proje}</h3><p className="mt-0.5 text-[11px] font-medium text-slate-400">Tanımlı proje</p></div>
                                         </div>
-
-                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={() => {
-                                                    setSelected(proje);
-                                                    setEditOpen(true);
-                                                }}
-                                                className="p-2 rounded-lg text-zinc-400
-                          hover:bg-violet-50/80 dark:hover:bg-white/[0.06]
-                          hover:text-violet-700 dark:hover:text-violet-200 transition-all"
-                                                title="Düzenle"
-                                            >
-                                                <FiEdit2 size={18} />
-                                            </button>
-
-                                            <button
-                                                onClick={() => {
-                                                    setToDelete(proje);
-                                                    setConfirmOpen(true);
-                                                }}
-                                                className="p-2 rounded-lg text-zinc-400
-                          hover:bg-red-50 dark:hover:bg-red-900/20
-                          hover:text-red-600 dark:hover:text-red-300 transition-all"
-                                                title="Sil"
-                                            >
-                                                <FiTrash2 size={18} />
-                                            </button>
+                                        <div className="flex items-center justify-end gap-1 sm:opacity-60 sm:transition sm:group-hover:opacity-100">
+                                            <button onClick={()=>{setSelected(proje);setEditOpen(true);}} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 dark:text-slate-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300" title="Düzenle"><FiEdit2 size={15}/> Düzenle</button>
+                                            <button onClick={()=>{setToDelete(proje);setConfirmOpen(true);}} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-300" title="Sil"><FiTrash2 size={15}/></button>
                                         </div>
                                     </div>
-
-                                    <h3 className="text-lg font-extrabold truncate pr-2" title={proje.proje}>
-                                        {proje.proje}
-                                    </h3>
-                                    <p className="text-xs text-zinc-500 dark:text-zinc-300 mt-1 font-semibold tracking-wide uppercase italic">
-                                        ID: #{proje.id.toString().slice(0, 8)}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="py-20 flex flex-col items-center justify-center rounded-[3rem]
-              border-2 border-dashed border-violet-200/70 dark:border-white/10
-              bg-white/70 dark:bg-white/[0.04] backdrop-blur-xl"
-                        >
-                            <div className="w-20 h-20 rounded-full bg-violet-50/80 dark:bg-white/[0.06] flex items-center justify-center mb-6">
-                                <FiSearch size={32} className="text-zinc-400" />
+                                ))}
                             </div>
-                            <h3 className="text-xl font-extrabold">Sonuç bulunamadı</h3>
-                            <p className="text-zinc-600 dark:text-zinc-300 mt-2">
-                                Aramanıza uygun proje yok veya henüz hiç eklenmemiş.
-                            </p>
-                            <button
-                                onClick={() => setAddOpen(true)}
-                                className="mt-8 text-violet-700 dark:text-violet-200 font-extrabold hover:underline"
-                            >
-                                İlk projeyi oluşturmak için tıklayın
-                            </button>
-                        </div>
-                    )}
+                        ) : (
+                            <div className="px-6 py-20 text-center"><div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-white/[0.05]"><FiFolder size={24}/></div><h3 className="mt-4 text-base font-extrabold">Proje bulunamadı</h3><p className="mx-auto mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">Aramanızı değiştirin veya yeni bir proje oluşturun.</p><button onClick={()=>setAddOpen(true)} className="mt-5 text-sm font-extrabold text-blue-600 hover:text-blue-700 dark:text-blue-300">Yeni proje oluştur</button></div>
+                        )}
+                    </div>
                 </div>
 
                 {/* --- Modals --- */}
@@ -380,7 +254,7 @@ function Projeler() {
                         <div
                             className={`flex items-center gap-3 rounded-2xl px-6 py-4 shadow-2xl border backdrop-blur-xl
                 ${toast.type === "success"
-                                    ? "bg-white/70 dark:bg-white/[0.06] border-violet-200/60 dark:border-white/10 text-violet-800 dark:text-violet-200"
+                                    ? "bg-white/70 dark:bg-white/[0.06] border-slate-200/80 dark:border-white/10 text-blue-700 dark:text-blue-300"
                                     : "bg-white/70 dark:bg-white/[0.06] border-red-200/60 dark:border-red-900/30 text-red-700 dark:text-red-300"
                                 }`}
                         >
@@ -402,14 +276,14 @@ function Modal({ title, onClose, children }) {
             <div className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-200" onClick={onClose} />
             <div className="relative w-full max-w-lg rounded-[2.5rem]
         bg-white/85 dark:bg-[#0b1020]/90
-        border border-violet-200/60 dark:border-white/10
+        border border-slate-200/80 dark:border-white/10
         shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden"
             >
-                <div className="flex items-center justify-between px-8 py-6 border-b border-violet-100/70 dark:border-white/10">
+                <div className="flex items-center justify-between px-8 py-6 border-b border-slate-200/80 dark:border-white/10">
                     <h3 className="text-xl font-extrabold tracking-tight">{title}</h3>
                     <button
                         onClick={onClose}
-                        className="p-2 rounded-xl hover:bg-violet-50/70 dark:hover:bg-white/[0.06] text-zinc-500 dark:text-zinc-300 transition-colors"
+                        className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/[0.06] text-zinc-500 dark:text-zinc-300 transition-colors"
                     >
                         <FiX size={20} />
                     </button>
@@ -438,8 +312,8 @@ function ConfirmDialog({ title, message, confirmLabel, onConfirm, onCancel }) {
                     <button
                         onClick={onCancel}
                         className="flex-1 px-6 py-3.5 rounded-2xl font-extrabold
-              bg-violet-50/80 dark:bg-white/[0.06]
-              hover:bg-violet-100/80 dark:hover:bg-white/[0.08] transition-all"
+              bg-blue-50/80 dark:bg-white/[0.06]
+              hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-all"
                     >
                         Vazgeç
                     </button>
@@ -482,9 +356,9 @@ function ProjectForm({ defaultValue = "", submitLabel = "Kaydet", onSubmit, onCa
                     onChange={(e) => setValue(e.target.value)}
                     placeholder="Örn: Global Operasyon Planı"
                     className="w-full px-6 py-4 rounded-2xl
-            border border-violet-200/70 dark:border-white/10
-            bg-violet-50/50 dark:bg-black/20
-            focus:ring-4 focus:ring-violet-500/15 focus:border-violet-300/70
+            border border-slate-200/80 dark:border-white/10
+            bg-blue-50/50 dark:bg-black/20
+            focus:ring-4 focus:ring-blue-500/15 focus:border-blue-300/70
             outline-none transition-all font-semibold text-lg"
                 />
             </div>
@@ -494,8 +368,8 @@ function ProjectForm({ defaultValue = "", submitLabel = "Kaydet", onSubmit, onCa
                     type="button"
                     onClick={onCancel}
                     className="flex-1 px-6 py-4 rounded-2xl font-extrabold
-            border border-violet-200/70 dark:border-white/10
-            hover:bg-violet-50/70 dark:hover:bg-white/[0.06] transition-all"
+            border border-slate-200/80 dark:border-white/10
+            hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-all"
                 >
                     İptal
                 </button>
@@ -505,7 +379,7 @@ function ProjectForm({ defaultValue = "", submitLabel = "Kaydet", onSubmit, onCa
                     disabled={saving || !value.trim()}
                     className={`flex-[2] px-6 py-4 rounded-2xl font-extrabold text-white shadow-xl transition-all active:scale-95 ${saving || !value.trim()
                             ? "bg-zinc-300 dark:bg-zinc-700 cursor-not-allowed"
-                            : "bg-violet-600 hover:bg-violet-700 shadow-violet-200/60 dark:shadow-none"
+                            : "bg-blue-600 hover:bg-blue-700 shadow-cyan-950/10 dark:shadow-none"
                         }`}
                 >
                     {saving ? "İşleniyor..." : submitLabel}

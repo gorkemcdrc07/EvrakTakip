@@ -2,10 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body {
+:root {
+    --odak-red: #e11d2e;
+    --odak-red-dark: #be1223;
+    --odak-navy: #101827;
+    --odak-canvas: #f4f6f9;
+    --odak-surface: #ffffff;
+    --odak-border: #e2e7ee;
+}
+
+html, body, #root {
     margin: 0;
     padding: 0;
+    min-height: 100%;
 }
+
+html { font-size: 16px; }
+body { background: var(--odak-canvas); color: var(--odak-navy); font-family: Inter, "Segoe UI", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+* { box-sizing: border-box; }
+::selection { background: rgba(225, 29, 46, .15); color: #7f0d19; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cdd4de; border: 3px solid transparent; border-radius: 999px; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background-color: #aeb8c6; }
+.MuiPaper-root, .MuiCard-root { border-color: var(--odak-border) !important; }
+.MuiButton-root { min-height: 40px; border-radius: 10px !important; text-transform: none !important; font-weight: 700 !important; box-shadow: none !important; }
+.MuiButton-containedPrimary { background: var(--odak-red) !important; }
+.MuiButton-containedPrimary:hover { background: var(--odak-red-dark) !important; }
+.MuiOutlinedInput-root { border-radius: 10px !important; background: var(--odak-surface); }
+.MuiChip-root { border-radius: 8px !important; font-weight: 650; }
+.MuiTableHead-root .MuiTableCell-root { background: #f7f8fa; color: #475467; font-size: .78rem; font-weight: 800; letter-spacing: .025em; text-transform: uppercase; }
+.MuiTableCell-root { border-color: var(--odak-border) !important; }
+.MuiTableRow-root:hover .MuiTableCell-body { background: #fafbfc; }
+.dark body { background: #0c111b; color: #edf1f7; }
+.dark ::-webkit-scrollbar-thumb { background-color: #3b4657; }
+.dark .MuiOutlinedInput-root { background: #111927; }
+.dark .MuiTableHead-root .MuiTableCell-root { background: #151e2d; color: #aeb8c6; }
+.dark .MuiTableRow-root:hover .MuiTableCell-body { background: #111927; }
+@media (max-width: 640px) { .MuiButton-root { min-height: 44px; } }
 
 /* PRINT AYARLARI */
 @media print {

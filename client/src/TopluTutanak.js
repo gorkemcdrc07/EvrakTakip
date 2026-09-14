@@ -1,10 +1,10 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import api from './apiClient';
 import DatePicker from 'react-datepicker';
 import { tr } from 'date-fns/locale';
 import {
     Search, Loader2, Calendar as CalendarIcon, ArrowRight,
-    Download, FileCheck2, CheckCircle2, ShieldCheck
+    Download, FileCheck2, CheckCircle2, ShieldCheck, Building2, Database, Sparkles
 } from 'lucide-react';
 import 'react-datepicker/dist/react-datepicker.css';
 import './TopluTutanak.css';
@@ -130,6 +130,9 @@ const TopluTutanak = () => {
     const [firmaEslesmeleri, setFirmaEslesmeleri] = useState({});
     const [vknLoading, setVknLoading] = useState(false);
     const [vknHata, setVknHata] = useState(null);
+    const [vknProgress, setVknProgress] = useState(0);
+    const [vknFound, setVknFound] = useState(0);
+    const [vknTotal, setVknTotal] = useState(0);
 
     // Senin filtrelerin (Aynen korundu)
     const isBaseAllowed = (item) => {
@@ -152,6 +155,9 @@ const TopluTutanak = () => {
         // ✅ Yeni sorguda VKN eşleşmelerini sıfırla
         setFirmaEslesmeleri({});
         setVknHata(null);
+        setVknProgress(0);
+        setVknFound(0);
+        setVknTotal(0);
 
         try {
             const ranges = chunkDateRanges(startDate, endDate, 2);
@@ -205,6 +211,8 @@ const TopluTutanak = () => {
     const handleVknGetir = async () => {
         setVknLoading(true);
         setVknHata(null);
+        setVknProgress(6);
+        setVknFound(0);
 
         try {
             const unvanlar = Array.from(
@@ -215,6 +223,9 @@ const TopluTutanak = () => {
                 )
             );
 
+            setVknTotal(unvanlar.length);
+            setVknProgress(unvanlar.length ? 14 : 100);
+
             if (unvanlar.length === 0) {
                 setFirmaEslesmeleri({});
                 return;
@@ -222,6 +233,7 @@ const TopluTutanak = () => {
 
             const chunkSize = 100;
             const allRows = [];
+            const totalChunks = Math.ceil(unvanlar.length / chunkSize);
 
             for (let i = 0; i < unvanlar.length; i += chunkSize) {
                 const batch = unvanlar.slice(i, i + chunkSize);
@@ -233,8 +245,14 @@ const TopluTutanak = () => {
 
                 if (error) throw error;
                 if (data?.length) allRows.push(...data);
+
+                const completed = Math.floor(i / chunkSize) + 1;
+                const pct = 18 + Math.round((completed / totalChunks) * 68);
+                setVknProgress(Math.min(86, pct));
+                setVknFound(allRows.length);
             }
 
+            setVknProgress(92);
             const map = {};
             for (const r of allRows) {
                 const key = U(r.unvan);
@@ -243,11 +261,13 @@ const TopluTutanak = () => {
             }
 
             setFirmaEslesmeleri(map);
+            setVknFound(Object.keys(map).length);
+            setVknProgress(100);
         } catch (e) {
             console.error(e);
-            setVknHata('Firma bilgileri çekilemedi.');
+            setVknHata('Firma bilgileri çekilemedi. Lütfen tekrar deneyin.');
         } finally {
-            setVknLoading(false);
+            setTimeout(() => setVknLoading(false), 450);
         }
     };
 
@@ -658,7 +678,8 @@ const TopluTutanak = () => {
                         <span className="tt-nav-item tt-nav-active">Toplu Tutanak</span>
                         <span className="tt-nav-divider" />
                         <button type="button" className="tt-back-btn" onClick={() => navigate('/anasayfa')}>
-                            Anasayfa
+                            <ArrowRight className="tt-back-icon" size={16} />
+                            Ana Sayfa
                         </button>
                     </nav>
                 </header>
@@ -742,14 +763,16 @@ const TopluTutanak = () => {
                             </div>
 
                             <div className="tt-export-grid">
-                                <button type="button" className="tt-export-btn tt-export-vkn" onClick={handleVknGetir} disabled={vknLoading || veriler.length === 0}>
-                                    <div className="tt-export-icon">
-                                        {vknLoading ? <Loader2 className="tt-spin" size={18} /> : <Download size={18} />}
+                                <button type="button" className={`tt-export-btn tt-export-vkn ${vknLoading ? 'tt-export-vkn--loading' : ''}`} onClick={handleVknGetir} disabled={vknLoading || veriler.length === 0}>
+                                    <div className="tt-export-icon tt-vkn-button-icon">
+                                        {vknLoading ? <Building2 className="tt-vkn-pulse-icon" size={18} /> : <Building2 size={18} />}
+                                        {vknLoading && <span className="tt-vkn-button-ring" />}
                                     </div>
-                                    <div>
-                                        <strong>VKN Getir</strong>
-                                        <span>Supabase eşleşmesi</span>
+                                    <div className="tt-export-copy">
+                                        <strong>{vknLoading ? 'VKN Eşleştiriliyor' : 'VKN Bilgilerini Getir'}</strong>
+                                        <span>{vknLoading ? `%${Math.max(1, vknProgress)} • ${vknFound} eşleşme` : 'Firma • VKN • TC • IBAN'}</span>
                                     </div>
+                                    {vknLoading && <span className="tt-mini-progress"><i style={{ width: `${vknProgress}%` }} /></span>}
                                 </button>
 
                                 <button type="button" className="tt-export-btn tt-export-excel" onClick={handleExcelExport} disabled={veriler.length === 0}>
@@ -808,6 +831,58 @@ const TopluTutanak = () => {
                     <main className="tt-main">
                         {hata && <div className="tt-alert tt-alert-error">{hata}</div>}
                         {vknHata && <div className="tt-alert tt-alert-warn">{vknHata}</div>}
+
+                        {loading && (
+                            <section className="tt-loading-panel" aria-live="polite">
+                                <div className="tt-loading-orbit">
+                                    <div className="tt-loading-icon"><FileCheck2 size={22} /></div>
+                                    <span className="tt-orbit-dot tt-orbit-dot-a" />
+                                    <span className="tt-orbit-dot tt-orbit-dot-b" />
+                                </div>
+                                <div className="tt-loading-copy">
+                                    <strong>Seferler hazırlanıyor</strong>
+                                    <span>TMS kayıtları okunuyor, filtreler uygulanıyor ve tutanak listesi oluşturuluyor.</span>
+                                </div>
+                                <div className="tt-loading-lines" aria-hidden="true">
+                                    <span /><span /><span />
+                                </div>
+                            </section>
+                        )}
+
+                        {vknLoading && (
+                            <section className="tt-vkn-loader" aria-live="polite">
+                                <div className="tt-vkn-visual" aria-hidden="true">
+                                    <div className="tt-vkn-core">
+                                        <Building2 size={23} />
+                                        <span className="tt-vkn-core-glow" />
+                                    </div>
+                                    <div className="tt-vkn-node tt-vkn-node--left"><Database size={15} /></div>
+                                    <div className="tt-vkn-node tt-vkn-node--right"><ShieldCheck size={15} /></div>
+                                    <span className="tt-vkn-beam tt-vkn-beam--left" />
+                                    <span className="tt-vkn-beam tt-vkn-beam--right" />
+                                    <span className="tt-vkn-particle tt-vkn-particle--1" />
+                                    <span className="tt-vkn-particle tt-vkn-particle--2" />
+                                    <span className="tt-vkn-particle tt-vkn-particle--3" />
+                                </div>
+
+                                <div className="tt-vkn-loader-body">
+                                    <div className="tt-vkn-loader-top">
+                                        <div>
+                                            <span className="tt-vkn-kicker"><Sparkles size={12} /> Akıllı firma eşleştirme</span>
+                                            <strong>VKN ve firma bilgileri hazırlanıyor</strong>
+                                            <p>{vknProgress < 20 ? 'Benzersiz tedarikçiler hazırlanıyor…' : vknProgress < 88 ? 'Supabase firma kayıtlarıyla eşleştiriliyor…' : 'VKN, TC, kod, telefon ve IBAN alanları tabloya işleniyor…'}</p>
+                                        </div>
+                                        <div className="tt-vkn-percent">%{vknProgress}</div>
+                                    </div>
+                                    <div className="tt-vkn-track"><span style={{ width: `${vknProgress}%` }} /></div>
+                                    <div className="tt-vkn-stats">
+                                        <span><b>{vknTotal}</b> firma taranıyor</span>
+                                        <span><b>{vknFound}</b> eşleşme bulundu</span>
+                                        <span className="tt-vkn-live"><i /> Canlı işlem</span>
+                                    </div>
+                                </div>
+                            </section>
+                        )}
 
                         <section className="tt-card tt-table-card">
                             <div className="tt-table-header">

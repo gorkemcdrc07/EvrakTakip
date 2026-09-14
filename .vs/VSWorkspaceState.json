@@ -2,10 +2,9 @@
   "ExpandedNodes": [
     "",
     "\\client",
-    "\\client\\public",
-    "\\client\\public\\images",
-    "\\client\\src"
+    "\\client\\src",
+    "\\client\\src\\components",
+    "\\client\\src\\components\\tabs"
   ],
-  "SelectedNode": "\\client\\src\\TopluTutanak.css",
   "PreviewInSolutionExplorer": false
 }

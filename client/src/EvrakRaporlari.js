@@ -1,798 +1,274 @@
-﻿// src/EvrakRaporları.js  (dosya adın buysa aynen böyle bırak)
-// NOT: En alttaki "DEBUG" div'i artık return içinde. Component dışına JSX YOK.
-
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "./supabaseClient";
-
 import {
-    PieChart,
-    Pie,
-    Cell,
-    Tooltip as ReTooltip,
-    ResponsiveContainer,
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Legend,
+  ResponsiveContainer,
+  AreaChart, Area,
+  BarChart, Bar,
+  PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid,
+  Tooltip as ReTooltip,
 } from "recharts";
-
-import { FiRefreshCw, FiCalendar, FiTrendingUp, FiPackage, FiHome, FiFilter, FiX } from "react-icons/fi";
-
-function cx(...c) {
-    return c.filter(Boolean).join(" ");
-}
-
-const COLORS = ["#8b5cf6", "#a78bfa", "#f472b6", "#fb7185", "#38bdf8", "#60a5fa", "#34d399", "#f59e0b"];
-const normalize = (str) => (str || "").trim().toLocaleUpperCase("tr").replace(/\s+/g, " ");
-const normalizeProject = (str) =>
-    (str || "")
-        .toLocaleUpperCase("tr")
-        .replace(/["“”'`]+/g, "")
-        .replace(/\s+/g, " ")
-        .trim();
-
-function canonicalProjectName(raw) {
-    const n = normalizeProject(raw);
-
-    if (n === "HEDEF DIŞ TEDARİK" || n.startsWith("HEDEF DIŞ TİCARET")) return "HEDEF DIŞ TEDARİK";
-    if (n.startsWith("LEVENT OFSET")) return "LEVENT OFSET";
-    if (n.startsWith("PAPİKS")) return "PAPİKS";
-    if (n.includes("PARSİYEL")) return "PARSİYEL";
-    if (n.startsWith("PEKER")) return "PEKER";
-    if (n.startsWith("PETROL OFİSİ")) return "PETROL OFİSİ";
-    if (n.startsWith("SARUHAN")) return "SARUHAN";
-    if (n === "SGS") return "SGS";
-
-    return n;
-}
+import {
+  FiHome, FiRefreshCw, FiFilter, FiX, FiCalendar, FiTrendingUp,
+  FiMapPin, FiLayers, FiFileText, FiCheckCircle, FiAlertTriangle,
+  FiChevronRight, FiActivity, FiSearch, FiSliders, FiZap
+} from "react-icons/fi";
 
 const fmt = (n) => Number(n || 0).toLocaleString("tr-TR");
+const cx = (...v) => v.filter(Boolean).join(" ");
+const normalize = (str) => (str || "").trim().toLocaleUpperCase("tr").replace(/\s+/g, " ");
+const normalizeProject = (str) => (str || "").toLocaleUpperCase("tr").replace(/["“”'`]+/g, "").replace(/\s+/g, " ").trim();
+const CHART_COLORS = ["#0ea5e9", "#06b6d4", "#22c55e", "#f59e0b", "#64748b", "#3b82f6", "#14b8a6", "#84cc16"];
 
-function Pill({ tone = "neutral", children }) {
-    const tones = {
-        neutral:
-            "bg-black/5 text-gray-800 dark:bg-white/10 dark:text-white border border-black/10 dark:border-white/10",
-        purple:
-            "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-200 border border-violet-200/70 dark:border-violet-800/40",
-    };
-    return (
-        <span className={cx("inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-extrabold", tones[tone])}>
-            {children}
-        </span>
-    );
+function canonicalProjectName(raw) {
+  const n = normalizeProject(raw);
+  if (n === "HEDEF DIŞ TEDARİK" || n.startsWith("HEDEF DIŞ TİCARET")) return "HEDEF DIŞ TEDARİK";
+  if (n.startsWith("LEVENT OFSET")) return "LEVENT OFSET";
+  if (n.startsWith("PAPİKS")) return "PAPİKS";
+  if (n.includes("PARSİYEL")) return "PARSİYEL";
+  if (n.startsWith("PEKER")) return "PEKER";
+  if (n.startsWith("PETROL OFİSİ")) return "PETROL OFİSİ";
+  if (n.startsWith("SARUHAN")) return "SARUHAN";
+  if (n === "SGS") return "SGS";
+  return n;
 }
 
-function MiniStat({ icon, label, value, tone = "purple" }) {
-    const tones = {
-        purple: "bg-violet-600/10 border-violet-500/20 text-violet-800 dark:text-violet-200",
-        indigo: "bg-indigo-600/10 border-indigo-500/20 text-indigo-800 dark:text-indigo-200",
-        emerald: "bg-emerald-600/10 border-emerald-500/20 text-emerald-800 dark:text-emerald-200",
-    };
-    return (
-        <div className={cx("inline-flex items-center gap-2 rounded-2xl px-3 py-2 border", tones[tone])}>
-            <span className="opacity-90">{icon}</span>
-            <div className="leading-tight">
-                <div className="text-[11px] font-extrabold opacity-70">{label}</div>
-                <div className="text-sm font-extrabold tabular-nums">{value}</div>
-            </div>
+function toInputDate(d) {
+  const x = new Date(d);
+  x.setMinutes(x.getMinutes() - x.getTimezoneOffset());
+  return x.toISOString().slice(0, 10);
+}
+function shortDate(v) {
+  if (!v) return "";
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? v : new Intl.DateTimeFormat("tr-TR", { day:"2-digit", month:"short" }).format(d);
+}
+function fullDate(v) {
+  if (!v) return "";
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? v : new Intl.DateTimeFormat("tr-TR", { day:"2-digit", month:"2-digit", year:"numeric" }).format(d);
+}
+
+function Surface({ children, className = "" }) {
+  return <div className={cx("rounded-[22px] border border-slate-200/80 bg-white shadow-[0_10px_35px_rgba(15,23,42,.045)] dark:border-white/[0.08] dark:bg-[#111927]", className)}>{children}</div>;
+}
+
+function Kpi({ icon: Icon, label, value, hint, tone="sky", active=false, onClick }) {
+  const tones = {
+    sky: "bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-300",
+    cyan: "bg-cyan-50 text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-300",
+    emerald: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300",
+    amber: "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-300",
+  };
+  const Wrapper = onClick ? motion.button : motion.div;
+  return (
+    <Wrapper layout whileHover={onClick ? { y:-3 } : undefined} onClick={onClick} className={cx("group relative overflow-hidden rounded-[20px] border bg-white p-4 text-left shadow-sm transition dark:bg-[#111927]", active ? "border-sky-300 ring-2 ring-sky-100 dark:ring-sky-500/10" : "border-slate-200/80 dark:border-white/[.08]", onClick && "cursor-pointer hover:border-sky-300")}> 
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[10px] font-black uppercase tracking-[.16em] text-slate-400">{label}</div>
+          <motion.div key={String(value)} initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} className="mt-1.5 text-2xl font-black tracking-tight text-slate-950 dark:text-white">{value}</motion.div>
+          {hint && <div className="mt-1 text-[11px] font-semibold text-slate-400">{hint}</div>}
         </div>
-    );
+        <div className={cx("grid h-10 w-10 place-items-center rounded-xl transition group-hover:scale-110", tones[tone])}><Icon size={18}/></div>
+      </div>
+      {active && <motion.div layoutId="kpi-active" className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-sky-500 to-cyan-400"/>}
+    </Wrapper>
+  );
 }
 
-function Card({ title, right, children, className }) {
-    return (
-        <div
-            className={cx(
-                "rounded-[28px] border border-black/10 dark:border-white/10 bg-white/70 dark:bg-zinc-950/55 backdrop-blur-2xl shadow-sm overflow-hidden",
-                className
-            )}
-        >
-            {(title || right) && (
-                <div className="px-5 py-4 border-b border-black/5 dark:border-white/10 flex items-center justify-between">
-                    <div className="font-extrabold">{title}</div>
-                    {right}
-                </div>
-            )}
-            <div className="p-5">{children}</div>
-        </div>
-    );
+function ChartHead({ icon: Icon, title, subtitle, right }) {
+  return <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-white/[.06]">
+    <div className="flex items-center gap-3">
+      <div className="grid h-9 w-9 place-items-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-300"><Icon size={17}/></div>
+      <div><h3 className="text-sm font-black text-slate-900 dark:text-white">{title}</h3><p className="mt-0.5 text-[11px] font-medium text-slate-400">{subtitle}</p></div>
+    </div>
+    {right}
+  </div>;
 }
 
-function SkeletonBlock({ h = 56 }) {
-    return (
-        <div
-            style={{ height: h }}
-            className="rounded-2xl border border-black/5 dark:border-white/10 bg-black/5 dark:bg-white/5 animate-pulse"
-        />
-    );
+function LoadingDashboard() {
+  return <div className="grid gap-4">
+    <div className="grid gap-3 md:grid-cols-4">{Array.from({length:4}).map((_,i)=><motion.div key={i} className="h-28 rounded-[20px] bg-slate-100 dark:bg-white/5" animate={{opacity:[.4,1,.4]}} transition={{repeat:Infinity,duration:1.2,delay:i*.08}}/>)}</div>
+    <div className="grid gap-4 xl:grid-cols-2">{Array.from({length:2}).map((_,i)=><motion.div key={i} className="h-80 rounded-[22px] bg-slate-100 dark:bg-white/5" animate={{opacity:[.4,1,.4]}} transition={{repeat:Infinity,duration:1.2,delay:i*.12}}/>)}</div>
+  </div>;
 }
 
-function SelectNative({ label, value, onChange, options, placeholder = "Seçiniz", widthClass = "w-[320px]" }) {
-    return (
-        <div className="space-y-1.5">
-            <div className="text-xs font-extrabold text-gray-600 dark:text-gray-300">{label}</div>
-            <div className="relative">
-                <select
-                    value={value}
-                    onChange={onChange}
-                    className={cx(
-                        "appearance-none w-full px-3 py-2.5 rounded-2xl",
-                        "bg-white/85 dark:bg-zinc-900/60",
-                        "border border-black/10 dark:border-white/10",
-                        "outline-none focus:ring-4 focus:ring-violet-200/70 dark:focus:ring-violet-900/30",
-                        widthClass
-                    )}
-                >
-                    <option value="">{placeholder}</option>
-                    {options.map((o) => (
-                        <option key={o.id} value={o.id}>
-                            {o.ad}
-                        </option>
-                    ))}
-                </select>
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 opacity-70">▾</span>
-            </div>
-        </div>
-    );
-}
-
-/* ---- explain builders ---- */
-function buildLokasyonExplain(list, selectedLokasyonId, lokasyonlar) {
-    if (!selectedLokasyonId) return null;
-    let totalSefer = 0;
-    const counts = {};
-    list.forEach((e) => {
-        totalSefer += e.sefersayisi || 0;
-        (e.evrakseferler || []).forEach((s) => {
-            const key = (s.aciklama || "").trim() || "(Boş)";
-            counts[key] = (counts[key] || 0) + 1;
-        });
-    });
-    const rows = Object.entries(counts)
-        .map(([name, value]) => ({
-            name,
-            value,
-            pct: totalSefer ? +((value * 100) / totalSefer).toFixed(1) : 0,
-        }))
-        .sort((a, b) => b.value - a.value);
-    return { group: lokasyonlar[selectedLokasyonId], totalSefer, rows };
-}
-
-function buildProjeExplain(list, selectedProjeKey, projeKeyById, projeNameByKey) {
-    if (!selectedProjeKey) return null;
-
-    let totalSefer = 0;
-    list.forEach((e) => {
-        (e.evrakproje || []).forEach((p) => {
-            if (projeKeyById[p.projeid] === selectedProjeKey) totalSefer += p.sefersayisi || 0;
-        });
-    });
-
-    const counts = {};
-    list.forEach((e) => {
-        const projelerThis = (e.evrakproje || [])
-            .map((p) => ({ key: projeKeyById[p.projeid], sefer: p.sefersayisi || 0 }))
-            .filter((x) => x.sefer > 0);
-        const toplamSeferEvrak = projelerThis.reduce((s, x) => s + x.sefer, 0);
-        if (toplamSeferEvrak <= 0) return;
-
-        const shareForSelected = projelerThis.find((x) => x.key === selectedProjeKey)?.sefer || 0;
-        const weight = shareForSelected / toplamSeferEvrak;
-        if (!weight) return;
-
-        (e.evrakseferler || []).forEach((s) => {
-            const key = (s.aciklama || "").trim() || "(Boş)";
-            counts[key] = (counts[key] || 0) + weight;
-        });
-    });
-
-    const rows = Object.entries(counts)
-        .map(([name, value]) => ({
-            name,
-            value: +value.toFixed(1),
-            pct: totalSefer ? +((value * 100) / totalSefer).toFixed(1) : 0,
-        }))
-        .sort((a, b) => b.value - a.value);
-
-    return { group: projeNameByKey[selectedProjeKey] || selectedProjeKey, totalSefer, rows };
-}
-
-function ExplainList({ title, explain, emptyText }) {
-    return (
-        <Card
-            title={title}
-            right={
-                explain ? (
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                        Seçim: <b className="text-gray-700 dark:text-gray-200">{explain.group}</b> · Toplam:{" "}
-                        <b className="tabular-nums text-gray-700 dark:text-gray-200">{fmt(explain.totalSefer)}</b>
-                    </div>
-                ) : null
-            }
-        >
-            {!explain ? (
-                <div className="text-sm text-gray-600 dark:text-gray-400">{emptyText}</div>
-            ) : (
-                <div className="space-y-2">
-                    {(explain.rows || []).map((r, idx) => (
-                        <div
-                            key={r.name + idx}
-                            className="flex items-center justify-between gap-3 rounded-2xl border border-black/5 dark:border-white/10 bg-white/50 dark:bg-white/5 px-4 py-3"
-                        >
-                            <div className="flex items-center gap-2 min-w-0">
-                                <span className="inline-block w-3 h-3 rounded" style={{ background: COLORS[idx % COLORS.length] }} />
-                                <span className="truncate font-semibold" title={r.name}>
-                                    {r.name}
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                                <span className="px-2 py-0.5 rounded-full bg-violet-600/10 border border-violet-500/20 text-violet-800 dark:text-violet-200 tabular-nums text-xs font-extrabold">
-                                    %{r.pct}
-                                </span>
-                                <span className="tabular-nums font-extrabold">{fmt(r.value)}</span>
-                            </div>
-                        </div>
-                    ))}
-                    {(!explain.rows || explain.rows.length === 0) && (
-                        <div className="text-sm text-gray-600 dark:text-gray-400">Gösterilecek açıklama yok.</div>
-                    )}
-                </div>
-            )}
-        </Card>
-    );
+async function fetchAllEvraklar() {
+  const pageSize = 1000;
+  let from = 0;
+  let all = [];
+  while (true) {
+    const { data, error } = await supabase
+      .from("evraklar")
+      .select(`id, tarih, lokasyonid, sefersayisi,
+        evrakseferler:evrakseferler!fk_evrakseferler_evrakid ( seferno, aciklama ),
+        evrakproje:evrakproje!fk_evrakproje_evrakid ( projeid, sefersayisi )`)
+      .order("tarih", { ascending:false })
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    const batch = data || [];
+    all = all.concat(batch);
+    if (batch.length < pageSize) break;
+    from += pageSize;
+  }
+  return all;
 }
 
 export default function EvrakRaporlari() {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
+  const [evraklar, setEvraklar] = useState([]);
+  const [lokasyonlar, setLokasyonlar] = useState({});
+  const [projeKeyById, setProjeKeyById] = useState({});
+  const [projeNameByKey, setProjeNameByKey] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [selectedLokasyonId, setSelectedLokasyonId] = useState("");
+  const [selectedProjeKey, setSelectedProjeKey] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [search, setSearch] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
 
-    const [evraklar, setEvraklar] = useState([]);
-    const [lokasyonlar, setLokasyonlar] = useState({});
-    const [projeKeyById, setProjeKeyById] = useState({});
-    const [projeNameByKey, setProjeNameByKey] = useState({});
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
+  const load = async () => {
+    try {
+      setLoading(true); setError("");
+      const [evrakData, locRes, projectRes] = await Promise.all([
+        fetchAllEvraklar(),
+        supabase.from("lokasyonlar").select("*"),
+        supabase.from("projeler").select("*")
+      ]);
+      if (locRes.error) throw locRes.error;
+      if (projectRes.error) throw projectRes.error;
+      const lm = {};
+      (locRes.data || []).forEach(l => lm[l.id] = l.lokasyon);
+      const pk = {}, pn = {};
+      (projectRes.data || []).forEach(p => { const key = canonicalProjectName(p.proje); pk[p.id] = key; if (!pn[key]) pn[key]=(p.proje||"").trim(); });
+      setEvraklar(evrakData); setLokasyonlar(lm); setProjeKeyById(pk); setProjeNameByKey(pn);
+    } catch (e) {
+      console.error(e); setError("Rapor verileri yüklenirken bir sorun oluştu.");
+    } finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
 
-    // Filtreler
-    const [startDate, setStartDate] = useState("");
-    const [endDate, setEndDate] = useState("");
-    const [selectedLokasyonId, setSelectedLokasyonId] = useState("");
-    const [selectedProjeKey, setSelectedProjeKey] = useState("");
+  const lokasyonOptions = useMemo(() => Object.entries(lokasyonlar).map(([id,ad])=>({id,ad})).sort((a,b)=>a.ad.localeCompare(b.ad,"tr")), [lokasyonlar]);
+  const projeOptions = useMemo(() => Object.entries(projeNameByKey).map(([id,ad])=>({id,ad})).sort((a,b)=>a.ad.localeCompare(b.ad,"tr")), [projeNameByKey]);
 
-    const [activeIndex, setActiveIndex] = useState(null);
-    const [filtersOpen, setFiltersOpen] = useState(true);
+  const scopedEvraklar = useMemo(() => evraklar.filter(e => {
+    const d = new Date(e.tarih);
+    if (startDate && d < new Date(startDate+"T00:00:00")) return false;
+    if (endDate && d > new Date(endDate+"T23:59:59")) return false;
+    if (selectedLokasyonId && String(e.lokasyonid)!==String(selectedLokasyonId)) return false;
+    if (selectedProjeKey && !(e.evrakproje||[]).some(p=>projeKeyById[p.projeid]===selectedProjeKey)) return false;
+    if (selectedStatus && !(e.evrakseferler||[]).some(s=>normalize(s.aciklama)===selectedStatus)) return false;
+    if (search.trim()) {
+      const q=normalize(search);
+      const hay=normalize([lokasyonlar[e.lokasyonid], ...(e.evrakproje||[]).map(p=>projeNameByKey[projeKeyById[p.projeid]]), ...(e.evrakseferler||[]).flatMap(s=>[s.seferno,s.aciklama])].filter(Boolean).join(" "));
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  }), [evraklar,startDate,endDate,selectedLokasyonId,selectedProjeKey,selectedStatus,search,lokasyonlar,projeKeyById,projeNameByKey]);
 
-    // --- KAYDEDİLMEMİŞ DEĞİŞİKLİK KORUMASI ---
-    const [originalFilters] = useState({
-        startDate: "",
-        endDate: "",
-        selectedLokasyonId: "",
-        selectedProjeKey: "",
-    });
+  const toplamSefer = useMemo(()=>scopedEvraklar.reduce((s,e)=>s+(e.sefersayisi||0),0),[scopedEvraklar]);
+  const duzeltilmis = useMemo(()=>scopedEvraklar.reduce((a,e)=>a+(e.evrakseferler||[]).filter(s=>normalize(s.aciklama)==="TARAFIMIZCA DÜZELTİLMİŞTİR").length,0),[scopedEvraklar]);
+  const orjinaleCekilmis = useMemo(()=>scopedEvraklar.reduce((a,e)=>a+(e.evrakseferler||[]).filter(s=>normalize(s.aciklama)==="TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR").length,0),[scopedEvraklar]);
+  const bosAciklama = useMemo(()=>scopedEvraklar.reduce((a,e)=>a+(e.evrakseferler||[]).filter(s=>!String(s.aciklama||"").trim()).length,0),[scopedEvraklar]);
 
-    const hasDirtyFilters = useMemo(() => {
-        const now = { startDate, endDate, selectedLokasyonId, selectedProjeKey };
-        try {
-            return JSON.stringify(now) !== JSON.stringify(originalFilters);
-        } catch {
-            return !!(startDate || endDate || selectedLokasyonId || selectedProjeKey);
-        }
-    }, [startDate, endDate, selectedLokasyonId, selectedProjeKey, originalFilters]);
+  const aciklamaSeries = useMemo(()=>{
+    const m={}; scopedEvraklar.forEach(e=>(e.evrakseferler||[]).forEach(s=>{ const k=(s.aciklama||"").trim()||"(Boş)"; m[k]=(m[k]||0)+1; }));
+    const total=Object.values(m).reduce((a,b)=>a+b,0)||1;
+    return Object.entries(m).map(([name,value])=>({name,value,pct:+(value*100/total).toFixed(1)})).sort((a,b)=>b.value-a.value);
+  },[scopedEvraklar]);
+  const projeSeries = useMemo(()=>{
+    const m={}; scopedEvraklar.forEach(e=>(e.evrakproje||[]).forEach(p=>{ const k=projeKeyById[p.projeid]; if(k)m[k]=(m[k]||0)+(p.sefersayisi||0); }));
+    return Object.entries(m).map(([k,value])=>({key:k,name:projeNameByKey[k]||k,value})).sort((a,b)=>b.value-a.value);
+  },[scopedEvraklar,projeKeyById,projeNameByKey]);
+  const lokasyonSeries = useMemo(()=>{
+    const m={}; scopedEvraklar.forEach(e=>{ const name=lokasyonlar[e.lokasyonid]; if(name)m[name]=(m[name]||0)+(e.sefersayisi||0); });
+    return Object.entries(m).map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value);
+  },[scopedEvraklar,lokasyonlar]);
+  const dailySeries = useMemo(()=>{
+    const m={}; scopedEvraklar.forEach(e=>{ const key=toInputDate(e.tarih); if(!m[key])m[key]={date:key,evrak:0,sefer:0}; m[key].evrak+=1; m[key].sefer+=(e.sefersayisi||0); });
+    return Object.values(m).sort((a,b)=>a.date.localeCompare(b.date)).map(x=>({...x,label:shortDate(x.date)}));
+  },[scopedEvraklar]);
 
-    useEffect(() => {
-        (async () => {
-            try {
-                setLoading(true);
-                setError("");
-                const { data: evrakData, error: e1 } = await supabase
-                    .from("evraklar")
-                    .select(
-                        `id, tarih, lokasyonid, sefersayisi,
-             evrakseferler:evrakseferler!fk_evrakseferler_evrakid ( seferno, aciklama ),
-             evrakproje:evrakproje!fk_evrakproje_evrakid ( projeid, sefersayisi )`
-                    );
-                if (e1) throw e1;
+  const topProject = projeSeries[0]; const topLocation=lokasyonSeries[0];
+  const hasAnyFilter=!!(startDate||endDate||selectedLokasyonId||selectedProjeKey||selectedStatus||search.trim());
+  const clearAll=()=>{setStartDate("");setEndDate("");setSelectedLokasyonId("");setSelectedProjeKey("");setSelectedStatus("");setSearch("");};
+  const setPreset=(days)=>{const end=new Date();const start=new Date();start.setDate(end.getDate()-(days-1));setStartDate(toInputDate(start));setEndDate(toInputDate(end));};
 
-                const { data: lokasyonData, error: e2 } = await supabase.from("lokasyonlar").select("*");
-                if (e2) throw e2;
+  const tooltipStyle={background:"rgba(15,23,42,.96)",border:"1px solid rgba(255,255,255,.10)",borderRadius:14,color:"#fff",boxShadow:"0 12px 30px rgba(15,23,42,.25)"};
 
-                const { data: projeData, error: e3 } = await supabase.from("projeler").select("*");
-                if (e3) throw e3;
-
-                const lokasyonMap = {};
-                lokasyonData?.forEach((l) => (lokasyonMap[l.id] = l.lokasyon));
-
-                const _projeKeyById = {};
-                const _projeNameByKey = {};
-                projeData?.forEach((p) => {
-                    const key = canonicalProjectName(p.proje);
-                    if (!_projeNameByKey[key]) _projeNameByKey[key] = (p.proje || "").trim();
-                    _projeKeyById[p.id] = key;
-                });
-
-                const sorted = (evrakData || []).sort((a, b) => new Date(b.tarih) - new Date(a.tarih));
-                setEvraklar(sorted);
-                setLokasyonlar(lokasyonMap);
-                setProjeKeyById(_projeKeyById);
-                setProjeNameByKey(_projeNameByKey);
-            } catch (e) {
-                console.error(e);
-                setError("Veriler yüklenirken bir sorun oluştu.");
-            } finally {
-                setLoading(false);
-            }
-        })();
-    }, []);
-
-    useEffect(() => {
-        const handler = (e) => {
-            if (!hasDirtyFilters) return;
-            e.preventDefault();
-            e.returnValue = "";
-        };
-        if (hasDirtyFilters) window.addEventListener("beforeunload", handler);
-        return () => window.removeEventListener("beforeunload", handler);
-    }, [hasDirtyFilters]);
-
-    useEffect(() => {
-        const onAnchorClick = (e) => {
-            if (!hasDirtyFilters) return;
-            const a = e.target.closest("a");
-            if (!a) return;
-
-            if (a.origin === window.location.origin && a.target !== "_blank") {
-                const ok = window.confirm("Kaydedilmemiş değişiklikler var. Sayfadan ayrılmak istiyor musunuz?");
-                if (!ok) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
-            }
-        };
-
-        if (hasDirtyFilters) document.addEventListener("click", onAnchorClick, true);
-        return () => document.removeEventListener("click", onAnchorClick, true);
-    }, [hasDirtyFilters]);
-
-    // Seçenek listeleri
-    const lokasyonOptions = useMemo(
-        () =>
-            Object.entries(lokasyonlar)
-                .map(([id, ad]) => ({ id, ad }))
-                .sort((a, b) => a.ad.localeCompare(b.ad, "tr")),
-        [lokasyonlar]
-    );
-
-    const projeOptions = useMemo(
-        () =>
-            Object.entries(projeNameByKey)
-                .map(([key, ad]) => ({ id: key, ad }))
-                .sort((a, b) => a.ad.localeCompare(b.ad, "tr")),
-        [projeNameByKey]
-    );
-
-    // Tarih filtresi
-    const filteredEvraklar = useMemo(() => {
-        return (evraklar || []).filter((e) => {
-            const d = new Date(e.tarih);
-            const after = startDate ? d >= new Date(startDate) : true;
-            const before = endDate ? d <= new Date(endDate) : true;
-            return after && before;
-        });
-    }, [evraklar, startDate, endDate]);
-
-    // Seçime göre kapsam
-    const scopedEvraklar = useMemo(() => {
-        return filteredEvraklar.filter((e) => {
-            const lokMatch = selectedLokasyonId ? String(e.lokasyonid) === String(selectedLokasyonId) : true;
-            const projMatch = selectedProjeKey
-                ? (e.evrakproje || []).some((p) => projeKeyById[p.projeid] === selectedProjeKey)
-                : true;
-            return lokMatch && projMatch;
-        });
-    }, [filteredEvraklar, selectedLokasyonId, selectedProjeKey, projeKeyById]);
-
-    // KPI
-    const toplamSefer = useMemo(() => scopedEvraklar.reduce((s, e) => s + (e.sefersayisi || 0), 0), [scopedEvraklar]);
-
-    const duzeltilmis = useMemo(
-        () =>
-            scopedEvraklar.reduce(
-                (sum, e) =>
-                    sum + (e.evrakseferler?.filter((s) => normalize(s.aciklama) === "TARAFIMIZCA DÜZELTİLMİŞTİR").length || 0),
-                0
-            ),
-        [scopedEvraklar]
-    );
-
-    const orjinaleCekilmis = useMemo(
-        () =>
-            scopedEvraklar.reduce(
-                (sum, e) =>
-                    sum + (e.evrakseferler?.filter((s) => normalize(s.aciklama) === "TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR").length || 0),
-                0
-            ),
-        [scopedEvraklar]
-    );
-
-    // Seriler
-    const projeSeries = useMemo(() => {
-        const cnt = {};
-        (scopedEvraklar || []).forEach((e) =>
-            e.evrakproje?.forEach((p) => {
-                const key = projeKeyById[p.projeid];
-                if (!key) return;
-                cnt[key] = (cnt[key] || 0) + (p.sefersayisi || 0);
-            })
-        );
-        return Object.entries(cnt)
-            .map(([key, value]) => ({ name: projeNameByKey[key] || key, value }))
-            .sort((a, b) => b.value - a.value);
-    }, [scopedEvraklar, projeKeyById, projeNameByKey]);
-
-    const lokasyonSeries = useMemo(() => {
-        const cnt = {};
-        scopedEvraklar.forEach((e) => {
-            const ad = lokasyonlar[e.lokasyonid];
-            if (!ad) return;
-            cnt[ad] = (cnt[ad] || 0) + (e.sefersayisi || 0);
-        });
-        return Object.entries(cnt).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-    }, [scopedEvraklar, lokasyonlar]);
-
-    const aciklamaSeries = useMemo(() => {
-        const cnt = {};
-        scopedEvraklar.forEach((e) =>
-            e.evrakseferler?.forEach((s) => {
-                const key = (s.aciklama || "").trim() || "(Boş)";
-                cnt[key] = (cnt[key] || 0) + 1;
-            })
-        );
-        const entries = Object.entries(cnt).map(([name, value]) => ({ name, value }));
-        const total = toplamSefer || 1;
-        return entries
-            .map((x) => ({ ...x, percentOfTotal: +((x.value * 100) / total).toFixed(1) }))
-            .sort((a, b) => b.value - a.value);
-    }, [scopedEvraklar, toplamSefer]);
-
-    const resetAll = () => {
-        setStartDate("");
-        setEndDate("");
-        setSelectedLokasyonId("");
-        setSelectedProjeKey("");
-    };
-
-    const explainLok = useMemo(
-        () => buildLokasyonExplain(scopedEvraklar, selectedLokasyonId, lokasyonlar),
-        [scopedEvraklar, selectedLokasyonId, lokasyonlar]
-    );
-
-    const explainProj = useMemo(
-        () => buildProjeExplain(scopedEvraklar, selectedProjeKey, projeKeyById, projeNameByKey),
-        [scopedEvraklar, selectedProjeKey, projeKeyById, projeNameByKey]
-    );
-
-    const hasAnyFilter = !!(startDate || endDate || selectedLokasyonId || selectedProjeKey);
-
-    return (
-        <div className="min-h-screen w-full bg-zinc-50 text-gray-900 dark:bg-[#0a0a0f] dark:text-white">
-            {/* Premium background */}
-            <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-                <div className="absolute -top-40 left-1/2 h-[32rem] w-[60rem] -translate-x-1/2 rounded-full bg-gradient-to-r from-violet-500/25 via-purple-500/20 to-indigo-500/25 blur-3xl" />
-                <div className="absolute bottom-[-8rem] right-[-6rem] h-[26rem] w-[26rem] rounded-full bg-gradient-to-tr from-purple-400/15 to-indigo-400/10 blur-3xl" />
-                <div className="absolute bottom-24 left-6 h-[18rem] w-[18rem] rounded-full bg-gradient-to-tr from-fuchsia-400/10 to-violet-400/10 blur-3xl" />
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(0,0,0,.06)_1px,transparent_0)] dark:bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,.06)_1px,transparent_0)] [background-size:20px_20px] opacity-40 dark:opacity-20" />
+  return <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-[#0b1220] dark:text-slate-50">
+    <div className="mx-auto w-full max-w-[1800px] px-4 py-5 lg:px-7 xl:px-8">
+      <Surface className="mb-4 overflow-hidden">
+        <div className="relative overflow-hidden px-5 py-5 lg:px-6">
+          <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-sky-400/10 blur-3xl"/>
+          <div className="relative flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex min-w-0 items-center gap-4">
+              <motion.div whileHover={{rotate:-5,scale:1.05}} className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-sky-600 to-cyan-400 text-white shadow-lg shadow-sky-500/15"><FiActivity size={22}/></motion.div>
+              <div className="min-w-0"><div className="text-[10px] font-black uppercase tracking-[.22em] text-sky-600 dark:text-sky-300">Operasyon Analiz Merkezi</div><h1 className="mt-1 text-2xl font-black tracking-tight sm:text-[28px]">Evrak Raporları</h1><p className="mt-1 max-w-2xl text-sm font-medium text-slate-500 dark:text-slate-400">Sefer, proje, lokasyon ve evrak açıklamalarını tek ekranda karşılaştırın; grafikten filtreye doğrudan inin.</p></div>
             </div>
-
-            {/* Page */}
-            <div className="mx-auto max-w-7xl px-4 py-6">
-                {/* Sticky header */}
-                <div className="sticky top-0 z-20 mb-6 rounded-[28px] border border-black/10 dark:border-white/10 bg-white/70 dark:bg-zinc-950/60 backdrop-blur-2xl shadow-sm overflow-hidden">
-                    <div className="px-6 py-5">
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                            <div className="min-w-0">
-                                <div className="flex flex-wrap items-center gap-3">
-                                    <div className="inline-flex items-center gap-2 rounded-2xl bg-violet-600/10 dark:bg-violet-500/10 px-3 py-2 border border-violet-500/20">
-                                        <span className="text-lg">📊</span>
-                                        <span className="font-extrabold tracking-tight text-violet-700 dark:text-violet-200">
-                                            Evrak Raporları
-                                        </span>
-                                    </div>
-
-                                    <Pill tone={hasAnyFilter ? "purple" : "neutral"}>{hasAnyFilter ? "Filtre aktif" : "Filtre yok"}</Pill>
-
-                                    {hasDirtyFilters && (
-                                        <span className="text-xs font-extrabold text-amber-700 dark:text-amber-200 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full">
-                                            Kaydedilmemiş değişiklik
-                                        </span>
-                                    )}
-                                </div>
-
-                                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                    Tarih / proje / lokasyon seçin — KPI ve grafikler anında güncellenir.
-                                </div>
-                            </div>
-
-                            <div className="flex flex-wrap gap-2">
-                                <button
-                                    onClick={() => navigate("/anasayfa")}
-                                    className="inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 font-semibold border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5"
-                                >
-                                    <FiHome /> Anasayfa
-                                </button>
-
-                                <button
-                                    onClick={() => setFiltersOpen((v) => !v)}
-                                    className={cx(
-                                        "inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 font-semibold border",
-                                        filtersOpen
-                                            ? "border-violet-500/30 bg-violet-600/10 text-violet-800 dark:text-violet-200 dark:bg-violet-500/10"
-                                            : "border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5"
-                                    )}
-                                >
-                                    <FiFilter /> {filtersOpen ? "Filtreyi Gizle" : "Filtreyi Göster"}
-                                </button>
-
-                                <button
-                                    onClick={resetAll}
-                                    disabled={!hasAnyFilter}
-                                    className={cx(
-                                        "inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 font-semibold",
-                                        hasAnyFilter
-                                            ? "bg-zinc-950 text-white hover:opacity-90 dark:bg-white dark:text-zinc-950"
-                                            : "bg-gray-200 text-gray-500 cursor-not-allowed dark:bg-zinc-800 dark:text-gray-400"
-                                    )}
-                                >
-                                    <FiX /> Temizle
-                                </button>
-
-                                <button
-                                    onClick={() => window.location.reload()}
-                                    className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2.5 text-white font-semibold shadow-sm hover:opacity-95"
-                                >
-                                    <FiRefreshCw /> Yenile
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* KPI mini row */}
-                        <div className="mt-5 flex flex-wrap gap-2">
-                            <MiniStat icon={<FiTrendingUp />} label="Toplam Sefer" value={fmt(toplamSefer)} tone="purple" />
-                            <MiniStat icon={<FiPackage />} label="Düzeltilmiş" value={fmt(duzeltilmis)} tone="indigo" />
-                            <MiniStat icon={<FiPackage />} label="Orijinale Çekilmiş" value={fmt(orjinaleCekilmis)} tone="emerald" />
-                        </div>
-
-                        {/* Error / Loading */}
-                        {(error || loading) && (
-                            <div className="mt-4">
-                                {error && (
-                                    <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-200">
-                                        {error}
-                                    </div>
-                                )}
-                                {loading && !error && (
-                                    <div className="mt-3 grid gap-3">
-                                        <SkeletonBlock h={52} />
-                                        <SkeletonBlock h={52} />
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Main grid: Filters + Content */}
-                <div className="grid grid-cols-1 gap-5 lg:grid-cols-[360px_1fr]">
-                    {/* Filters */}
-                    <div className={cx(filtersOpen ? "block" : "hidden", "lg:block")}>
-                        <Card
-                            title="Filtreler"
-                            right={<Pill tone={hasAnyFilter ? "purple" : "neutral"}>{hasAnyFilter ? "Aktif" : "Pasif"}</Pill>}
-                        >
-                            <div className="grid gap-4">
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="space-y-1.5">
-                                        <div className="text-xs font-extrabold text-gray-600 dark:text-gray-300 flex items-center gap-2">
-                                            <FiCalendar /> Başlangıç
-                                        </div>
-                                        <input
-                                            type="date"
-                                            value={startDate}
-                                            onChange={(e) => setStartDate(e.target.value)}
-                                            className="w-full rounded-2xl border border-black/10 dark:border-white/10 bg-white/85 dark:bg-zinc-900/60 px-3 py-2.5 outline-none focus:ring-4 focus:ring-violet-200/70 dark:focus:ring-violet-900/30"
-                                        />
-                                    </div>
-
-                                    <div className="space-y-1.5">
-                                        <div className="text-xs font-extrabold text-gray-600 dark:text-gray-300 flex items-center gap-2">
-                                            <FiCalendar /> Bitiş
-                                        </div>
-                                        <input
-                                            type="date"
-                                            value={endDate}
-                                            onChange={(e) => setEndDate(e.target.value)}
-                                            className="w-full rounded-2xl border border-black/10 dark:border-white/10 bg-white/85 dark:bg-zinc-900/60 px-3 py-2.5 outline-none focus:ring-4 focus:ring-violet-200/70 dark:focus:ring-violet-900/30"
-                                        />
-                                    </div>
-                                </div>
-
-                                <SelectNative
-                                    label="Proje"
-                                    value={selectedProjeKey}
-                                    onChange={(e) => setSelectedProjeKey(e.target.value)}
-                                    options={projeOptions}
-                                    placeholder="Tüm Projeler"
-                                    widthClass="w-full"
-                                />
-
-                                <SelectNative
-                                    label="Lokasyon"
-                                    value={selectedLokasyonId}
-                                    onChange={(e) => setSelectedLokasyonId(e.target.value)}
-                                    options={lokasyonOptions}
-                                    placeholder="Tüm Lokasyonlar"
-                                    widthClass="w-full"
-                                />
-
-                                <div className="grid grid-cols-2 gap-2 pt-1">
-                                    <button
-                                        onClick={resetAll}
-                                        disabled={!hasAnyFilter}
-                                        className={cx(
-                                            "inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 font-extrabold border",
-                                            hasAnyFilter
-                                                ? "border-violet-500/30 bg-violet-600/10 text-violet-800 dark:text-violet-200 dark:bg-violet-500/10 hover:opacity-90"
-                                                : "border-black/10 dark:border-white/10 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-                                        )}
-                                    >
-                                        <FiX /> Temizle
-                                    </button>
-
-                                    <button
-                                        onClick={() => window.location.reload()}
-                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2.5 text-white font-extrabold hover:opacity-95"
-                                    >
-                                        <FiRefreshCw /> Yenile
-                                    </button>
-                                </div>
-
-                                <div className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                                    Not: Filtre değişiklikleri otomatik uygulanır. Sayfadan ayrılırsan tarayıcı uyarı verir.
-                                </div>
-                            </div>
-                        </Card>
-                    </div>
-
-                    {/* Content */}
-                    <div className="min-w-0 grid gap-5">
-                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-                            <Card
-                                title="Açıklama Dağılımı"
-                                right={<span className="text-xs text-gray-500 dark:text-gray-400">Donut</span>}
-                                className="xl:col-span-1"
-                            >
-                                <div className="h-80">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <PieChart>
-                                            <ReTooltip
-                                                contentStyle={{
-                                                    background: "rgba(9,9,11,.95)",
-                                                    border: "1px solid rgba(255,255,255,.12)",
-                                                    color: "#e5e7eb",
-                                                    borderRadius: 14,
-                                                }}
-                                                formatter={(value, name, props) => [`${value} adet — %${props.payload.percentOfTotal}`, name]}
-                                            />
-                                            <Pie
-                                                data={aciklamaSeries}
-                                                dataKey="value"
-                                                nameKey="name"
-                                                cx="50%"
-                                                cy="50%"
-                                                innerRadius={72}
-                                                outerRadius={106}
-                                                paddingAngle={2}
-                                                onMouseEnter={(_, i) => setActiveIndex(i)}
-                                                onMouseLeave={() => setActiveIndex(null)}
-                                            >
-                                                {aciklamaSeries.map((_, i) => (
-                                                    <Cell
-                                                        key={i}
-                                                        fill={COLORS[i % COLORS.length]}
-                                                        stroke="rgba(9,9,11,.65)"
-                                                        strokeWidth={2}
-                                                        opacity={activeIndex === null ? 1 : activeIndex === i ? 1 : 0.45}
-                                                    />
-                                                ))}
-                                            </Pie>
-                                            <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" fill="#e5e7eb">
-                                                <tspan fontSize="12" opacity="0.7">
-                                                    Toplam
-                                                </tspan>
-                                                <tspan x="50%" dy="18" fontSize="22" fontWeight="800">
-                                                    {fmt(aciklamaSeries.reduce((s, x) => s + x.value, 0))}
-                                                </tspan>
-                                            </text>
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </Card>
-
-                            <BarCard title="Proje Bazlı Seferler" subtitle="Top 10" data={projeSeries.slice(0, 10)} gradId="barGradProj" />
-                            <BarCard
-                                title="Lokasyon Bazlı Seferler"
-                                subtitle="Top 10"
-                                data={lokasyonSeries.slice(0, 10)}
-                                gradId="barGradLok"
-                            />
-                        </div>
-
-                        <ExplainList
-                            title="Lokasyon Bazlı Açıklama"
-                            explain={explainLok}
-                            emptyText="Lokasyon seçiniz; sadece o lokasyona ait açıklamalar listelenecektir."
-                        />
-
-                        <ExplainList
-                            title="Proje Bazlı Açıklama"
-                            explain={explainProj}
-                            emptyText="Proje seçiniz; sadece o projeye ait açıklamalar listelenecektir."
-                        />
-                    </div>
-                </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button onClick={()=>navigate("/anasayfa")} className="group inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-black text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-sky-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300"><FiHome className="transition group-hover:-translate-x-0.5"/> Ana Sayfa</button>
+              <button onClick={()=>setFiltersOpen(v=>!v)} className={cx("group inline-flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-black shadow-sm transition hover:-translate-y-0.5",filtersOpen?"border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-400/20 dark:bg-sky-500/10 dark:text-sky-300":"border-slate-200 bg-white text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300")}><FiSliders/> Filtreler</button>
+              <button onClick={load} className="group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-cyan-500 px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-sky-500/15 transition hover:-translate-y-0.5 hover:shadow-xl"><FiRefreshCw className={cx("transition group-hover:rotate-180",loading&&"animate-spin")}/> Veriyi Yenile</button>
             </div>
-
-            {/* ✅ DEBUG (GEÇİCİ) - return İÇİNDE */}
-            <div className="fixed bottom-4 right-4 z-50 rounded-xl px-3 py-2 text-xs font-bold bg-white text-black dark:bg-black dark:text-white border border-black/10 dark:border-white/10">
-                HTML dark mı? {document.documentElement.classList.contains("dark") ? "EVET" : "HAYIR"}
-            </div>
+          </div>
         </div>
-    );
-}
+      </Surface>
 
-function BarCard({ title, subtitle, data, gradId }) {
-    return (
-        <Card
-            title={title}
-            right={<span className="text-xs text-gray-500 dark:text-gray-400">{subtitle}</span>}
-            className="xl:col-span-1"
-        >
-            <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data} margin={{ left: 6, right: 6 }}>
-                        <defs>
-                            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#f472b6" stopOpacity={1} />
-                                <stop offset="100%" stopColor="#8b5cf6" stopOpacity={1} />
-                            </linearGradient>
-                        </defs>
-
-                        <CartesianGrid stroke="rgba(255,255,255,.10)" strokeDasharray="3 3" />
-                        <XAxis
-                            dataKey="name"
-                            tick={{ fontSize: 12, fill: "#cbd5e1" }}
-                            interval={0}
-                            angle={-22}
-                            textAnchor="end"
-                            height={56}
-                            stroke="rgba(255,255,255,.20)"
-                        />
-                        <YAxis tick={{ fill: "#cbd5e1" }} stroke="rgba(255,255,255,.20)" />
-                        <ReTooltip
-                            contentStyle={{
-                                background: "rgba(9,9,11,.95)",
-                                border: "1px solid rgba(255,255,255,.12)",
-                                color: "#e5e7eb",
-                                borderRadius: 14,
-                            }}
-                            formatter={(v) => `${fmt(v)} sefer`}
-                        />
-                        <Bar dataKey="value" radius={[12, 12, 0, 0]} fill={`url(#${gradId})`} />
-                        <Legend wrapperStyle={{ color: "#cbd5e1" }} />
-                    </BarChart>
-                </ResponsiveContainer>
+      <AnimatePresence initial={false}>
+        {filtersOpen && <motion.div initial={{opacity:0,y:-10,height:0}} animate={{opacity:1,y:0,height:"auto"}} exit={{opacity:0,y:-8,height:0}} className="mb-4 overflow-hidden">
+          <Surface className="p-4">
+            <div className="grid gap-3 xl:grid-cols-[1.2fr_.8fr_.8fr_.8fr_auto] xl:items-end">
+              <div><label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-400">Akıllı arama</label><div className="relative"><FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Sefer no, proje, lokasyon, açıklama..." className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm font-semibold outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100 dark:border-white/10 dark:bg-white/[.04] dark:focus:ring-sky-500/10"/></div></div>
+              <div><label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-400">Başlangıç</label><input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold outline-none focus:border-sky-300 focus:ring-4 focus:ring-sky-100 dark:border-white/10 dark:bg-white/[.04] dark:focus:ring-sky-500/10"/></div>
+              <div><label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-400">Bitiş</label><input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold outline-none focus:border-sky-300 focus:ring-4 focus:ring-sky-100 dark:border-white/10 dark:bg-white/[.04] dark:focus:ring-sky-500/10"/></div>
+              <div><label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-400">Proje</label><select value={selectedProjeKey} onChange={e=>setSelectedProjeKey(e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold outline-none focus:border-sky-300 dark:border-white/10 dark:bg-[#111927]"><option value="">Tüm projeler</option>{projeOptions.map(o=><option key={o.id} value={o.id}>{o.ad}</option>)}</select></div>
+              <div className="flex gap-2"><button onClick={clearAll} disabled={!hasAnyFilter} className={cx("h-11 rounded-xl px-3 text-xs font-black transition",hasAnyFilter?"border border-rose-200 bg-rose-50 text-rose-600 hover:-translate-y-0.5 dark:border-rose-400/15 dark:bg-rose-500/10":"cursor-not-allowed bg-slate-100 text-slate-300 dark:bg-white/5 dark:text-slate-600")}><FiX className="inline mr-1"/>Temizle</button></div>
             </div>
-        </Card>
-    );
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 dark:border-white/[.06]">
+              <span className="mr-1 text-[10px] font-black uppercase tracking-wider text-slate-400">Hızlı dönem</span>
+              {[7,30,90].map(d=><button key={d} onClick={()=>setPreset(d)} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-black text-slate-500 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-600 dark:border-white/10 dark:hover:bg-sky-500/10">Son {d} gün</button>)}
+              <div className="mx-1 hidden h-5 w-px bg-slate-200 sm:block dark:bg-white/10"/>
+              <select value={selectedLokasyonId} onChange={e=>setSelectedLokasyonId(e.target.value)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-black text-slate-600 dark:border-white/10 dark:bg-[#111927] dark:text-slate-300"><option value="">Tüm lokasyonlar</option>{lokasyonOptions.map(o=><option key={o.id} value={o.id}>{o.ad}</option>)}</select>
+              {hasAnyFilter && <motion.span initial={{scale:.8,opacity:0}} animate={{scale:1,opacity:1}} className="ml-auto rounded-full bg-sky-50 px-3 py-1.5 text-[11px] font-black text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">Filtrelenmiş görünüm · {fmt(scopedEvraklar.length)} evrak</motion.span>}
+            </div>
+          </Surface>
+        </motion.div>}
+      </AnimatePresence>
+
+      {error && <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300">{error}</div>}
+      {loading ? <LoadingDashboard/> : <>
+        <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Kpi icon={FiTrendingUp} label="Toplam Sefer" value={fmt(toplamSefer)} hint={`${fmt(scopedEvraklar.length)} evrak kaydı`} tone="sky" onClick={()=>setSelectedStatus("")} active={!selectedStatus}/>
+          <Kpi icon={FiCheckCircle} label="Düzeltilmiş" value={fmt(duzeltilmis)} hint={toplamSefer?`%${((duzeltilmis/toplamSefer)*100).toFixed(1)} pay`:"Veri yok"} tone="cyan" onClick={()=>setSelectedStatus("TARAFIMIZCA DÜZELTİLMİŞTİR")} active={selectedStatus==="TARAFIMIZCA DÜZELTİLMİŞTİR"}/>
+          <Kpi icon={FiFileText} label="Orijinale Çekilmiş" value={fmt(orjinaleCekilmis)} hint={toplamSefer?`%${((orjinaleCekilmis/toplamSefer)*100).toFixed(1)} pay`:"Veri yok"} tone="emerald" onClick={()=>setSelectedStatus("TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR")} active={selectedStatus==="TARAFIMIZCA ORİJİNALE ÇEKİLMİŞTİR"}/>
+          <Kpi icon={FiAlertTriangle} label="Boş Açıklama" value={fmt(bosAciklama)} hint={bosAciklama?"Kontrol edilmesi önerilir":"Eksik açıklama yok"} tone="amber"/>
+        </div>
+
+        <div className="mb-4 grid gap-4 xl:grid-cols-[1.45fr_.75fr]">
+          <Surface className="overflow-hidden"><ChartHead icon={FiTrendingUp} title="Zaman İçinde Operasyon Yoğunluğu" subtitle="Günlük evrak ve sefer hareketi — dönem davranışını tek bakışta görün" right={<span className="rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-black text-sky-600 dark:bg-sky-500/10">{dailySeries.length} gün</span>}/><div className="h-[340px] p-4"><ResponsiveContainer width="100%" height="100%"><AreaChart data={dailySeries} margin={{top:10,right:10,left:-12,bottom:0}}><defs><linearGradient id="evrakArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#0ea5e9" stopOpacity={.32}/><stop offset="100%" stopColor="#0ea5e9" stopOpacity={0}/></linearGradient><linearGradient id="seferArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#06b6d4" stopOpacity={.18}/><stop offset="100%" stopColor="#06b6d4" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148,163,184,.18)"/><XAxis dataKey="label" tick={{fontSize:10,fill:"#94a3b8"}} axisLine={false} tickLine={false} minTickGap={26}/><YAxis tick={{fontSize:10,fill:"#94a3b8"}} axisLine={false} tickLine={false}/><ReTooltip contentStyle={tooltipStyle} labelFormatter={(_,p)=>p?.[0]?.payload?.date?fullDate(p[0].payload.date):""}/><Area type="monotone" dataKey="sefer" name="Sefer" stroke="#06b6d4" strokeWidth={2.5} fill="url(#seferArea)"/><Area type="monotone" dataKey="evrak" name="Evrak" stroke="#0ea5e9" strokeWidth={2.5} fill="url(#evrakArea)"/></AreaChart></ResponsiveContainer></div></Surface>
+
+          <Surface className="overflow-hidden"><ChartHead icon={FiZap} title="Hızlı İçgörüler" subtitle="Bu filtre kapsamındaki en güçlü sinyaller"/><div className="space-y-3 p-4">
+            {[{icon:FiLayers,label:"En yoğun proje",value:topProject?.name||"—",sub:topProject?`${fmt(topProject.value)} sefer`:"Veri yok"},{icon:FiMapPin,label:"En yoğun lokasyon",value:topLocation?.name||"—",sub:topLocation?`${fmt(topLocation.value)} sefer`:"Veri yok"},{icon:FiActivity,label:"Düzeltme oranı",value:toplamSefer?`%${((duzeltilmis/toplamSefer)*100).toFixed(1)}`:"—",sub:"Toplam sefere göre"}].map((x,i)=><motion.div key={x.label} whileHover={{x:4}} className="flex items-center gap-3 rounded-2xl border border-slate-100 p-3.5 transition hover:border-sky-200 hover:bg-sky-50/40 dark:border-white/[.06] dark:hover:bg-sky-500/[.04]"><div className="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-slate-500 dark:bg-white/5 dark:text-slate-300"><x.icon/></div><div className="min-w-0"><div className="text-[10px] font-black uppercase tracking-wider text-slate-400">{x.label}</div><div className="truncate text-sm font-black text-slate-800 dark:text-white">{x.value}</div><div className="text-[11px] font-semibold text-slate-400">{x.sub}</div></div></motion.div>)}
+          </div></Surface>
+        </div>
+
+        <div className="mb-4 grid gap-4 2xl:grid-cols-2">
+          <Surface className="overflow-hidden"><ChartHead icon={FiLayers} title="Proje Bazlı Sefer Dağılımı" subtitle="En yüksek hacimli projeler — çubuğa tıklayın, raporu o projeye indirin" right={selectedProjeKey&&<button onClick={()=>setSelectedProjeKey("")} className="text-[11px] font-black text-sky-600">Proje filtresini kaldır</button>}/><div className="h-[430px] p-4"><ResponsiveContainer width="100%" height="100%"><BarChart layout="vertical" data={projeSeries.slice(0,12)} margin={{top:4,right:24,left:18,bottom:4}}><CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(148,163,184,.16)"/><XAxis type="number" tick={{fontSize:10,fill:"#94a3b8"}} axisLine={false} tickLine={false}/><YAxis type="category" dataKey="name" width={132} tick={{fontSize:10,fill:"#64748b",fontWeight:700}} axisLine={false} tickLine={false}/><ReTooltip contentStyle={tooltipStyle} formatter={v=>[`${fmt(v)} sefer`,"Sefer"]}/><Bar dataKey="value" fill="#0ea5e9" radius={[0,8,8,0]} onClick={d=>d?.key&&setSelectedProjeKey(d.key)} cursor="pointer"/></BarChart></ResponsiveContainer></div></Surface>
+
+          <Surface className="overflow-hidden"><ChartHead icon={FiMapPin} title="Lokasyon Bazlı Sefer Dağılımı" subtitle="Operasyon yoğunluğunu lokasyon bazında karşılaştırın" right={selectedLokasyonId&&<button onClick={()=>setSelectedLokasyonId("")} className="text-[11px] font-black text-sky-600">Lokasyon filtresini kaldır</button>}/><div className="h-[430px] p-4"><ResponsiveContainer width="100%" height="100%"><BarChart layout="vertical" data={lokasyonSeries.slice(0,12)} margin={{top:4,right:24,left:18,bottom:4}}><CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(148,163,184,.16)"/><XAxis type="number" tick={{fontSize:10,fill:"#94a3b8"}} axisLine={false} tickLine={false}/><YAxis type="category" dataKey="name" width={132} tick={{fontSize:10,fill:"#64748b",fontWeight:700}} axisLine={false} tickLine={false}/><ReTooltip contentStyle={tooltipStyle} formatter={v=>[`${fmt(v)} sefer`,"Sefer"]}/><Bar dataKey="value" fill="#06b6d4" radius={[0,8,8,0]} onClick={d=>{const found=lokasyonOptions.find(o=>o.ad===d?.name);if(found)setSelectedLokasyonId(found.id)}} cursor="pointer"/></BarChart></ResponsiveContainer></div></Surface>
+        </div>
+
+        <Surface className="mb-4 overflow-hidden"><ChartHead icon={FiFileText} title="Evrak Açıklama Analizi" subtitle="Açıklama kalitesini ve operasyon türlerini birlikte inceleyin"/><div className="grid gap-4 p-4 xl:grid-cols-[.8fr_1.2fr]">
+          <div className="h-[380px]"><ResponsiveContainer width="100%" height="100%"><PieChart><ReTooltip contentStyle={tooltipStyle} formatter={(v,n,p)=>[`${fmt(v)} kayıt · %${p.payload.pct}`,n]}/><Pie data={aciklamaSeries.slice(0,8)} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={82} outerRadius={126} paddingAngle={2} stroke="transparent">{aciklamaSeries.slice(0,8).map((_,i)=><Cell key={i} fill={CHART_COLORS[i%CHART_COLORS.length]}/>)}</Pie><text x="50%" y="48%" textAnchor="middle" fill="#64748b" fontSize="11" fontWeight="700">TOPLAM AÇIKLAMA</text><text x="50%" y="56%" textAnchor="middle" fill="#0f172a" fontSize="24" fontWeight="900">{fmt(aciklamaSeries.reduce((s,x)=>s+x.value,0))}</text></PieChart></ResponsiveContainer></div>
+          <div className="grid content-start gap-2">{aciklamaSeries.slice(0,10).map((r,i)=><motion.button key={r.name} whileHover={{x:3}} onClick={()=>setSelectedStatus(normalize(r.name)==="(BOŞ)"?"":normalize(r.name))} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-3 rounded-xl border border-slate-100 px-3.5 py-3 text-left transition hover:border-sky-200 hover:bg-sky-50/40 dark:border-white/[.06] dark:hover:bg-sky-500/[.04]"><span className="h-2.5 w-2.5 rounded-full" style={{background:CHART_COLORS[i%CHART_COLORS.length]}}/><span className="min-w-0 truncate text-xs font-bold text-slate-600 dark:text-slate-300" title={r.name}>{r.name}</span><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500 dark:bg-white/5">%{r.pct}</span><span className="w-16 text-right text-xs font-black tabular-nums text-slate-900 dark:text-white">{fmt(r.value)}</span></motion.button>)}</div>
+        </div></Surface>
+      </>}
+    </div>
+  </div>;
 }

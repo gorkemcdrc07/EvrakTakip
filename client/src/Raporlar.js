@@ -1,537 +1,316 @@
-﻿import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import api from './apiClient';
-import DatePicker, { registerLocale } from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
-import tr from 'date-fns/locale/tr';
-import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
-import { useNavigate } from "react-router-dom";
-
+import { useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
-    FiFilter, FiDownload, FiBarChart2, FiUsers, FiTruck, FiTable, FiX, FiRefreshCw, FiCalendar,
+  FiArrowLeft, FiBarChart2, FiCalendar, FiCheckCircle, FiChevronLeft, FiChevronRight,
+  FiDownload, FiFileText, FiFilter, FiLayers, FiRefreshCw, FiSearch, FiTable,
+  FiTruck, FiUsers, FiX, FiZap, FiAlertTriangle, FiActivity, FiBox, FiUser
 } from 'react-icons/fi';
 
-registerLocale('tr', tr);
 
-const Raporlar = () => {
-    // ---------------- state & sabitler (AYNEN) ----------------
-    const navigate = useNavigate();
-    const [veriler, setVeriler] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [hata, setHata] = useState(null);
+const PAGE_SIZE = 100;
+const STATUS_LABELS = {
+  1: 'BEKLİYOR', 2: 'ONAYLANDI', 3: 'SPOT ARAÇ PLANLAMADA', 4: 'ARAÇ ATANDI', 5: 'ARAÇ YÜKLENDİ',
+  6: 'ARAÇ YOLDA', 7: 'TESLİM EDİLDİ', 8: 'TAMAMLANDI', 10: 'EKSİK EVRAK', 20: 'HASARSIZ GÖRÜNTÜ',
+  30: 'HASARLI GÖRÜNTÜ İŞLENDİ', 31: 'HASARLI-ORJİNAL EVRAK', 40: 'ORJİNAL EVRAK GELDİ',
+  50: 'EVRAK ARŞİVLENDİ', 80: 'ARAÇ BOŞALTMADA', 90: 'FİLO ARAÇ PLANLAMADA', 200: 'İPTAL',
+};
+const FOCUS_STATUSES = ['BEKLİYOR', 'EKSİK EVRAK', 'HASARLI GÖRÜNTÜ İŞLENDİ', 'HASARLI-ORJİNAL EVRAK', 'ORJİNAL EVRAK GELDİ'];
+const U = (v) => (v ?? '').toString().trim().toLocaleUpperCase('tr-TR');
+const PROJE_ENGEL = ['HASAR İADE', 'AKTÜL', 'KARGO HİZMETLERİ', 'HGS-YAKIT FATURA İŞLEME'].map(U);
+const FIRMA_ENGEL = [
+  'İZ KENT LOJİSTİK HİZMETLERİ LİMİTED ŞİRKETİ', 'ARKAS LOJİSTİK ANONİM ŞİRKETİ',
+  'HEDEF TÜKETİM ÜRÜNLERİ SANAYİ VE DIŞ TİCARET ANONİM ŞİRKETİ',
+  'MOKS MOBİLYA KURULUM SERVİS LOJİSTİK PETROL İTHALAT İHRACAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ',
+  'ODAK TEDARİK ZİNCİRİ VE LOJİSTİK ANONİM ŞİRKETİ', 'KONFRUT AG TARIM ANONİM ŞİRKETİ',
+].map(U);
 
-    const [startDate, setStartDate] = useState(new Date('2025-01-04'));
-    const [endDate, setEndDate] = useState(new Date('2025-01-04'));
-
-    const [filters, setFilters] = useState({ firma: '', proje: '', durum: '', kullanici: '' });
-
-    const durumAciklamalari = {
-        1: 'BEKLİYOR', 2: 'ONAYLANDI', 3: 'SPOT ARAÇ PLANLAMADA', 4: 'ARAÇ ATANDI', 5: 'ARAÇ YÜKLENDİ',
-        6: 'ARAÇ YOLDA', 7: 'TESLİM EDİLDİ', 8: 'TAMAMLANDI', 10: 'EKSİK EVRAK', 20: 'HASARSIZ GÖRÜNTÜ',
-        30: 'HASARLI GÖRÜNTÜ İŞLENDİ', 31: 'HASARLI-ORJİNAL EVRAK', 40: 'ORJİNAL EVRAK GELDİ',
-        50: 'EVRAK ARŞİVLENDİ', 80: 'ARAÇ BOŞALTMADA', 90: 'FİLO ARAÇ PLANLAMADA', 200: 'İPTAL',
-    };
-
-    const U = (v) => (v ?? '').toString().trim().toLocaleUpperCase('tr-TR');
-    const PROJE_ENGEL = ['HASAR İADE', 'AKTÜL', 'KARGO HİZMETLERİ', 'HGS-YAKIT FATURA İŞLEME'].map(U);
-    const FIRMA_ENGEL = [
-        'İZ KENT LOJİSTİK HİZMETLERİ LİMİTED ŞİRKETİ', 'ARKAS LOJİSTİK ANONİM ŞİRKETİ',
-        'HEDEF TÜKETİM ÜRÜNLERİ SANAYİ VE DIŞ TİCARET ANONİM ŞİRKETİ',
-        'MOKS MOBİLYA KURULUM SERVİS LOJİSTİK PETROL İTHALAT İHRACAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ',
-        'ODAK TEDARİK ZİNCİRİ VE LOJİSTİK ANONİM ŞİRKETİ',
-    ].map(U);
-
-    const isBaseAllowed = (item) => {
-        if (U(item.VehicleWorkingTypeName) !== 'SPOT') return false;
-        if (U(item.SpecialGroupName) !== 'SPOT') return false;
-        if (!item.DocumentNo?.startsWith('SFR')) return false;
-        if (!item.TMSDespatchInvoiceDocumentNo) return false;
-        if (U(item.PlateNumber) === '34SEZ34') return false;
-        if (PROJE_ENGEL.some(k => U(item.ProjectName).includes(k))) return false;
-        if (FIRMA_ENGEL.includes(U(item.SupplierCurrentAccountFullTitle))) return false;
-        return true;
-    };
-
-    const uniqBy = (arr, keyFn) => {
-        const seen = new Set();
-        return arr.filter((x) => {
-            const k = keyFn(x);
-            if (k == null) return true;
-            if (seen.has(k)) return false;
-            seen.add(k);
-            return true;
-        });
-    };
-
-    const fetchData = async () => {
-        setLoading(true);
-        setHata(null);
-
-        try {
-            // Tarihleri parçalayıp (aynı mantık) her parça için yeni parametre seti ile istek atıyoruz
-            const ranges = chunkDateRanges(startDate, endDate, 2);
-            const all = [];
-
-            for (const { start, end } of ranges) {
-                const body = {
-                    // mevcut alanlar
-                    startDate: start.toISOString(),
-                    endDate: end.toISOString(),
-                    userId: 1,
-
-                    // yeni eklenen alanlar (backend istediği adlarla ve defaultlar ile)
-                    CustomerId: 0,
-                    SupplierId: 0,
-                    DriverId: 0,
-                    TMSDespatchId: 0,
-                    VehicleId: 0,
-                    DocumentPrint: "",
-                    WorkingTypesId: [],
-                };
-
-                const resp = await api.post('/tmsdespatches/getall', body);
-                all.push(...(resp?.data?.Data || []));
-            }
-
-            // mevcut filtreleme mantığını koruyoruz
-            const filtreliData = all.filter((item) => {
-                const projeEngellenenler = ['HASAR İADE', 'AKTÜL', 'KARGO HİZMETLERİ', 'HGS-YAKIT FATURA İŞLEME'];
-                const firmaEngellenenler = [
-                    'İZ KENT LOJİSTİK HİZMETLERİ LİMİTED ŞİRKETİ', 'ARKAS LOJİSTİK ANONİM ŞİRKETİ',
-                    'HEDEF TÜKETİM ÜRÜNLERİ SANAYİ VE DIŞ TİCARET ANONİM ŞİRKETİ',
-                    'MOKS MOBİLYA KURULUM SERVİS LOJİSTİK PETROL İTHALAT İHRACAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ',
-                    'ODAK TEDARİK ZİNCİRİ VE LOJİSTİK ANONİM ŞİRKETİ', 'KONFRUT AG TARIM ANONİM ŞİRKETİ'
-                ];
-
-                return (
-                    item.VehicleWorkingTypeName === 'SPOT' &&
-                    item.SpecialGroupName === 'SPOT' &&
-                    item.DocumentNo?.startsWith('SFR') &&
-                    item.TMSDespatchInvoiceDocumentNo &&
-                    item.PlateNumber !== '34SEZ34' &&
-                    !projeEngellenenler.some(k => item.ProjectName?.includes(k)) &&
-                    !firmaEngellenenler.includes(item.SupplierCurrentAccountFullTitle)
-                );
-            });
-
-            setVeriler(filtreliData);
-        } catch (e) {
-            console.error(e);
-            setHata('Veri alınamadı. Lütfen tekrar deneyin.');
-        } finally {
-            setLoading(false);
-        }
-    };
-    const excelExportEt = () => {
-        const data = uniqBy(filtrelenmisVeri.filter(isBaseAllowed), x => x.DocumentNo);
-        if (data.length === 0) return alert('Aktarılacak veri bulunamadı.');
-        const rows = data.map((x) => ({
-            'Tedarikçi Firma': x.SupplierCurrentAccountFullTitle, 'Proje Adı': x.ProjectName,
-            'Sefer Tarihi': x.DespatchDate?.split('T')[0], 'Sefer No': x.DocumentNo,
-            'Durum': durumAciklamalari[x.TMSDespatchDocumentStatu] ?? x.TMSDespatchDocumentStatu,
-            'Plaka': x.PlateNumber, 'Kullanıcı': x.TMSDespatchCreatedBy,
-            'Araç Çalışma Alt Grubu': x.SpecialGroupName, 'Çalışma Tipi': x.VehicleWorkingTypeName,
-            'Alış Fatura No': x.TMSDespatchInvoiceDocumentNo,
-        }));
-        const ws = XLSX.utils.json_to_sheet(rows); const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Rapor');
-        const fileName = `rapor_${startDate.toLocaleDateString('tr-TR')}_-_${endDate.toLocaleDateString('tr-TR')}.xlsx`;
-        XLSX.writeFile(wb, fileName);
-    };
-
-    const getUniqueValues = (key) => {
-        const all = veriler.map((item) => item[key]);
-        return [...new Set(all.filter(Boolean))];
-    };
-
-    const projeBazliRaporOlustur = async () => {
-        const data = uniqBy(filtrelenmisVeri.filter(isBaseAllowed), x => x.DocumentNo);
-        if (data.length === 0) return alert('Raporlanacak veri bulunamadı.');
-        const sadeceBunlar = ['BEKLİYOR', 'EKSİK EVRAK', 'HASARLI GÖRÜNTÜ İŞLENDİ', 'HASARLI-ORJİNAL EVRAK GELDİ', 'ORJİNAL EVRAK GELDİ'];
-        const projeDurumSayim = {};
-        data.forEach((item) => {
-            const proje = item.ProjectName || 'Bilinmeyen Proje';
-            const durum = durumAciklamalari[item.TMSDespatchDocumentStatu];
-            if (!sadeceBunlar.includes(durum)) return;
-            if (!projeDurumSayim[proje]) { projeDurumSayim[proje] = {}; sadeceBunlar.forEach(d => projeDurumSayim[proje][d] = 0); }
-            projeDurumSayim[proje][durum]++;
-        });
-        const workbook = new ExcelJS.Workbook(); const sheet = workbook.addWorksheet('ProjeBazliDurum');
-        const headers = ['Proje', ...sadeceBunlar, 'Genel Toplam', ...sadeceBunlar.map(d => `${d} %`)]; sheet.addRow(headers);
-        Object.entries(projeDurumSayim).forEach(([proje, obj]) => {
-            const toplam = sadeceBunlar.reduce((s, k) => s + (obj[k] || 0), 0);
-            const yuzdeler = sadeceBunlar.map(k => toplam > 0 ? `${((obj[k] / toplam) * 100).toFixed(2)}%` : '0%');
-            sheet.addRow([proje, ...sadeceBunlar.map(k => obj[k]), toplam, ...yuzdeler]);
-        });
-        sheet.columns.forEach((c) => { let w = 10; c.eachCell?.(cell => { const val = cell.value ? cell.value.toString() : ''; if (val.length > w) w = val.length; }); c.width = w + 2; c.alignment = { vertical: 'middle', horizontal: 'center' }; });
-        sheet.getRow(1).eachCell((cell) => { cell.style = { font: { bold: true, color: { argb: 'FF000000' } }, fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } }, alignment: { vertical: 'middle', horizontal: 'center' }, border: { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } } }; });
-        sheet.eachRow((row, i) => { if (i === 1) return; const col = i % 2 === 0 ? 'FFF0F0F0' : 'FFFFFFFF'; row.eachCell((cell) => { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: col } }; }); });
-        const buffer = await workbook.xlsx.writeBuffer(); saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `proje_bazli_durum_raporu_${new Date().toLocaleDateString('tr-TR')}.xlsx`);
-    };
-
-    const chunkDateRanges = (start, end, step = 7) => {
-        const ranges = []; let cursor = new Date(start); const endDate = new Date(end);
-        while (cursor <= endDate) { const s = new Date(cursor); const e = new Date(cursor); e.setDate(e.getDate() + step - 1); if (e > endDate) e.setTime(endDate.getTime()); ranges.push({ start: new Date(s), end: new Date(e) }); cursor.setDate(cursor.getDate() + step); }
-        return ranges;
-    };
-
-    const tedarikciPivotGrupRaporOlustur = async () => {
-        const data = uniqBy(filtrelenmisVeri.filter(isBaseAllowed), x => x.DocumentNo);
-        if (data.length === 0) return alert('Raporlanacak veri bulunamadı.');
-        const sadeceBunlar = ['BEKLİYOR', 'EKSİK EVRAK', 'HASARLI GÖRÜNTÜ İŞLENDİ', 'HASARLI-ORJİNAL EVRAK GELDİ', 'ORJİNAL EVRAK GELDİ'];
-        const siralamaKriteri = sadeceBunlar.slice(0, 4);
-        const grouped = {}; const seferSayilari = {};
-        data.forEach((item) => {
-            const tedarikci = item.SupplierCurrentAccountFullTitle || 'Bilinmeyen Tedarikçi';
-            const proje = item.ProjectName || 'Bilinmeyen Proje';
-            const durum = durumAciklamalari[item.TMSDespatchDocumentStatu]; const documentNo = item.DocumentNo;
-            if (!sadeceBunlar.includes(durum)) return;
-            if (!grouped[tedarikci]) grouped[tedarikci] = {};
-            if (!grouped[tedarikci][proje]) { grouped[tedarikci][proje] = {}; sadeceBunlar.forEach(d => grouped[tedarikci][proje][d] = 0); }
-            grouped[tedarikci][proje][durum]++; const key = `${tedarikci}__${proje}`; if (!seferSayilari[key]) seferSayilari[key] = new Set(); if (documentNo) seferSayilari[key].add(documentNo);
-        });
-        const workbook = new ExcelJS.Workbook(); const sheet = workbook.addWorksheet('Tedarikçi Bazlı Rapor');
-        const headers = ['Proje', ...sadeceBunlar, 'Toplam Sefer'];
-        const sorted = Object.entries(grouped).map(([tedarikci, projeler]) => {
-            let total = 0; Object.values(projeler).forEach(dur => { total += siralamaKriteri.reduce((s, d) => s + dur[d], 0); }); return { tedarikci, projeler, total };
-        }).sort((a, b) => b.total - a.total);
-        sorted.forEach(({ tedarikci, projeler }) => {
-            const titleRow = sheet.addRow([`🏢 ${tedarikci}`]);
-            sheet.mergeCells(`A${titleRow.number}:${String.fromCharCode(65 + headers.length - 1)}${titleRow.number}`);
-            titleRow.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } }; titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF7BAE57' } };
-            const headerRow = sheet.addRow(headers);
-            headerRow.eachCell((cell) => { cell.font = { bold: true }; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF4F4F4' } }; cell.alignment = { vertical: 'middle', horizontal: 'center' }; cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }; });
-            Object.entries(projeler).forEach(([proje, durumlar], index) => {
-                const key = `${tedarikci}__${proje}`; const seferSayisi = seferSayilari[key]?.size || 0;
-                const row = sheet.addRow([proje, ...sadeceBunlar.map(d => durumlar[d]), seferSayisi]);
-                const fill = index % 2 === 0 ? 'FFFAFAFA' : 'FFFFFFFF';
-                row.eachCell((cell) => { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }; cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }; cell.alignment = { vertical: 'middle', horizontal: 'center' }; });
-                row.getCell(1).alignment = { horizontal: 'left' };
-            });
-            sheet.addRow([]);
-        });
-        sheet.columns.forEach((col, idx) => { col.width = idx === 0 ? 35 : 18; col.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; });
-        const buffer = await workbook.xlsx.writeBuffer();
-        saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `tedarikci_modern_pastel_rapor_${new Date().toLocaleDateString('tr-TR')}.xlsx`);
-    };
-
-    const kullaniciBazliRaporOlustur = async () => {
-        const data = uniqBy(filtrelenmisVeri.filter(isBaseAllowed), x => x.DocumentNo);
-        if (data.length === 0) return alert('Raporlanacak veri bulunamadı.');
-        const sadeceBunlar = ['BEKLİYOR', 'EKSİK EVRAK', 'HASARLI GÖRÜNTÜ İŞLENDİ', 'HASARLI-ORJİNAL EVRAK GELDİ', 'ORJİNAL EVRAK GELDİ'];
-        const siralamaKriteri = sadeceBunlar.slice(0, 4);
-        const grouped = {};
-        data.forEach((item) => {
-            const kullanici = item.TMSDespatchCreatedBy || 'Bilinmeyen Kullanıcı';
-            const proje = item.ProjectName || 'Bilinmeyen Proje';
-            const durum = durumAciklamalari[item.TMSDespatchDocumentStatu];
-            if (!sadeceBunlar.includes(durum)) return;
-            if (!grouped[kullanici]) grouped[kullanici] = {};
-            if (!grouped[kullanici][proje]) { grouped[kullanici][proje] = {}; sadeceBunlar.forEach(d => grouped[kullanici][proje][d] = 0); }
-            grouped[kullanici][proje][durum]++;
-        });
-        const workbook = new ExcelJS.Workbook(); const sheet = workbook.addWorksheet('Kullanıcı Bazlı Rapor');
-        const headers = ['Kullanıcı / Proje', ...sadeceBunlar, 'Genel Toplam']; const headerRow = sheet.addRow(headers);
-        headerRow.eachCell((cell) => { cell.font = { bold: true, color: { argb: 'FF000000' } }; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCE6F1' } }; cell.alignment = { vertical: 'middle', horizontal: 'center' }; cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }; });
-        const sortedUsers = Object.entries(grouped).map(([kullanici, projeler]) => {
-            let toplam = 0; Object.values(projeler).forEach(d => { toplam += siralamaKriteri.reduce((s, x) => s + d[x], 0); }); return { kullanici, projeler, toplam };
-        }).sort((a, b) => b.toplam - a.toplam);
-        sortedUsers.forEach(({ kullanici, projeler }) => {
-            const titleRow = sheet.addRow([`👤 ${kullanici}`]);
-            sheet.mergeCells(`A${titleRow.number}:${String.fromCharCode(65 + headers.length - 1)}${titleRow.number}`);
-            titleRow.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } }; titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4A86E8' } };
-            Object.entries(projeler).forEach(([proje, durumlar], index) => {
-                const toplam = sadeceBunlar.reduce((s, d) => s + durumlar[d], 0);
-                const row = sheet.addRow([proje, ...sadeceBunlar.map(d => durumlar[d]), toplam]);
-                const fill = index % 2 === 0 ? 'FFF7F7F7' : 'FFFFFFFF';
-                row.eachCell((cell) => { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }; cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }; cell.alignment = { vertical: 'middle', horizontal: 'center' }; });
-                row.getCell(1).alignment = { horizontal: 'left' };
-            });
-            sheet.addRow([]);
-        });
-        sheet.columns.forEach((c, i) => c.width = i === 0 ? 35 : 18);
-        const buffer = await workbook.xlsx.writeBuffer();
-        saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `kullanici_modern_raporu_${new Date().toLocaleDateString('tr-TR')}.xlsx`);
-    };
-
-    const filtrelenmisVeri = veriler.filter((item) => (
-        (filters.firma === '' || item.SupplierCurrentAccountFullTitle === filters.firma) &&
-        (filters.proje === '' || item.ProjectName === filters.proje) &&
-        (filters.durum === '' || String(item.TMSDespatchDocumentStatu) === String(filters.durum)) &&
-        (filters.kullanici === '' || item.TMSDespatchCreatedBy === filters.kullanici)
-    ));
-
-    // ---------------- küçük yardımcı UI ----------------
-    const StatusBadge = ({ code }) => {
-        const label = durumAciklamalari[code] || code;
-        const tone =
-            label === 'İPTAL' ? 'bg-rose-500/20 text-rose-300 border-rose-400/30'
-                : ['BEKLİYOR'].includes(label) ? 'bg-slate-500/20 text-slate-300 border-slate-400/30'
-                    : ['EKSİK EVRAK'].includes(label) ? 'bg-amber-500/20 text-amber-300 border-amber-400/30'
-                        : ['HASARLI GÖRÜNTÜ İŞLENDİ', 'HASARLI-ORJİNAL EVRAK'].includes(label) ? 'bg-pink-500/20 text-pink-300 border-pink-400/30'
-                            : ['ORJİNAL EVRAK GELDİ', 'TESLİM EDİLDİ', 'TAMAMLANDI'].includes(label) ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30'
-                                : 'bg-indigo-500/20 text-indigo-300 border-indigo-400/30';
-        return <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-medium ${tone}`}>{label}</span>;
-    };
-
-    const SkeletonRow = () => (
-        <tr>{[...Array(10)].map((_, i) => (<td key={i} className="px-4 py-3"><div className="h-3 w-full rounded bg-gray-700/60 animate-pulse" /></td>))}</tr>
-    );
-
-    // ---------------- görünüm ----------------
-    return (
-        <div className="min-h-screen w-full bg-[#0b0f1a] text-white">
-            {/* HEADER – tam ekran, ferah butonlar */}
-            <header className="w-full border-b border-white/10 bg-[#0d1426]/90 backdrop-blur">
-                <div className="w-full max-w-none px-10 py-6">
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                        <div>
-                            <h1 className="text-3xl font-bold tracking-tight">📊 Raporlar</h1>
-                            <p className="mt-1 text-sm text-white/60">
-                                Aralık: <b>{startDate.toLocaleDateString('tr-TR')}</b> – <b>{endDate.toLocaleDateString('tr-TR')}</b>
-                            </p>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-4">
-                            <button
-                                onClick={() => navigate("/anasayfa")}
-                                className="btn-lg btn-ghost"
-                                title="Anasayfaya dön"
-                            >
-                                Anasayfaya Dön
-                            </button>
-                            <button onClick={fetchData} className="btn-lg btn-indigo"><FiRefreshCw className="mr-2" />Sorgula</button>
-                            <button onClick={excelExportEt} className="btn-lg btn-emerald"><FiDownload className="mr-2" />Genel Excel</button>
-                            <button onClick={projeBazliRaporOlustur} className="btn-lg btn-violet"><FiBarChart2 className="mr-2" />Proje Durum</button>
-                            <button onClick={tedarikciPivotGrupRaporOlustur} className="btn-lg btn-amber"><FiTruck className="mr-2" />Tedarikçi/Projeler</button>
-                            <button onClick={kullaniciBazliRaporOlustur} className="btn-lg btn-pink"><FiUsers className="mr-2" />Kullanıcı Raporu</button>
-                        </div>
-                    </div>
-                </div>
-            </header>
-
-            {/* CONTENT – tam genişlik, sade */}
-            <main className="w-full px-10 py-8">
-                {/* Filtreler */}
-                <section className="rounded-2xl border border-white/10 bg-white/5 p-6 overflow-visible relative">
-                    <div className="mb-5 flex items-center gap-2 text-white/80">
-                        <FiFilter /><span className="text-lg font-semibold">Filtreler</span>
-                    </div>
-
-                    {/* geniş ekranlarda tek satır olacak şekilde sade grid */}
-                    <div className="grid grid-cols-2 gap-6 lg:grid-cols-4 2xl:grid-cols-6">
-                        <div>
-                            <label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-white/70">
-                                <FiCalendar /> Başlangıç
-                            </label>
-                            <DatePicker
-                                selected={startDate}
-                                onChange={setStartDate}
-                                dateFormat="dd.MM.yyyy"
-                                locale="tr"
-                                className="h-11 w-full rounded-xl border border-white/10 bg-white/10 px-4 text-white outline-none focus:ring-2 focus:ring-indigo-500"
-                                withPortal
-                                popperClassName="datepicker-popper"
-                                popperPlacement="bottom-start"
-                            />
-                        </div>
-                        <div>
-                            <label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-white/70">
-                                <FiCalendar /> Bitiş
-                            </label>
-                            <DatePicker
-                                selected={endDate}
-                                onChange={setEndDate}
-                                dateFormat="dd.MM.yyyy"
-                                locale="tr"
-                                className="h-11 w-full rounded-xl border border-white/10 bg-white/10 px-4 text-white outline-none focus:ring-2 focus:ring-indigo-500"
-                                withPortal
-                                popperClassName="datepicker-popper"
-                                popperPlacement="bottom-start"
-                            />
-                        </div>
-
-                        {[
-                            { key: 'firma', label: 'Tedarikçi Firma', mapKey: 'SupplierCurrentAccountFullTitle' },
-                            { key: 'proje', label: 'Proje Adı', mapKey: 'ProjectName' },
-                            { key: 'durum', label: 'Durum', mapKey: 'TMSDespatchDocumentStatu' },
-                            { key: 'kullanici', label: 'Kullanıcı', mapKey: 'TMSDespatchCreatedBy' },
-                        ].map(({ key, label, mapKey }) => (
-                            <div key={key}>
-                                <label className="mb-2 block text-xs uppercase tracking-wide text-white/70">{label}</label>
-                                <select
-                                    value={filters[key]}
-                                    onChange={(e) => setFilters({ ...filters, [key]: e.target.value })}
-                                    className="h-11 w-full rounded-xl border border-white/10 bg-white/10 px-3 text-white outline-none focus:ring-2 focus:ring-indigo-500"
-                                >
-                                
-                                    <option value="">Tümü</option>
-                                    {getUniqueValues(mapKey).map((val, i) => (
-                                        <option key={i} value={val}>
-                                            {mapKey === 'TMSDespatchDocumentStatu' ? (durumAciklamalari[val] || val) : val}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* aktif filtreler + işlemler */}
-                    <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
-                        <div className="flex flex-wrap gap-2">
-                            {Object.entries(filters).filter(([, v]) => Boolean(v)).map(([k, v]) => (
-                                <span key={k} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs">
-                                    <FiTable /><span className="capitalize">{k}:</span>
-                                    <span className="font-medium">{k === 'durum' ? (durumAciklamalari[v] || v) : v}</span>
-                                    <button onClick={() => setFilters({ ...filters, [k]: '' })} className="rounded-full p-1 hover:bg-white/10" title="Kaldır">
-                                        <FiX />
-                                    </button>
-                                </span>
-                            ))}
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <button onClick={fetchData} className="btn-md btn-indigo"><FiRefreshCw className="mr-2" />Veriyi Getir</button>
-                            <button onClick={() => setFilters({ firma: '', proje: '', durum: '', kullanici: '' })} className="btn-md btn-ghost">Filtreleri Temizle</button>
-                        </div>
-                    </div>
-                </section>
-
-                {/* Sonuçlar */}
-                <section className="mt-8 rounded-2xl border border-white/10 bg-white/5">
-                    <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-                        <div className="flex items-center gap-2 text-white/80">
-                            <FiTable /><span className="font-semibold">Sonuçlar</span>
-                            <span className="text-sm text-white/50">
-                                ({filtrelenmisVeri.filter(isBaseAllowed).length.toLocaleString('tr-TR')})
-                            </span>
-                        </div>
-                        <button onClick={excelExportEt} className="btn-md btn-emerald">
-                            <FiDownload className="mr-2" /> Excel'e Aktar
-                        </button>
-                    </div>
-
-                    <div className="max-h-[72vh] overflow-auto">
-                        <table className="min-w-full divide-y divide-white/10 text-[13.5px]">
-                            <thead className="sticky top-0 z-10 bg-[#0d1426]/95 backdrop-blur">
-                                <tr className="text-xs uppercase tracking-wider text-white/70">
-                                    <th className="px-4 py-3 text-left">Tedarikçi Firma</th>
-                                    <th className="px-4 py-3 text-left">Proje Adı</th>
-                                    <th className="px-4 py-3 text-left">Sefer Tarihi</th>
-                                    <th className="px-4 py-3 text-left">Sefer No</th>
-                                    <th className="px-4 py-3 text-left">Durum</th>
-                                    <th className="px-4 py-3 text-left">Plaka</th>
-                                    <th className="px-4 py-3 text-left">Kullanıcı</th>
-                                    <th className="px-4 py-3 text-left">Araç Çalışma Alt Grubu</th>
-                                    <th className="px-4 py-3 text-left">Çalışma Tipi</th>
-                                    <th className="px-4 py-3 text-left">Alış Fatura No</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/10">
-                                {loading ? (
-                                    [...Array(10)].map((_, i) => <SkeletonRow key={i} />)
-                                ) : hata ? (
-                                    <tr><td colSpan="10" className="px-4 py-6 text-center text-rose-300">{hata}</td></tr>
-                                ) : filtrelenmisVeri.length === 0 ? (
-                                    <tr><td colSpan="10" className="px-4 py-8 text-center text-white/60">Veri bulunamadı</td></tr>
-                                ) : (
-                                    filtrelenmisVeri.filter(isBaseAllowed).map((item, i) => (
-                                        <tr key={i} className="hover:bg-white/5">
-                                            <td className="px-4 py-3">{item.SupplierCurrentAccountFullTitle}</td>
-                                            <td className="px-4 py-3">{item.ProjectName}</td>
-                                            <td className="px-4 py-3">{item.DespatchDate?.split('T')[0]}</td>
-                                            <td className="px-4 py-3 font-medium text-indigo-300">{item.DocumentNo}</td>
-                                            <td className="px-4 py-3"><StatusBadge code={item.TMSDespatchDocumentStatu} /></td>
-                                            <td className="px-4 py-3">{item.PlateNumber}</td>
-                                            <td className="px-4 py-3">{item.TMSDespatchCreatedBy}</td>
-                                            <td className="px-4 py-3">{item.SpecialGroupName}</td>
-                                            <td className="px-4 py-3">{item.VehicleWorkingTypeName}</td>
-                                            <td className="px-4 py-3">{item.TMSDespatchInvoiceDocumentNo}</td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
-            </main>
-
-            {/* Modern buton utility stilleri */}
-            <style>{`
-  :root { --ring-indigo: rgba(99,102,241,.45); }
-
-  /* ---- Button utilities ---- */
-  .btn-lg, .btn-md{
-    display:inline-flex; align-items:center; gap:8px; white-space:nowrap;
-    cursor:pointer; user-select:none;
+const cx = (...a) => a.filter(Boolean).join(' ');
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('tr-TR') : '-';
+const rangeLabel = (start, end) => start && end ? `${fmtDate(start)} – ${fmtDate(end)}` : start ? `${fmtDate(start)} sonrası` : end ? `${fmtDate(end)} öncesi` : 'Tüm Tarihler';
+const inputDate = (d) => {
+  if (!d) return 'tum-tarihler';
+  const x = new Date(d); const y = x.getFullYear(); const m = String(x.getMonth() + 1).padStart(2, '0'); const day = String(x.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+const parseFlexibleDateInput = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  const digits = raw.replace(/\D/g, '');
+  let day, month, year;
+  if (digits.length === 8) {
+    day = Number(digits.slice(0, 2));
+    month = Number(digits.slice(2, 4));
+    year = Number(digits.slice(4, 8));
+  } else {
+    const parts = raw.split(/[.\/\-]/).filter(Boolean);
+    if (parts.length !== 3) return undefined;
+    day = Number(parts[0]); month = Number(parts[1]); year = Number(parts[2]);
+    if (year < 100) year += 2000;
   }
-  .btn-lg{
-    padding:10px 16px; border-radius:14px; font-weight:600;
-    box-shadow:0 6px 18px rgba(0,0,0,.25);
-    transition:transform .15s ease, filter .15s ease, box-shadow .2s ease, background-color .2s ease;
-    border:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.08);
-  }
-  .btn-md{
-    padding:8px 14px; border-radius:12px; font-weight:600;
-    border:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.08);
-    transition:transform .15s ease, filter .15s ease, background-color .2s ease, box-shadow .2s ease;
-  }
-  .btn-lg:hover,.btn-md:hover{ transform:translateY(-1px); filter:brightness(1.05); }
-  .btn-lg:active,.btn-md:active{ transform:translateY(0); filter:brightness(.98); }
-  .btn-lg:focus-visible,.btn-md:focus-visible{ outline:none; box-shadow:0 0 0 3px var(--ring-indigo); }
+  if (!day || !month || !year || year < 1900 || year > 2100) return undefined;
+  const d = new Date(year, month - 1, day);
+  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return undefined;
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+const formatDateInput = (date) => {
+  if (!date) return '';
+  const d = new Date(date);
+  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+};
+const uniqBy = (arr, keyFn) => { const seen = new Set(); return arr.filter(x => { const k = keyFn(x); if (k == null) return true; if (seen.has(k)) return false; seen.add(k); return true; }); };
+const normalize = (v) => U(v).replace(/[^A-Z0-9ÇĞİÖŞÜ]+/g, ' ').trim();
 
-  .btn-ghost{ background:transparent; color:#c7cbd6; border-color:rgba(255,255,255,.12); }
-  .btn-indigo{ background:#4f46e5; color:#fff; border-color:transparent; }
-  .btn-emerald{ background:#059669; color:#fff; border-color:transparent; }
-  .btn-violet{ background:#7c3aed; color:#fff; border-color:transparent; }
-  .btn-amber{ background:#f59e0b; color:#111827; border-color:transparent; }
-  .btn-pink{ background:#ec4899; color:#fff; border-color:transparent; }
-
-  .btn-soft{
-    display:inline-flex; align-items:center; gap:8px;
-    padding:8px 14px; border-radius:12px; font-weight:600;
-    background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.12);
-    transition:background-color .2s ease, box-shadow .2s ease;
-  }
-  .btn-soft:hover{ background:rgba(255,255,255,.14); }
-  .btn-soft:focus-visible{ outline:none; box-shadow:0 0 0 3px var(--ring-indigo); }
-
-  .btn-lg[disabled], .btn-md[disabled],
-  .btn-lg:disabled, .btn-md:disabled{
-    opacity:.6; cursor:not-allowed; filter:none; transform:none;
-  }
-
-  /* ---- DatePicker (koyu tema + z-index) ---- */
-  .datepicker-popper,
-  .react-datepicker-popper,
-  .react-datepicker__portal{ z-index:9999 !important; }
-
-  .react-datepicker,
-  .react-datepicker__header{
-    background:#0b1220; border-color:rgba(255,255,255,.12); color:#e5e7eb;
-  }
-  .react-datepicker__current-month,
-  .react-datepicker-time__header,
-  .react-datepicker-year-header{ color:#e5e7eb; }
-  .react-datepicker__day-name,
-  .react-datepicker__day,
-  .react-datepicker__time-name{ color:#e5e7eb; }
-  .react-datepicker__day--selected,
-  .react-datepicker__day--keyboard-selected{ background:#4f46e5; color:#fff; }
-  .react-datepicker__day:hover{ background:#1f2937; }
-
-  /* ---- Select (koyu tema okunurluk) ---- */
-  select{
-    color:#e5e7eb; background-color:#1f2937;
-    border-color:rgba(255,255,255,.1);
-  }
-  select:focus{
-    outline:none; box-shadow:0 0 0 3px var(--ring-indigo); border-color:#6366f1;
-  }
-  select option{ color:#e5e7eb; background-color:#0b1220; }
-`}</style>
-
-        </div>
-    );
+const isBaseAllowed = (item) => {
+  if (U(item.VehicleWorkingTypeName) !== 'SPOT') return false;
+  if (U(item.SpecialGroupName) !== 'SPOT') return false;
+  if (!item.DocumentNo?.startsWith('SFR')) return false;
+  if (!item.TMSDespatchInvoiceDocumentNo) return false;
+  if (U(item.PlateNumber) === '34SEZ34') return false;
+  if (PROJE_ENGEL.some(k => U(item.ProjectName).includes(k))) return false;
+  if (FIRMA_ENGEL.includes(U(item.SupplierCurrentAccountFullTitle))) return false;
+  return true;
 };
 
-export default Raporlar;
+const chunkDateRanges = (start, end, step = 2) => {
+  const ranges = []; let cursor = new Date(start); const last = new Date(end);
+  while (cursor <= last) {
+    const s = new Date(cursor); const e = new Date(cursor); e.setDate(e.getDate() + step - 1); if (e > last) e.setTime(last.getTime());
+    ranges.push({ start: s, end: e }); cursor.setDate(cursor.getDate() + step);
+  }
+  return ranges;
+};
+
+const excelBorder = {
+  top: { style: 'thin', color: { argb: 'FFE2E8F0' } }, left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+  bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } }, right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+};
+const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+
+function styleReportSheet(sheet, { title, subtitle, columns, headerRow, endRow }) {
+  sheet.mergeCells(`A1:${columns}1`); sheet.getCell('A1').value = title;
+  sheet.getCell('A1').font = { name: 'Aptos Display', bold: true, size: 20, color: { argb: 'FFFFFFFF' } };
+  sheet.getCell('A1').fill = fill('FF0F172A'); sheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'left' }; sheet.getRow(1).height = 34;
+  sheet.mergeCells(`A2:${columns}2`); sheet.getCell('A2').value = subtitle;
+  sheet.getCell('A2').font = { name: 'Aptos', size: 10, color: { argb: 'FF475569' } }; sheet.getCell('A2').fill = fill('FFF0F9FF'); sheet.getRow(2).height = 24;
+  const row = sheet.getRow(headerRow); row.height = 28;
+  row.eachCell(cell => { cell.font = { name: 'Aptos', bold: true, size: 10, color: { argb: 'FFFFFFFF' } }; cell.fill = fill('FF0284C7'); cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; cell.border = excelBorder; });
+  for (let r = headerRow + 1; r <= endRow; r++) {
+    const rr = sheet.getRow(r); rr.height = 22;
+    rr.eachCell(cell => { cell.font = { name: 'Aptos', size: 10, color: { argb: 'FF334155' } }; cell.fill = fill(r % 2 === 0 ? 'FFF8FAFC' : 'FFFFFFFF'); cell.border = excelBorder; cell.alignment = { vertical: 'middle', wrapText: true }; });
+  }
+  sheet.views = [{ state: 'frozen', ySplit: headerRow, activeCell: `A${headerRow + 1}` }];
+  sheet.autoFilter = { from: `A${headerRow}`, to: `${columns}${endRow}` };
+  sheet.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.25, right: 0.25, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } };
+  sheet.headerFooter.oddFooter = '&L&9ODAK LOJİSTİK  |  Reel Raporları&C&9Kurumsal Rapor&R&9Sayfa &P / &N';
+}
+
+function addSummarySheet(workbook, data, startDate, endDate) {
+  const sheet = workbook.addWorksheet('Yönetici Özeti', { views: [{ showGridLines: false }] });
+  const uniqueSupplier = new Set(data.map(x => normalize(x.SupplierCurrentAccountFullTitle)).filter(Boolean)).size;
+  const uniqueProject = new Set(data.map(x => normalize(x.ProjectName)).filter(Boolean)).size;
+  const pending = data.filter(x => STATUS_LABELS[x.TMSDespatchDocumentStatu] === 'BEKLİYOR').length;
+  const issue = data.filter(x => ['EKSİK EVRAK', 'HASARLI GÖRÜNTÜ İŞLENDİ', 'HASARLI-ORJİNAL EVRAK'].includes(STATUS_LABELS[x.TMSDespatchDocumentStatu])).length;
+  const complete = data.filter(x => ['TESLİM EDİLDİ', 'TAMAMLANDI', 'EVRAK ARŞİVLENDİ'].includes(STATUS_LABELS[x.TMSDespatchDocumentStatu])).length;
+  sheet.mergeCells('A1:H1'); sheet.getCell('A1').value = 'ODAK LOJİSTİK • REEL RAPORLARI';
+  sheet.getCell('A1').font = { name: 'Aptos Display', bold: true, size: 22, color: { argb: 'FFFFFFFF' } }; sheet.getCell('A1').fill = fill('FF0F172A'); sheet.getCell('A1').alignment = { vertical: 'middle' }; sheet.getRow(1).height = 38;
+  sheet.mergeCells('A2:H2'); sheet.getCell('A2').value = `${rangeLabel(startDate,endDate)}  •  Oluşturulma: ${new Date().toLocaleString('tr-TR')}`; sheet.getCell('A2').font = { color: { argb: 'FF475569' }, size: 10 }; sheet.getCell('A2').fill = fill('FFF0F9FF');
+  const cards = [
+    ['A4:B4', 'A5:B6', 'Toplam Sefer', data.length, 'FF0284C7'], ['C4:D4', 'C5:D6', 'Tedarikçi', uniqueSupplier, 'FF0891B2'],
+    ['E4:F4', 'E5:F6', 'Proje', uniqueProject, 'FF0F766E'], ['G4:H4', 'G5:H6', 'Bekleyen', pending, 'FFF59E0B'],
+    ['A8:B8', 'A9:B10', 'Sorunlu Evrak', issue, 'FFEF4444'], ['C8:D8', 'C9:D10', 'Tamamlanan', complete, 'FF10B981'],
+    ['E8:F8', 'E9:F10', 'Tamamlanma Oranı', data.length ? `${Math.round((complete / data.length) * 100)}%` : '0%', 'FF2563EB'],
+    ['G8:H8', 'G9:H10', 'Aktif Filtre Sonucu', data.length, 'FF334155'],
+  ];
+  cards.forEach(([labelRange, valueRange, label, value, color]) => { sheet.mergeCells(labelRange); sheet.mergeCells(valueRange); const l = sheet.getCell(labelRange.split(':')[0]); const v = sheet.getCell(valueRange.split(':')[0]); l.value = label; v.value = value; l.fill = fill(color); v.fill = fill('FFF8FAFC'); l.font = { bold: true, size: 10, color: { argb: 'FFFFFFFF' } }; v.font = { bold: true, size: 20, color: { argb: color } }; l.alignment = v.alignment = { horizontal: 'center', vertical: 'middle' }; });
+  const top = (key) => Object.entries(data.reduce((m, x) => { const k = x[key] || 'Bilinmiyor'; m[k] = (m[k] || 0) + 1; return m; }, {})).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  sheet.getCell('A13').value = 'En Yoğun Tedarikçiler'; sheet.getCell('E13').value = 'En Yoğun Projeler';
+  ['A13','E13'].forEach(c => { sheet.getCell(c).font = { bold: true, color: { argb: 'FF0F172A' }, size: 12 }; });
+  top('SupplierCurrentAccountFullTitle').forEach(([name,count],i)=>{ sheet.mergeCells(`A${14+i}:C${14+i}`); sheet.getCell(`A${14+i}`).value = name; sheet.getCell(`D${14+i}`).value=count; });
+  top('ProjectName').forEach(([name,count],i)=>{ sheet.mergeCells(`E${14+i}:G${14+i}`); sheet.getCell(`E${14+i}`).value = name; sheet.getCell(`H${14+i}`).value=count; });
+  for(let r=14;r<=21;r++){ ['A','E'].forEach(c=>{ sheet.getCell(`${c}${r}`).font={size:10,color:{argb:'FF475569'}}; }); ['D','H'].forEach(c=>{ sheet.getCell(`${c}${r}`).font={bold:true,color:{argb:'FF0284C7'}}; sheet.getCell(`${c}${r}`).alignment={horizontal:'center'}; }); }
+  sheet.columns = [{width:23},{width:14},{width:14},{width:11},{width:23},{width:14},{width:14},{width:11}];
+  sheet.pageSetup = { orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:1 };
+  return sheet;
+}
+
+const StatusBadge = ({ code }) => {
+  const label = STATUS_LABELS[code] || code;
+  const tone = label === 'İPTAL' ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-400/15 dark:bg-rose-500/10 dark:text-rose-300'
+    : label === 'BEKLİYOR' ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/15 dark:bg-amber-500/10 dark:text-amber-300'
+    : ['EKSİK EVRAK','HASARLI GÖRÜNTÜ İŞLENDİ','HASARLI-ORJİNAL EVRAK'].includes(label) ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-400/15 dark:bg-rose-500/10 dark:text-rose-300'
+    : ['ORJİNAL EVRAK GELDİ','TESLİM EDİLDİ','TAMAMLANDI','EVRAK ARŞİVLENDİ'].includes(label) ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/15 dark:bg-emerald-500/10 dark:text-emerald-300'
+    : 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-400/15 dark:bg-sky-500/10 dark:text-sky-300';
+  return <span className={cx('inline-flex max-w-[220px] items-center rounded-full border px-2.5 py-1 text-[10px] font-black tracking-wide',tone)}>{label}</span>;
+};
+
+function LoadingExperience({ progress, found }) {
+  return <motion.div initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0}} className="overflow-hidden rounded-[24px] border border-sky-200/70 bg-white shadow-sm dark:border-sky-400/15 dark:bg-[#111925]">
+    <div className="flex flex-col items-center px-6 py-10 text-center">
+      <div className="relative mb-4 h-24 w-44">
+        <motion.div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-sky-600" animate={{y:[0,-7,0],rotate:[0,-2,2,0]}} transition={{duration:1.45,repeat:Infinity}}><FiTruck size={58}/></motion.div>
+        {[0,1,2].map(i=><motion.div key={i} className="absolute top-2 text-cyan-400" style={{left:28+i*48}} animate={{x:[-10,16],y:[0,38],opacity:[0,1,0],rotate:[0,12]}} transition={{duration:1.5,repeat:Infinity,delay:i*.3}}><FiFileText size={20}/></motion.div>)}
+      </div>
+      <h3 className="text-lg font-black text-slate-900 dark:text-white">Reel kayıtlar analiz için hazırlanıyor…</h3>
+      <p className="mt-1 text-sm font-medium text-slate-500">Tarih aralığı parçalara ayrılıyor, seferler birleştiriliyor ve rapor kuralları uygulanıyor.</p>
+      <div className="mt-5 w-full max-w-xl overflow-hidden rounded-full bg-slate-100 p-1 dark:bg-white/5"><motion.div className="h-2 rounded-full bg-gradient-to-r from-sky-600 to-cyan-400" animate={{width:`${progress}%`}} /></div>
+      <div className="mt-2 flex w-full max-w-xl justify-between text-[11px] font-black text-slate-400"><span>{found.toLocaleString('tr-TR')} kayıt bulundu</span><span className="text-sky-600">%{progress}</span></div>
+    </div>
+    <div className="border-t border-slate-100 p-4 dark:border-white/5">{Array.from({length:6}).map((_,r)=><div key={r} className="mb-2 grid grid-cols-10 gap-3 rounded-xl px-3 py-3">{Array.from({length:10}).map((_,c)=><motion.div key={c} className="h-3 rounded bg-slate-100 dark:bg-white/5" animate={{opacity:[.35,1,.35]}} transition={{duration:1.2,repeat:Infinity,delay:(r+c)*.04}}/>)}</div>)}</div>
+  </motion.div>;
+}
+
+const Kpi = ({ icon:Icon, label, value, helper, tone='sky' }) => <motion.div whileHover={{y:-2}} className="relative overflow-hidden rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#111925]">
+  <div className="flex items-center justify-between"><div><div className="text-[10px] font-black uppercase tracking-[.14em] text-slate-400">{label}</div><motion.div key={value} initial={{opacity:0,y:5}} animate={{opacity:1,y:0}} className="mt-1 text-2xl font-black tracking-tight text-slate-900 dark:text-white">{value}</motion.div>{helper&&<div className="mt-1 text-[11px] font-medium text-slate-400">{helper}</div>}</div><div className={cx('grid h-11 w-11 place-items-center rounded-2xl',tone==='rose'?'bg-rose-50 text-rose-500 dark:bg-rose-500/10':tone==='emerald'?'bg-emerald-50 text-emerald-500 dark:bg-emerald-500/10':'bg-sky-50 text-sky-600 dark:bg-sky-500/10')}><Icon size={20}/></div></div>
+  <div className={cx('absolute bottom-0 left-0 h-[3px] w-full',tone==='rose'?'bg-rose-400':tone==='emerald'?'bg-emerald-400':'bg-gradient-to-r from-sky-500 to-cyan-400')}/>
+</motion.div>;
+
+export default function Raporlar() {
+  const navigate = useNavigate();
+  const today = useMemo(()=>new Date(),[]);
+  const [veriler,setVeriler]=useState([]); const [loading,setLoading]=useState(false); const [hata,setHata]=useState(null);
+  const [progress,setProgress]=useState(0); const [found,setFound]=useState(0);
+  const [startDate,setStartDate]=useState(null); const [endDate,setEndDate]=useState(null);
+  const [startDateText,setStartDateText]=useState(''); const [endDateText,setEndDateText]=useState('');
+  const [filters,setFilters]=useState({firma:'',proje:'',durum:'',kullanici:''}); const [query,setQuery]=useState(''); const [page,setPage]=useState(1);
+
+  const getUniqueValues=(key)=>[...new Set(veriler.map(x=>x[key]).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'tr'));
+  const baseData=useMemo(()=>uniqBy(veriler.filter(isBaseAllowed),x=>x.DocumentNo),[veriler]);
+  const filtered=useMemo(()=>baseData.filter(item=>{
+    const q=normalize(query); const hay=normalize([item.SupplierCurrentAccountFullTitle,item.ProjectName,item.DocumentNo,item.PlateNumber,item.TMSDespatchCreatedBy,item.TMSDespatchInvoiceDocumentNo].join(' '));
+    return (!filters.firma||item.SupplierCurrentAccountFullTitle===filters.firma)&&(!filters.proje||item.ProjectName===filters.proje)&&(!filters.durum||String(item.TMSDespatchDocumentStatu)===String(filters.durum))&&(!filters.kullanici||item.TMSDespatchCreatedBy===filters.kullanici)&&(!q||hay.includes(q));
+  }),[baseData,filters,query]);
+  const totalPages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE)); const visible=filtered.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE);
+  const uniqueSuppliers=new Set(filtered.map(x=>normalize(x.SupplierCurrentAccountFullTitle)).filter(Boolean)).size; const uniqueProjects=new Set(filtered.map(x=>normalize(x.ProjectName)).filter(Boolean)).size;
+  const pending=filtered.filter(x=>STATUS_LABELS[x.TMSDespatchDocumentStatu]==='BEKLİYOR').length; const issue=filtered.filter(x=>['EKSİK EVRAK','HASARLI GÖRÜNTÜ İŞLENDİ','HASARLI-ORJİNAL EVRAK'].includes(STATUS_LABELS[x.TMSDespatchDocumentStatu])).length;
+  const activeCount=Object.values(filters).filter(Boolean).length+(query.trim()?1:0);
+
+  const updateDateText=(value,setText,setDate)=>{
+    const cleaned=String(value||'').replace(/[^0-9.\/-]/g,'').slice(0,10);
+    setText(cleaned);
+    if(!cleaned){setDate(null);setPage(1);return;}
+    const parsed=parseFlexibleDateInput(cleaned);
+    if(parsed){setDate(parsed);setPage(1);}
+  };
+  const normalizeDateText=(text,setText,setDate)=>{
+    if(!String(text||'').trim()){setText('');setDate(null);return;}
+    const parsed=parseFlexibleDateInput(text);
+    if(parsed){setDate(parsed);setText(formatDateInput(parsed));}
+  };
+
+  const fetchData=async()=>{
+    setLoading(true);setHata(null);setProgress(5);setFound(0);setPage(1);
+    try{
+      const parsedStart=parseFlexibleDateInput(startDateText);
+      const parsedEnd=parseFlexibleDateInput(endDateText);
+      if(startDateText.trim() && !parsedStart) throw new Error('Başlangıç tarihi geçersiz. GG.AA.YYYY veya GGAAYYYY formatını kullanın.');
+      if(endDateText.trim() && !parsedEnd) throw new Error('Bitiş tarihi geçersiz. GG.AA.YYYY veya GGAAYYYY formatını kullanın.');
+      const effectiveStart=parsedStart||null;
+      const effectiveEnd=parsedEnd||null;
+      setStartDate(effectiveStart); setEndDate(effectiveEnd);
+      if(effectiveStart)setStartDateText(formatDateInput(effectiveStart));
+      if(effectiveEnd)setEndDateText(formatDateInput(effectiveEnd));
+      if(effectiveStart&&effectiveEnd&&effectiveStart>effectiveEnd) throw new Error('Başlangıç tarihi bitiş tarihinden büyük olamaz.');
+      const all=[];
+      if(effectiveStart&&effectiveEnd){
+        const ranges=chunkDateRanges(effectiveStart,effectiveEnd,2);
+        for(let i=0;i<ranges.length;i++){
+          const {start,end}=ranges[i]; const body={startDate:start.toISOString(),endDate:end.toISOString(),userId:1,CustomerId:0,SupplierId:0,DriverId:0,TMSDespatchId:0,VehicleId:0,DocumentPrint:'',WorkingTypesId:[]};
+          const resp=await api.post('/tmsdespatches/getall',body); all.push(...(resp?.data?.Data||[])); setFound(all.length); setProgress(Math.min(94,Math.round(((i+1)/ranges.length)*92)));
+        }
+      }else{
+        const body={startDate:effectiveStart?effectiveStart.toISOString():null,endDate:effectiveEnd?effectiveEnd.toISOString():null,userId:1,CustomerId:0,SupplierId:0,DriverId:0,TMSDespatchId:0,VehicleId:0,DocumentPrint:'',WorkingTypesId:[]};
+        const resp=await api.post('/tmsdespatches/getall',body); all.push(...(resp?.data?.Data||[])); setFound(all.length); setProgress(94);
+      }
+      setVeriler(all);setProgress(100);
+    }catch(e){console.error(e);setHata(e?.message||'Veri alınamadı. Lütfen tarih aralığını kontrol edip tekrar deneyin.');}
+    finally{setTimeout(()=>setLoading(false),250);}
+  };
+
+  const resetFilters=()=>{setFilters({firma:'',proje:'',durum:'',kullanici:''});setQuery('');setPage(1);};
+  const quickRange=(days)=>{const e=new Date();const s=new Date();s.setDate(e.getDate()-(days-1));setStartDate(s);setEndDate(e);setStartDateText(formatDateInput(s));setEndDateText(formatDateInput(e));setPage(1);};
+
+  const saveWorkbook=async(workbook,name)=>{workbook.creator='Odak Lojistik';workbook.company='Odak Lojistik';workbook.created=new Date();const buffer=await workbook.xlsx.writeBuffer();saveAs(new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),name);};
+
+  const excelExportEt=async()=>{
+    if(!filtered.length)return alert('Aktarılacak veri bulunamadı.');
+    const wb=new ExcelJS.Workbook(); addSummarySheet(wb,filtered,startDate,endDate); const sh=wb.addWorksheet('Reel Kayıtlar',{views:[{showGridLines:false}]});
+    const headers=['Tedarikçi Firma','Proje Adı','Sefer Tarihi','Sefer No','Durum','Plaka','Kullanıcı','Araç Alt Grubu','Çalışma Tipi','Alış Fatura No'];
+    sh.addRow([]);sh.addRow([]);sh.addRow([]);sh.addRow(headers);
+    filtered.forEach(x=>sh.addRow([x.SupplierCurrentAccountFullTitle,x.ProjectName,x.DespatchDate?new Date(x.DespatchDate):'',x.DocumentNo,STATUS_LABELS[x.TMSDespatchDocumentStatu]??x.TMSDespatchDocumentStatu,x.PlateNumber,x.TMSDespatchCreatedBy,x.SpecialGroupName,x.VehicleWorkingTypeName,x.TMSDespatchInvoiceDocumentNo]));
+    styleReportSheet(sh,{title:'ODAK LOJİSTİK • REEL DETAY RAPORU',subtitle:`${rangeLabel(startDate,endDate)}  •  ${filtered.length.toLocaleString('tr-TR')} filtrelenmiş kayıt`,columns:'J',headerRow:4,endRow:4+filtered.length});
+    sh.columns=[{width:42},{width:32},{width:15},{width:18},{width:28},{width:15},{width:24},{width:20},{width:18},{width:22}]; sh.getColumn(3).numFmt='dd.mm.yyyy';
+    for(let r=5;r<=4+filtered.length;r++){const c=sh.getCell(`E${r}`);const v=String(c.value||'');if(['TESLİM EDİLDİ','TAMAMLANDI','EVRAK ARŞİVLENDİ'].includes(v)){c.fill=fill('FFDCFCE7');c.font={bold:true,color:{argb:'FF15803D'}};}else if(v==='BEKLİYOR'){c.fill=fill('FFFEF3C7');c.font={bold:true,color:{argb:'FFB45309'}};}else if(v.includes('EKSİK')||v.includes('HASAR')){c.fill=fill('FFFEE2E2');c.font={bold:true,color:{argb:'FFB91C1C'}};}}
+    await saveWorkbook(wb,`reel_raporu_${inputDate(startDate)}_${inputDate(endDate)}.xlsx`);
+  };
+
+  const projeBazliRaporOlustur=async()=>{
+    if(!filtered.length)return alert('Raporlanacak veri bulunamadı.'); const grouped={};
+    filtered.forEach(x=>{const p=x.ProjectName||'Bilinmeyen Proje';const d=STATUS_LABELS[x.TMSDespatchDocumentStatu];if(!FOCUS_STATUSES.includes(d))return;if(!grouped[p]){grouped[p]={};FOCUS_STATUSES.forEach(s=>grouped[p][s]=0);}grouped[p][d]++;});
+    const wb=new ExcelJS.Workbook();addSummarySheet(wb,filtered,startDate,endDate);const sh=wb.addWorksheet('Proje Durum',{views:[{showGridLines:false}]});const headers=['Proje',...FOCUS_STATUSES,'Genel Toplam',...FOCUS_STATUSES.map(x=>`${x} %`)];sh.addRow([]);sh.addRow([]);sh.addRow([]);sh.addRow(headers);
+    Object.entries(grouped).sort((a,b)=>Object.values(b[1]).reduce((s,n)=>s+n,0)-Object.values(a[1]).reduce((s,n)=>s+n,0)).forEach(([p,o])=>{const t=FOCUS_STATUSES.reduce((s,k)=>s+(o[k]||0),0);sh.addRow([p,...FOCUS_STATUSES.map(k=>o[k]||0),t,...FOCUS_STATUSES.map(k=>t?o[k]/t:0)]);});
+    styleReportSheet(sh,{title:'ODAK LOJİSTİK • PROJE DURUM ANALİZİ',subtitle:`${rangeLabel(startDate,endDate)}  •  Proje bazlı evrak durum dağılımı`,columns:'L',headerRow:4,endRow:3+Object.keys(grouped).length+1});sh.columns=[{width:38},...Array(11).fill({width:20})];for(let c=8;c<=12;c++)sh.getColumn(c).numFmt='0.00%';
+    await saveWorkbook(wb,`proje_durum_${inputDate(startDate)}_${inputDate(endDate)}.xlsx`);
+  };
+
+  const tedarikciPivotGrupRaporOlustur=async()=>{
+    if(!filtered.length)return alert('Raporlanacak veri bulunamadı.');const grouped={};
+    filtered.forEach(x=>{const t=x.SupplierCurrentAccountFullTitle||'Bilinmeyen Tedarikçi';const p=x.ProjectName||'Bilinmeyen Proje';const d=STATUS_LABELS[x.TMSDespatchDocumentStatu];if(!FOCUS_STATUSES.includes(d))return;if(!grouped[t])grouped[t]={};if(!grouped[t][p]){grouped[t][p]={docs:new Set()};FOCUS_STATUSES.forEach(s=>grouped[t][p][s]=0);}grouped[t][p][d]++;if(x.DocumentNo)grouped[t][p].docs.add(x.DocumentNo);});
+    const wb=new ExcelJS.Workbook();addSummarySheet(wb,filtered,startDate,endDate);const sh=wb.addWorksheet('Tedarikçi Projeler',{views:[{showGridLines:false}]});sh.mergeCells('A1:G1');sh.getCell('A1').value='ODAK LOJİSTİK • TEDARİKÇİ / PROJE ANALİZİ';sh.getCell('A1').font={bold:true,size:20,color:{argb:'FFFFFFFF'}};sh.getCell('A1').fill=fill('FF0F172A');sh.getRow(1).height=34;sh.mergeCells('A2:G2');sh.getCell('A2').value=`${rangeLabel(startDate,endDate)} • ${filtered.length} sefer`;sh.getCell('A2').fill=fill('FFF0F9FF');let rowNo=4;
+    Object.entries(grouped).sort((a,b)=>Object.keys(b[1]).length-Object.keys(a[1]).length).forEach(([t,projects])=>{sh.mergeCells(`A${rowNo}:G${rowNo}`);const tc=sh.getCell(`A${rowNo}`);tc.value=t;tc.fill=fill('FF0369A1');tc.font={bold:true,color:{argb:'FFFFFFFF'},size:11};tc.alignment={vertical:'middle'};rowNo++;const hr=sh.addRow(['Proje',...FOCUS_STATUSES,'Toplam Sefer']);hr.eachCell(c=>{c.fill=fill('FFE0F2FE');c.font={bold:true,color:{argb:'FF075985'}};c.border=excelBorder;c.alignment={horizontal:'center',wrapText:true};});rowNo++;Object.entries(projects).forEach(([p,o],idx)=>{const rr=sh.addRow([p,...FOCUS_STATUSES.map(k=>o[k]||0),o.docs.size]);rr.eachCell(c=>{c.fill=fill(idx%2?'FFFFFFFF':'FFF8FAFC');c.border=excelBorder;c.alignment={vertical:'middle',wrapText:true};});rowNo++;});sh.addRow([]);rowNo++;});
+    sh.columns=[{width:42},...Array(6).fill({width:22})];sh.views=[{state:'frozen',ySplit:2}];sh.pageSetup={orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0};sh.headerFooter.oddFooter='&LODAK LOJİSTİK&CReel Raporları&R&P / &N';
+    await saveWorkbook(wb,`tedarikci_proje_${inputDate(startDate)}_${inputDate(endDate)}.xlsx`);
+  };
+
+  const kullaniciBazliRaporOlustur=async()=>{
+    if(!filtered.length)return alert('Raporlanacak veri bulunamadı.');const grouped={};
+    filtered.forEach(x=>{const u=x.TMSDespatchCreatedBy||'Bilinmeyen Kullanıcı';const p=x.ProjectName||'Bilinmeyen Proje';const d=STATUS_LABELS[x.TMSDespatchDocumentStatu];if(!FOCUS_STATUSES.includes(d))return;if(!grouped[u])grouped[u]={};if(!grouped[u][p]){grouped[u][p]={};FOCUS_STATUSES.forEach(s=>grouped[u][p][s]=0);}grouped[u][p][d]++;});
+    const wb=new ExcelJS.Workbook();addSummarySheet(wb,filtered,startDate,endDate);const sh=wb.addWorksheet('Kullanıcı Analizi',{views:[{showGridLines:false}]});const headers=['Kullanıcı / Proje',...FOCUS_STATUSES,'Genel Toplam'];sh.addRow([]);sh.addRow([]);sh.addRow([]);sh.addRow(headers);let r=5;
+    Object.entries(grouped).forEach(([u,projects])=>{sh.mergeCells(`A${r}:G${r}`);const c=sh.getCell(`A${r}`);c.value=u;c.fill=fill('FF0369A1');c.font={bold:true,color:{argb:'FFFFFFFF'}};r++;Object.entries(projects).forEach(([p,o])=>{const t=FOCUS_STATUSES.reduce((s,k)=>s+(o[k]||0),0);sh.addRow([p,...FOCUS_STATUSES.map(k=>o[k]||0),t]);r++;});});
+    styleReportSheet(sh,{title:'ODAK LOJİSTİK • KULLANICI ANALİZİ',subtitle:`${rangeLabel(startDate,endDate)}  •  Kullanıcı ve proje bazlı iş yükü`,columns:'G',headerRow:4,endRow:r-1});sh.columns=[{width:38},...Array(6).fill({width:21})];
+    await saveWorkbook(wb,`kullanici_analizi_${inputDate(startDate)}_${inputDate(endDate)}.xlsx`);
+  };
+
+  return <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors dark:bg-[#0b1220] dark:text-white">
+    <main className="mx-auto w-full max-w-[1900px] px-3 pb-10 pt-4 sm:px-5 lg:px-6">
+      <section className="mb-4 overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-[0_12px_36px_rgba(15,23,42,.06)] dark:border-white/10 dark:bg-[#111925]">
+        <div className="relative flex flex-col gap-5 p-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-600 via-cyan-400 to-sky-500"/>
+          <div className="flex items-center gap-4"><button onClick={()=>navigate('/anasayfa')} title="Ana sayfaya dön" className="group grid h-11 w-11 place-items-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition hover:-translate-x-0.5 hover:border-sky-300 hover:text-sky-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300"><FiArrowLeft className="transition group-hover:-translate-x-0.5"/></button><div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-sky-600 to-cyan-400 text-white shadow-lg shadow-sky-500/20"><FiActivity size={22}/></div><div><div className="mb-1 flex flex-wrap items-center gap-2"><span className="rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">Reel • Analiz Merkezi</span><span className="text-[11px] font-bold text-slate-400">{rangeLabel(startDate,endDate)}</span></div><h1 className="text-2xl font-black tracking-tight text-slate-950 dark:text-white sm:text-3xl">Reel Raporları</h1><p className="mt-1 max-w-3xl text-sm font-medium text-slate-500 dark:text-slate-400">Spot seferleri, tedarikçi performansını, proje durumlarını ve kullanıcı iş yükünü tek ekrandan analiz edin.</p></div></div>
+          <div className="flex flex-wrap gap-2"><button onClick={fetchData} disabled={loading} className="group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-cyan-500 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-sky-500/15 transition hover:-translate-y-0.5 hover:shadow-sky-500/25 disabled:opacity-50"><FiRefreshCw className={loading?'animate-spin':'transition group-hover:rotate-90'}/>{loading?'Hazırlanıyor':'Veriyi Getir'}</button><button onClick={excelExportEt} disabled={!filtered.length} className="group inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:text-emerald-600 disabled:opacity-40 dark:border-white/10 dark:bg-white/5 dark:text-slate-200"><FiDownload className="transition group-hover:translate-y-0.5"/>Genel Excel</button></div>
+        </div>
+      </section>
+
+      <section className="mb-4 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#111925]">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end">
+          <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+            <label><span className="mb-1.5 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400"><FiCalendar className="text-sky-500"/>Başlangıç</span><div className="relative"><FiCalendar className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input type="text" inputMode="numeric" autoComplete="off" value={startDateText} onChange={e=>updateDateText(e.target.value,setStartDateText,setStartDate)} onBlur={()=>normalizeDateText(startDateText,setStartDateText,setStartDate)} onKeyDown={e=>{if(e.key==='Enter'){normalizeDateText(startDateText,setStartDateText,setStartDate);fetchData();}}} placeholder="GG.AA.YYYY veya GGAAYYYY" className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-10 text-sm font-bold text-slate-700 outline-none transition hover:border-slate-300 focus:border-sky-400 focus:ring-4 focus:ring-sky-100 dark:border-white/10 dark:bg-[#0d141f] dark:text-white dark:focus:ring-sky-500/10"/>{startDateText&&<button type="button" onClick={()=>{setStartDateText('');setStartDate(null);setPage(1)}} title="Başlangıç tarihini temizle" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-rose-500"><FiX/></button>}</div></label>
+            <label><span className="mb-1.5 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400"><FiCalendar className="text-cyan-500"/>Bitiş</span><div className="relative"><FiCalendar className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input type="text" inputMode="numeric" autoComplete="off" value={endDateText} onChange={e=>updateDateText(e.target.value,setEndDateText,setEndDate)} onBlur={()=>normalizeDateText(endDateText,setEndDateText,setEndDate)} onKeyDown={e=>{if(e.key==='Enter'){normalizeDateText(endDateText,setEndDateText,setEndDate);fetchData();}}} placeholder="GG.AA.YYYY veya GGAAYYYY" className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-10 text-sm font-bold text-slate-700 outline-none transition hover:border-slate-300 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100 dark:border-white/10 dark:bg-[#0d141f] dark:text-white dark:focus:ring-cyan-500/10"/>{endDateText&&<button type="button" onClick={()=>{setEndDateText('');setEndDate(null);setPage(1)}} title="Bitiş tarihini temizle" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-rose-500"><FiX/></button>}</div></label>
+            {[{key:'firma',label:'Tedarikçi',field:'SupplierCurrentAccountFullTitle'},{key:'proje',label:'Proje',field:'ProjectName'},{key:'durum',label:'Durum',field:'TMSDespatchDocumentStatu'},{key:'kullanici',label:'Kullanıcı',field:'TMSDespatchCreatedBy'}].map(f=><label key={f.key}><span className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-400">{f.label}</span><select value={filters[f.key]} onChange={e=>{setFilters(v=>({...v,[f.key]:e.target.value}));setPage(1)}} className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-700 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100 dark:border-white/10 dark:bg-[#0d141f] dark:text-white dark:focus:ring-sky-500/10"><option value="">Tümü</option>{getUniqueValues(f.field).map(v=><option key={v} value={v}>{f.key==='durum'?(STATUS_LABELS[v]||v):v}</option>)}</select></label>)}
+          </div>
+          <div className="flex flex-wrap gap-2"><button onClick={()=>{setStartDate(null);setEndDate(null);setStartDateText('');setEndDateText('');setPage(1)}} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 transition hover:border-cyan-300 hover:text-cyan-600 dark:border-white/10 dark:text-slate-300">Tüm Tarihler</button><button onClick={()=>quickRange(7)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 transition hover:border-sky-300 hover:text-sky-600 dark:border-white/10 dark:text-slate-300">Son 7 Gün</button><button onClick={()=>quickRange(30)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 transition hover:border-sky-300 hover:text-sky-600 dark:border-white/10 dark:text-slate-300">Son 30 Gün</button><button onClick={resetFilters} disabled={!activeCount} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-500 transition hover:border-rose-200 hover:text-rose-500 disabled:opacity-40 dark:border-white/10"><FiX/>Temizle</button></div>
+        </div>
+        <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 md:flex-row md:items-center dark:border-white/5"><div className="relative flex-1"><FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input value={query} onChange={e=>{setQuery(e.target.value);setPage(1)}} placeholder="Sefer no, plaka, tedarikçi, proje, kullanıcı veya fatura no ara…" className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm font-semibold outline-none transition placeholder:text-slate-400 focus:border-sky-400 focus:ring-4 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:ring-sky-500/10"/></div><div className="flex items-center gap-2 text-xs font-bold text-slate-400"><FiZap className="text-sky-500"/><span>{activeCount?`${activeCount} aktif filtre • `:''}{filtered.length.toLocaleString('tr-TR')} sonuç</span></div></div>
+      </section>
+
+      <AnimatePresence mode="wait">{loading&&<motion.div key="loading" className="mb-4"><LoadingExperience progress={progress} found={found}/></motion.div>}</AnimatePresence>
+      {!loading&&hata&&<div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700 dark:border-rose-400/15 dark:bg-rose-500/10 dark:text-rose-300">{hata}</div>}
+
+      {!loading&&<>
+        <section className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5"><Kpi icon={FiLayers} label="Filtrelenmiş Sefer" value={filtered.length.toLocaleString('tr-TR')} helper={`${baseData.length.toLocaleString('tr-TR')} toplam uygun kayıt`}/><Kpi icon={FiTruck} label="Tedarikçi" value={uniqueSuppliers}/><Kpi icon={FiBox} label="Proje" value={uniqueProjects}/><Kpi icon={FiAlertTriangle} label="Bekleyen" value={pending} tone="rose"/><Kpi icon={FiFileText} label="Sorunlu Evrak" value={issue} helper="Eksik / hasarlı" tone={issue?'rose':'emerald'}/></section>
+
+        <section className="mb-4 grid gap-3 md:grid-cols-3"><button onClick={projeBazliRaporOlustur} disabled={!filtered.length} className="group flex items-center justify-between rounded-[20px] border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-lg hover:shadow-sky-500/5 disabled:opacity-40 dark:border-white/10 dark:bg-[#111925]"><span><span className="block text-sm font-black text-slate-800 dark:text-white">Proje Durum Excel</span><span className="mt-1 block text-xs font-medium text-slate-400">Proje bazında evrak durum dağılımı ve yüzdeler</span></span><span className="grid h-10 w-10 place-items-center rounded-xl bg-sky-50 text-sky-600 transition group-hover:scale-110 dark:bg-sky-500/10"><FiBarChart2/></span></button><button onClick={tedarikciPivotGrupRaporOlustur} disabled={!filtered.length} className="group flex items-center justify-between rounded-[20px] border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-300 hover:shadow-lg hover:shadow-cyan-500/5 disabled:opacity-40 dark:border-white/10 dark:bg-[#111925]"><span><span className="block text-sm font-black text-slate-800 dark:text-white">Tedarikçi / Proje Excel</span><span className="mt-1 block text-xs font-medium text-slate-400">Tedarikçi altındaki projeleri gruplayarak analiz eder</span></span><span className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-50 text-cyan-600 transition group-hover:scale-110 dark:bg-cyan-500/10"><FiTruck/></span></button><button onClick={kullaniciBazliRaporOlustur} disabled={!filtered.length} className="group flex items-center justify-between rounded-[20px] border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-500/5 disabled:opacity-40 dark:border-white/10 dark:bg-[#111925]"><span><span className="block text-sm font-black text-slate-800 dark:text-white">Kullanıcı Analiz Excel</span><span className="mt-1 block text-xs font-medium text-slate-400">Kullanıcı ve proje bazlı iş yükünü gösterir</span></span><span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-600 transition group-hover:scale-110 dark:bg-emerald-500/10"><FiUsers/></span></button></section>
+
+        <section className="overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-[0_14px_42px_rgba(15,23,42,.06)] dark:border-white/10 dark:bg-[#111925]">
+          <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-white/5"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-slate-950 text-white dark:bg-white dark:text-slate-950"><FiTable/></div><div><h2 className="text-sm font-black text-slate-900 dark:text-white">Reel Sefer Data Grid</h2><p className="text-[11px] font-medium text-slate-400">{filtered.length.toLocaleString('tr-TR')} kayıt • Sayfa {page}/{totalPages}</p></div></div><button onClick={excelExportEt} disabled={!filtered.length} className="group inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-black text-white transition hover:-translate-y-0.5 hover:bg-sky-600 disabled:opacity-40 dark:bg-white dark:text-slate-950"><FiDownload className="transition group-hover:translate-y-0.5"/>Modern Excel</button></div>
+          <div className="overflow-auto"><table className="min-w-[1600px] w-full border-separate border-spacing-0 text-left"><thead className="sticky top-0 z-10 bg-slate-950 text-white"><tr className="text-[10px] font-black uppercase tracking-[.1em] text-slate-300">{['Tedarikçi Firma','Proje','Sefer Tarihi','Sefer No','Durum','Plaka','Kullanıcı','Araç Alt Grubu','Çalışma Tipi','Alış Fatura No'].map(h=><th key={h} className="border-b border-white/10 px-4 py-3.5">{h}</th>)}</tr></thead><tbody>{visible.length?visible.map((item,i)=><motion.tr initial={{opacity:0,y:5}} animate={{opacity:1,y:0}} transition={{delay:Math.min(i*.012,.3)}} key={item.DocumentNo||i} className="group border-b border-slate-100 transition-colors hover:bg-sky-50/55 dark:hover:bg-sky-500/[.04]"><td className="border-b border-slate-100 px-4 py-3 dark:border-white/5"><div className="flex max-w-[340px] items-center gap-2.5"><div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-sky-50 text-xs font-black text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">{String(item.SupplierCurrentAccountFullTitle||'?').trim().slice(0,2).toLocaleUpperCase('tr-TR')}</div><span className="line-clamp-2 text-xs font-bold text-slate-700 dark:text-slate-200">{item.SupplierCurrentAccountFullTitle||'-'}</span></div></td><td className="border-b border-slate-100 px-4 py-3 text-xs font-semibold text-slate-600 dark:border-white/5 dark:text-slate-300">{item.ProjectName||'-'}</td><td className="border-b border-slate-100 px-4 py-3 text-xs font-bold text-slate-500 dark:border-white/5">{fmtDate(item.DespatchDate)}</td><td className="border-b border-slate-100 px-4 py-3 dark:border-white/5"><span className="rounded-lg bg-sky-50 px-2 py-1 font-mono text-xs font-black text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">{item.DocumentNo}</span></td><td className="border-b border-slate-100 px-4 py-3 dark:border-white/5"><StatusBadge code={item.TMSDespatchDocumentStatu}/></td><td className="border-b border-slate-100 px-4 py-3 dark:border-white/5"><span className="inline-flex items-center gap-1.5 text-xs font-black text-slate-700 dark:text-slate-200"><FiTruck className="text-slate-400"/>{item.PlateNumber||'-'}</span></td><td className="border-b border-slate-100 px-4 py-3 dark:border-white/5"><span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300"><FiUser className="text-slate-400"/>{item.TMSDespatchCreatedBy||'-'}</span></td><td className="border-b border-slate-100 px-4 py-3 text-xs font-semibold text-slate-500 dark:border-white/5">{item.SpecialGroupName||'-'}</td><td className="border-b border-slate-100 px-4 py-3 text-xs font-semibold text-slate-500 dark:border-white/5">{item.VehicleWorkingTypeName||'-'}</td><td className="border-b border-slate-100 px-4 py-3 font-mono text-xs font-bold text-slate-600 dark:border-white/5 dark:text-slate-300">{item.TMSDespatchInvoiceDocumentNo||'-'}</td></motion.tr>):<tr><td colSpan="10" className="px-6 py-16 text-center"><div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-white/5"><FiFileText size={24}/></div><div className="mt-3 text-sm font-black text-slate-600 dark:text-slate-300">Gösterilecek kayıt yok</div><div className="mt-1 text-xs text-slate-400">Tarih aralığını seçip “Veriyi Getir” butonunu kullanın.</div></td></tr>}</tbody></table></div>
+          {filtered.length>PAGE_SIZE&&<div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-white/5"><div className="text-xs font-bold text-slate-400">{((page-1)*PAGE_SIZE+1).toLocaleString('tr-TR')}–{Math.min(page*PAGE_SIZE,filtered.length).toLocaleString('tr-TR')} / {filtered.length.toLocaleString('tr-TR')} kayıt</div><div className="flex gap-2"><button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1} className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 transition hover:border-sky-300 hover:text-sky-600 disabled:opacity-30 dark:border-white/10"><FiChevronLeft/>Önceki</button><button onClick={()=>setPage(p=>Math.min(totalPages,p+1))} disabled={page===totalPages} className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 transition hover:border-sky-300 hover:text-sky-600 disabled:opacity-30 dark:border-white/10">Sonraki<FiChevronRight/></button></div></div>}
+        </section>
+      </>}
+    </main>
+  </div>;
+}

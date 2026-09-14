@@ -1,425 +1,75 @@
-﻿// src/components/ModernSidebar.jsx
+import React, { useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import useTabStore from "../stores/tabStore";
 import { screenRegistry } from "../screenRegistry";
-import React, { useMemo, useState, useCallback } from "react";
-import {
-    Box,
-    Stack,
-    Typography,
-    IconButton,
-    Divider,
-    List,
-    ListItemButton,
-    ListItemIcon,
-    ListItemText,
-    Collapse,
-    TextField,
-    InputAdornment,
-    Avatar,
-    Tooltip,
-} from "@mui/material";
+import { LayoutDashboard, FilePlus2, Files, MapPinned, FolderKanban, ChartNoAxesCombined, Truck, ClipboardCheck, FileSpreadsheet, ImageDown, FileArchive, ReceiptText, Search, ChevronDown, X, Sparkles } from "lucide-react";
 
+const groups = [
+    { label: "Genel", items: [["/anasayfa", "Genel Bakış", LayoutDashboard]] },
+    { label: "Operasyon", items: [["/evrak-ekle", "Evrak Ekle", FilePlus2], ["/toplu-evraklar", "Tüm Evraklar", Files], ["/tahakkuk", "Tahakkuk", ReceiptText], ["/lokasyonlar", "Lokasyonlar", MapPinned], ["/projeler", "Projeler", FolderKanban]] },
+    { label: "Kargo", items: [["/kargo-bilgisi-ekle", "Kargo Bilgisi Ekle", Truck], ["/tum-kargo-bilgileri", "Tüm Kargolar", ClipboardCheck], ["/hedef-kargo", "Hedef Kargo", Sparkles]] },
+    { label: "Raporlar", items: [["/evrak-raporlari", "Evrak Raporları", ChartNoAxesCombined], ["/raporlar", "Reel Raporları", ChartNoAxesCombined], ["/toplu-tutanak", "Toplu Tutanak", FileArchive], ["/tutanak", "Tutanak", ReceiptText]] },
+    { label: "Araçlar", items: [["/ExcelDonusum", "Excel & Word", FileSpreadsheet], ["/jpg-to-pdf", "JPG → PDF", ImageDown], ["/pdf-sikistirma", "PDF Sıkıştırma", FileArchive], ["/musteri-evraki", "Müşteri Evrakları", Files]] },
+];
 
-import CloseIcon from "@mui/icons-material/Close";
-import SearchIcon from "@mui/icons-material/Search";
-import ClearRoundedIcon from "@mui/icons-material/ClearRounded";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-
-function getInitials(name = "") {
-    const parts = name.trim().split(/\s+/).filter(Boolean);
-    if (!parts.length) return "K";
-    const first = parts[0]?.[0] ?? "";
-    const last = parts.length > 1 ? parts[parts.length - 1]?.[0] : "";
-    return (first + last).toUpperCase();
-}
-
-function highlightText(text, query, ui) {
-    const q = (query ?? "").trim();
-    if (!q) return text;
-
-    const idx = text.toLowerCase().indexOf(q.toLowerCase());
-    if (idx === -1) return text;
-
-    const before = text.slice(0, idx);
-    const match = text.slice(idx, idx + q.length);
-    const after = text.slice(idx + q.length);
-
-    return (
-        <span>
-            {before}
-            <Box
-                component="span"
-                sx={{
-                    px: 0.55,
-                    py: 0.1,
-                    mx: 0.2,
-                    borderRadius: 1,
-                    fontWeight: 900,
-                    background: ui.dark ? "rgba(139,92,246,0.18)" : "rgba(139,92,246,0.10)",
-                    border: ui.dark ? "1px solid rgba(167,139,250,0.28)" : "1px solid rgba(139,92,246,0.18)",
-                }}
-            >
-                {match}
-            </Box>
-            {after}
-        </span>
-    );
-}
-
-function ETSMark({ ui, size = 30 }) {
-    return (
-        <Box
-            sx={{
-                width: size,
-                height: size,
-                borderRadius: 2,
-                display: "grid",
-                placeItems: "center",
-                border: `1px solid ${ui.border}`,
-                background: ui.dark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.70)",
-            }}
-        >
-            <svg viewBox="0 0 24 24" width={size * 0.62} height={size * 0.62} fill="none">
-                <path
-                    d="M8 4h7l3 3v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"
-                    stroke={ui.dark ? "rgba(233,213,255,0.88)" : "rgba(76,29,149,0.70)"}
-                    strokeWidth="1.6"
-                    strokeLinejoin="round"
-                />
-                <path
-                    d="M15 4v3h3"
-                    stroke={ui.dark ? "rgba(233,213,255,0.88)" : "rgba(76,29,149,0.70)"}
-                    strokeWidth="1.6"
-                    strokeLinejoin="round"
-                />
-            </svg>
-        </Box>
-    );
-}
-
-export default function ModernSidebar({ onClose, navigate, currentPath, darkMode, user, perms }) {
-    const safeUser = user ?? { adSoyad: "Kullanıcı", usernameRaw: "" };
-    const safePerms = perms ?? { canSeeTahakkuk: false, isAdminOrManager: false, isRefika: false, icons: {} };
+export default function ModernSidebar({ mobileOpen, onMobileClose }) {
+    const navigate = useNavigate();
+    const location = useLocation();
     const openTab = useTabStore((s) => s.openTab);
-
-    const ui = useMemo(() => {
-        const dark = !!darkMode;
-        return {
-            dark,
-            border: dark ? "rgba(167,139,250,0.18)" : "rgba(139,92,246,0.12)",
-            borderStrong: dark ? "rgba(167,139,250,0.30)" : "rgba(139,92,246,0.20)",
-            bg: dark ? "rgba(10,12,20,0.78)" : "rgba(255,255,255,0.92)",
-            panel: dark ? "rgba(255,255,255,0.04)" : "rgba(17,24,39,0.03)",
-            textDim: dark ? "rgba(255,255,255,0.70)" : "rgba(17,24,39,0.65)",
-            activeBg: dark ? "rgba(139,92,246,0.14)" : "rgba(139,92,246,0.10)",
-            hoverBg: dark ? "rgba(139,92,246,0.10)" : "rgba(139,92,246,0.07)",
-            shadow: dark ? "0 22px 80px rgba(0,0,0,0.55)" : "0 18px 55px rgba(17,24,39,0.10)",
-        };
-    }, [darkMode]);
-
     const [query, setQuery] = useState("");
-    const [openSections, setOpenSections] = useState(() => ({
-        "VERİ GİRİŞİ": true,
-        NAVİGASYON: true,
-        EVRAK: true,
-        RAPORLAR: true,
-        DİĞER: true,
-        KARGO: true,
-        "MÜŞTERİ EVRAKI": true,
-    }));
-
-    const toggleSection = useCallback((title) => {
-        setOpenSections((p) => ({ ...p, [title]: !p[title] }));
-    }, []);
-
-    const go = useCallback(
-        (path) => () => {
-            const screen = screenRegistry[path];
-
-            if (screen) {
-                openTab({
-                    path,
-                    title: screen.title,
-                });
-            }
-
-            onClose?.();
-            navigate(`/app${path}`);
-        },
-        [navigate, onClose, openTab]
-    );
-
-    const canSeeMusteriEvraki = useMemo(() => {
-        const username = (safeUser.usernameRaw ?? "").toLowerCase().trim();
-        return ["ozge", "yaren", "rabia"].includes(username);
-    }, [safeUser.usernameRaw]);
-
-    const menuConfig = useMemo(() => {
-        const I = safePerms.icons;
-        return [
-            {
-                title: "VERİ GİRİŞİ",
-                show: safePerms.canSeeTahakkuk,
-                items: [{ label: "Tahakkuk", icon: I.Description ?? null, path: "/tahakkuk", onClick: go("/tahakkuk"), keywords: ["tahakkuk"] }],
-            },
-            {
-                title: "NAVİGASYON",
-                show: safePerms.isAdminOrManager,
-                items: [
-                    { label: "Lokasyonlar", icon: I.Place ?? null, path: "/lokasyonlar", onClick: go("/lokasyonlar"), keywords: ["lokasyon"] },
-                    { label: "Projeler", icon: I.Folder ?? null, path: "/projeler", onClick: go("/projeler"), keywords: ["proje"] },
-                ],
-            },
-            {
-                title: "EVRAK",
-                show: safePerms.isAdminOrManager,
-                items: [
-                    { label: "Evrak Ekle", icon: I.Grid ?? null, path: "/evrak-ekle", onClick: go("/evrak-ekle"), keywords: ["evrak", "ekle"] },
-                    { label: "Tüm Evraklar", icon: I.Description ?? null, path: "/toplu-evraklar", onClick: go("/toplu-evraklar"), keywords: ["evraklar"] },
-                    { label: "Tüm Kargo Bilgileri", icon: I.Shipping ?? null, path: "/tum-kargo-bilgileri", onClick: go("/tum-kargo-bilgileri"), keywords: ["kargo"] },
-                ],
-            },
-            {
-                title: "RAPORLAR",
-                show: safePerms.isAdminOrManager,
-                items: [
-                    { label: "Evrak Raporları", icon: I.Assessment ?? null, path: "/evrak-raporlari", onClick: go("/evrak-raporlari"), keywords: ["evrak", "rapor"] },
-                    { label: "Reel Raporları", icon: I.Assessment ?? null, path: "/raporlar", onClick: go("/raporlar"), keywords: ["reel", "rapor"] },
-                    { label: "Toplu Tutanak", icon: I.Description ?? null, path: "/toplu-tutanak", onClick: go("/toplu-tutanak"), keywords: ["tutanak"] },
-                ],
-            },
-            {
-                title: "DİĞER",
-                show: safePerms.isAdminOrManager,
-                items: [
-                    { label: "Hedef Kargo", icon: I.Grid ?? null, path: "/hedef-kargo", onClick: go("/hedef-kargo"), keywords: ["hedef"] },
-                    { label: "Tutanak", icon: I.Description ?? null, path: "/tutanak", onClick: go("/tutanak"), keywords: ["tutanak"] },
-                    { label: "Excel & Word", icon: I.Description ?? null, path: "/ExcelDonusum", onClick: go("/ExcelDonusum"), keywords: ["excel", "word"] },
-                    { label: "JPG TO PDF", icon: I.Image ?? null, path: "/jpg-to-pdf", onClick: go("/jpg-to-pdf"), keywords: ["jpg", "pdf"] },
-                ],
-            },
-            {
-                title: "KARGO",
-                show: safePerms.isRefika,
-                items: [
-                    { label: "Kargo Bilgisi Ekle", icon: I.Shipping ?? null, path: "/kargo-bilgisi-ekle", onClick: go("/kargo-bilgisi-ekle"), keywords: ["kargo"] },
-                    { label: "Tüm Kargo Bilgileri", icon: I.Shipping ?? null, path: "/tum-kargo-bilgileri", onClick: go("/tum-kargo-bilgileri"), keywords: ["kargo"] },
-                ],
-            },
-            {
-                title: "MÜŞTERİ EVRAKI",
-                show: canSeeMusteriEvraki,
-                items: [
-                    { label: "Müşteri Evrakları", icon: I.Description ?? null, path: "/musteri-evraki", onClick: go("/musteri-evraki"), keywords: ["müşteri", "evrak"] },
-                ],
-            },
-        ];
-    }, [safePerms, go, canSeeMusteriEvraki]);
-
-    const visibleSections = useMemo(() => {
-        const q = query.trim().toLowerCase();
-        return menuConfig
-            .filter((s) => s.show)
-            .map((s) => {
-                if (!q) return s;
-                const items = s.items.filter((it) => {
-                    const hay = [it.label, ...(it.keywords ?? [])].join(" ").toLowerCase();
-                    return hay.includes(q);
-                });
-                return { ...s, items };
-            })
-            .filter((s) => s.items.length > 0);
-    }, [menuConfig, query]);
-
-    const NavItem = ({ item }) => {
-        const active = currentPath === item.path;
-        return (
-            <ListItemButton
-                onClick={item.onClick}
-                sx={{
-                    mx: 1,
-                    mb: 0.6,
-                    borderRadius: 2.2,
-                    border: `1px solid ${active ? ui.borderStrong : "transparent"}`,
-                    background: active ? ui.activeBg : "transparent",
-                    position: "relative",
-                    overflow: "hidden",
-                    "&:hover": { background: active ? ui.activeBg : ui.hoverBg },
-                    "&:before": active
-                        ? {
-                            content: '""',
-                            position: "absolute",
-                            left: 0,
-                            top: 10,
-                            bottom: 10,
-                            width: 3,
-                            borderRadius: 8,
-                            background: "linear-gradient(180deg, rgba(167,139,250,1), rgba(236,72,153,0.9))",
-                        }
-                        : {},
-                }}
-            >
-                <ListItemIcon sx={{ minWidth: 42, color: "inherit" }}>
-                    <Box
-                        sx={{
-                            width: 34,
-                            height: 34,
-                            borderRadius: 2,
-                            display: "grid",
-                            placeItems: "center",
-                            border: `1px solid ${ui.border}`,
-                            background: ui.panel,
-                        }}
-                    >
-                        {item.icon}
-                    </Box>
-                </ListItemIcon>
-                <ListItemText
-                    primary={highlightText(item.label, query, ui)}
-                    primaryTypographyProps={{ fontWeight: active ? 900 : 700, fontSize: 14 }}
-                />
-            </ListItemButton>
-        );
+    const [closedGroups, setClosedGroups] = useState({});
+    const [hovered, setHovered] = useState(false);
+    const name = localStorage.getItem("ad") || "Kullanıcı";
+    const username = localStorage.getItem("username") || "personel";
+    const userKey = username.trim().toLowerCase();
+    const isManager = ["yaren", "ozge", "mehmet", "rabia"].includes(userKey);
+    const isRefika = userKey === "refika";
+    const canSeeTahakkuk = ["aleynagncl", "cagla123", "didem", "canan", "merve"].includes(userKey);
+    const canSeePath = (path) => {
+        if (path === "/anasayfa") return true;
+        if (path === "/tahakkuk") return canSeeTahakkuk;
+        if (path === "/kargo-bilgisi-ekle") return isRefika;
+        if (path === "/musteri-evraki") return ["ozge", "yaren", "rabia"].includes(userKey);
+        return isManager || (isRefika && path === "/tum-kargo-bilgileri");
     };
+    const visibleGroups = useMemo(() => {
+        const needle = query.trim().toLocaleLowerCase("tr-TR");
+        return groups.map((group) => ({ ...group, items: group.items.filter(([path, title]) => canSeePath(path) && (!needle || title.toLocaleLowerCase("tr-TR").includes(needle))) })).filter((group) => group.items.length);
+    }, [query, userKey]);
+    const go = (path, title) => { openTab({ path, title: screenRegistry[path]?.title || title }); navigate(`/app${path}`); onMobileClose?.(); };
+    const initials = name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+    const compact = !hovered && !mobileOpen;
 
-    const Section = ({ title, items }) => {
-        if (!items?.length) return null;
-        return (
-            <Box sx={{ mt: 0.6 }}>
-                <Box sx={{ px: 1.5, py: 0.8 }}>
-                    <Stack direction="row" alignItems="center" justifyContent="space-between">
-                        <Typography variant="overline" sx={{ opacity: 0.75, letterSpacing: "0.14em", fontWeight: 900 }}>
-                            {title}
-                        </Typography>
-                        <IconButton size="small" onClick={() => toggleSection(title)} sx={{ borderRadius: 2 }}>
-                            {openSections[title] ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-                        </IconButton>
-                    </Stack>
-                </Box>
-
-                <Collapse in={openSections[title] ?? true} timeout={160} unmountOnExit>
-                    <Box sx={{ pb: 0.5 }}>
-                        {items.map((item) => (
-                            <NavItem key={item.path} item={item} />
-                        ))}
-                    </Box>
-                </Collapse>
-            </Box>
-        );
-    };
-
-    return (
-        <Box
-            sx={{
-                width: 320,
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
-                background: ui.bg,
-                backdropFilter: "blur(16px)",
-                WebkitBackdropFilter: "blur(16px)",
-                boxShadow: ui.shadow,
-                borderLeft: `1px solid ${ui.border}`,
-            }}
-        >
-            {/* Top */}
-            <Box sx={{ px: 2, pt: 2, pb: 1.25 }}>
-                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <Stack direction="row" spacing={1.2} alignItems="center" sx={{ minWidth: 0 }}>
-                        <ETSMark ui={ui} />
-                        <Box sx={{ minWidth: 0 }}>
-                            <Typography variant="caption" sx={{ opacity: 0.78, fontWeight: 900, letterSpacing: "0.14em" }}>
-                                ETS
-                            </Typography>
-                            <Typography variant="h6" fontWeight={950} noWrap>
-                                Menü
-                            </Typography>
-                        </Box>
-                    </Stack>
-
-                    <Tooltip title="Kapat">
-                        <IconButton onClick={onClose} size="small" sx={{ borderRadius: 2 }}>
-                            <CloseIcon />
-                        </IconButton>
-                    </Tooltip>
-                </Stack>
-
-                {/* User */}
-                <Stack direction="row" alignItems="center" spacing={1.1} sx={{ mt: 1.4 }}>
-                    <Avatar
-                        sx={{
-                            width: 36,
-                            height: 36,
-                            fontWeight: 950,
-                            border: `1px solid ${ui.border}`,
-                            background: ui.dark ? "rgba(139,92,246,0.18)" : "rgba(139,92,246,0.12)",
-                        }}
-                    >
-                        {getInitials(safeUser.adSoyad)}
-                    </Avatar>
-                    <Box sx={{ minWidth: 0 }}>
-                        <Typography fontWeight={900} noWrap>
-                            {safeUser.adSoyad}
-                        </Typography>
-                        <Typography variant="caption" sx={{ opacity: 0.7 }} noWrap>
-                            @{safeUser.usernameRaw || "-"}
-                        </Typography>
-                    </Box>
-                </Stack>
-
-                {/* Search */}
-                <TextField
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Ara..."
-                    size="small"
-                    fullWidth
-                    sx={{
-                        mt: 1.3,
-                        "& .MuiOutlinedInput-root": {
-                            borderRadius: 999,
-                            background: ui.panel,
-                            border: `1px solid ${ui.border}`,
-                            "& fieldset": { border: "none" },
-                        },
-                    }}
-                    InputProps={{
-                        startAdornment: (
-                            <InputAdornment position="start">
-                                <SearchIcon fontSize="small" />
-                            </InputAdornment>
-                        ),
-                        endAdornment: query ? (
-                            <InputAdornment position="end">
-                                <IconButton size="small" onClick={() => setQuery("")} sx={{ borderRadius: 2 }}>
-                                    <ClearRoundedIcon fontSize="small" />
-                                </IconButton>
-                            </InputAdornment>
-                        ) : null,
-                    }}
+    return <>
+        {mobileOpen && <button className="fixed inset-0 z-[10020] bg-slate-950/45 backdrop-blur-[2px] lg:hidden" onClick={onMobileClose} aria-label="Menüyü kapat" />}
+        <aside onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} className={`fixed inset-y-0 left-0 z-[10030] flex flex-col overflow-hidden border-r border-cyan-400/10 bg-[radial-gradient(circle_at_30%_0%,rgba(15,104,190,0.22),transparent_28%),linear-gradient(180deg,#0b172a_0%,#08111f_100%)] text-white shadow-2xl shadow-slate-950/40 transition-[width,transform] duration-300 ease-out lg:static lg:z-auto lg:shadow-none ${compact ? "lg:w-[88px]" : "lg:w-[292px]"} ${mobileOpen ? "w-[292px] translate-x-0" : "w-[292px] -translate-x-full lg:translate-x-0"}`}>
+            <div className="relative flex h-[94px] shrink-0 items-center justify-center border-b border-white/[0.08] px-3">
+                <motion.img
+                    src="/ets-logo.webp"
+                    alt=""
+                    animate={{ scale: hovered ? 1.08 : 1, rotate: hovered ? -2 : 0 }}
+                    whileHover={{ rotate: [0, -4, 4, 0] }}
+                    transition={{ type: "spring", stiffness: 240, damping: 17 }}
+                    className="h-16 w-16 rounded-[18px] object-cover drop-shadow-[0_10px_22px_rgba(14,165,233,0.28)]"
                 />
-            </Box>
-
-            <Divider sx={{ opacity: 0.12 }} />
-
-            {/* Menu */}
-            <Box sx={{ flex: 1, overflow: "auto", py: 0.75 }}>
-                <List disablePadding>
-                    {visibleSections.map((section) => (
-                        <Section key={section.title} title={section.title} items={section.items} />
-                    ))}
-                </List>
-            </Box>
-
-            <Divider sx={{ opacity: 0.12 }} />
-
-            {/* Bottom hint (minimal) */}
-            <Box sx={{ px: 2, py: 1.5 }}>
-                <Typography variant="caption" sx={{ opacity: 0.65 }}>
-                    İpucu: Arama ile menüyü hızlı filtreleyebilirsin.
-                </Typography>
-            </Box>
-        </Box>
-    );
+                <button onClick={onMobileClose} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white lg:hidden"><X size={19} /></button>
+            </div>
+            <div className={`px-3 pt-4 ${compact ? "lg:px-4" : ""}`}>
+                {!compact ? <motion.label initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex h-10 items-center gap-2 rounded-xl border border-cyan-300/10 bg-white/[0.055] px-3 text-slate-300 transition focus-within:border-cyan-400/40 focus-within:bg-white/[0.08]"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Menüde ara" className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-500" /><kbd className="rounded-md border border-white/10 bg-black/20 px-1.5 py-0.5 text-[10px] text-slate-500">⌘K</kbd></motion.label> : <div className="hidden h-10 place-items-center rounded-xl bg-white/[0.06] text-slate-400 lg:grid"><Search size={18} /></div>}
+            </div>
+            <nav className="mt-3 flex-1 overflow-y-auto px-3 pb-4">
+                {visibleGroups.map((group) => <div key={group.label} className="mb-3">
+                    {!compact && <button onClick={() => setClosedGroups((old) => ({ ...old, [group.label]: !old[group.label] }))} className="flex w-full items-center justify-between px-2 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500"><span>{group.label}</span><ChevronDown size={14} className={`transition ${closedGroups[group.label] ? "-rotate-90" : ""}`} /></button>}
+                    {!closedGroups[group.label] && group.items.map(([path, title, Icon], itemIndex) => { const active = location.pathname === `/app${path}`; return <motion.button initial={false} whileHover={{ x: compact ? 0 : 4 }} whileTap={{ scale: 0.97 }} key={path} title={compact ? title : undefined} onClick={() => go(path, title)} className={`group relative mb-1 flex h-12 w-full items-center overflow-hidden rounded-xl transition-colors ${compact ? "justify-center px-0" : "gap-3 px-2.5"} ${active ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-950/35" : "text-slate-400 hover:bg-white/[0.075] hover:text-white"}`}>
+                        {active && <motion.span layoutId="active-nav-glow" className="absolute inset-0 bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.13),transparent)]" animate={{ x: ["-120%", "120%"] }} transition={{ duration: 2.6, repeat: Infinity, repeatDelay: 1.4 }} />}
+                        <motion.span whileHover={{ rotate: [0, -8, 8, 0], scale: 1.12 }} transition={{ duration: 0.38 }} className={`relative grid h-8 w-8 shrink-0 place-items-center rounded-lg ${active ? "bg-white/15 shadow-inner" : "bg-white/[0.04] group-hover:bg-cyan-400/10 group-hover:text-cyan-300"}`}><Icon size={19} strokeWidth={active ? 2.4 : 1.9} /></motion.span>
+                        {!compact && <motion.span initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(itemIndex * 0.025, 0.12) }} className="relative truncate text-sm font-semibold">{title}</motion.span>}
+                        {active && !compact && <motion.span animate={{ scale: [1, 1.45, 1], opacity: [0.7, 1, 0.7] }} transition={{ duration: 1.8, repeat: Infinity }} className="relative ml-auto h-1.5 w-1.5 rounded-full bg-white shadow-[0_0_8px_white]" />}
+                    </motion.button>; })}
+                </div>)}
+            </nav>
+            <div className="border-t border-white/[0.08] p-3"><div className={`flex items-center p-2 ${compact ? "justify-center" : ""}`}><div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 text-xs font-extrabold shadow-lg shadow-blue-950/30">{initials}</div>{!compact && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="ml-2 min-w-0 flex-1"><div className="truncate text-sm font-bold">{name}</div><div className="truncate text-xs text-slate-500">@{username}</div></motion.div>}</div></div>
+        </aside>
+    </>;
 }

@@ -1,4 +1,7 @@
-﻿import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import useDarkMode from "../hooks/useDarkMode";
+import { ArrowLeft, ArrowRight, Barcode, Building2, CheckCircle2, Download, FileText, Plus, RotateCcw, ScanLine, Settings2, ShieldCheck, Trash2, X } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
@@ -14,701 +17,226 @@ const today = () => {
 };
 
 const styles = `
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap');
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-    --bg: #05050d;
-    --surface: #0d0d1a;
-    --surface2: #12121f;
-    --border: rgba(255,255,255,0.07);
-    --border-accent: rgba(108,92,231,0.35);
-    --accent: #6c5ce7;
-    --accent2: #a29bfe;
-    --accent3: #fd79a8;
-    --text-primary: #f0eeff;
-    --text-secondary: #8b87b8;
-    --text-muted: #4a4768;
-    --font-display: 'Syne', sans-serif;
-    --font-mono: 'DM Mono', monospace;
-    --radius-sm: 12px;
-    --radius-md: 18px;
-    --radius-lg: 26px;
-    --radius-xl: 36px;
-}
-
-body { font-family: var(--font-display); background: var(--bg); }
-
-@keyframes fadeUp {
-    from { opacity: 0; transform: translateY(18px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes pulse-dot {
-    0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(108,92,231,0.5); }
-    50% { opacity: 0.6; box-shadow: 0 0 0 5px rgba(108,92,231,0); }
-}
-@keyframes scan-line {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(400%); }
-}
-@keyframes flash-row {
-    0% { background: rgba(108,92,231,0.22); }
-    100% { background: transparent; }
-}
-
+.mev, .mev * { box-sizing: border-box; }
 .mev {
-    min-height: 100vh;
-    background: var(--bg);
-    color: var(--text-primary);
-    font-family: var(--font-display);
-    padding: 2.5rem 3rem 4rem;
-    position: relative;
-    overflow-x: hidden;
+    --bg:#f6f8fb;
+    --surface:#ffffff;
+    --surface-soft:#f8fafc;
+    --surface-muted:#f1f5f9;
+    --border:#e2e8f0;
+    --border-strong:#cbd5e1;
+    --text:#0f172a;
+    --text-2:#475569;
+    --text-3:#94a3b8;
+    --blue:#0284c7;
+    --cyan:#06b6d4;
+    --green:#059669;
+    --amber:#d97706;
+    --red:#e11d48;
+    min-height:100vh;
+    background:var(--bg);
+    color:var(--text);
+    padding:20px 24px 42px;
+    font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    transition:background .2s,color .2s;
 }
+.dark .mev {
+    --bg:#0b1220;
+    --surface:#111927;
+    --surface-soft:#0d141f;
+    --surface-muted:#182234;
+    --border:rgba(255,255,255,.08);
+    --border-strong:rgba(255,255,255,.14);
+    --text:#f8fafc;
+    --text-2:#cbd5e1;
+    --text-3:#64748b;
+}
+.mev button,.mev input,.mev textarea{font:inherit}
+.mev-inner{width:100%;max-width:1880px;margin:0 auto}
+@keyframes mevFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes mevPulse{0%,100%{opacity:.55;transform:scale(.88)}50%{opacity:1;transform:scale(1.1)}}
+@keyframes mevScan{from{transform:translateX(-120%)}to{transform:translateX(420%)}}
+@keyframes mevFlash{0%{background:rgba(14,165,233,.18)}100%{background:transparent}}
 
-.mev::before {
-    content: '';
-    position: fixed;
-    top: -20%; left: -15%;
-    width: 55%; height: 65%;
-    background: radial-gradient(ellipse, rgba(108,92,231,0.09) 0%, transparent 70%);
-    pointer-events: none; z-index: 0;
+.mev-hero{
+    position:relative;overflow:hidden;
+    border:1px solid var(--border);border-radius:24px;background:var(--surface);
+    box-shadow:0 14px 44px rgba(15,23,42,.05);padding:20px 22px;
+    animation:mevFade .28s ease both;
 }
-.mev::after {
-    content: '';
-    position: fixed;
-    bottom: -20%; right: -15%;
-    width: 50%; height: 60%;
-    background: radial-gradient(ellipse, rgba(253,121,168,0.05) 0%, transparent 70%);
-    pointer-events: none; z-index: 0;
+.dark .mev-hero{box-shadow:0 18px 48px rgba(0,0,0,.22)}
+.mev-hero::before{content:"";position:absolute;inset:0 0 auto;height:4px;background:linear-gradient(90deg,#0284c7,#22d3ee,#06b6d4)}
+.mev-topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0}
+.mev-home-btn{
+    width:42px;height:42px;display:grid;place-items:center;padding:0;border-radius:14px;
+    background:var(--surface);border:1px solid var(--border);color:var(--text-2);cursor:pointer;
+    transition:.18s ease;box-shadow:0 1px 2px rgba(15,23,42,.04)
 }
+.mev-home-btn:hover{border-color:#7dd3fc;color:var(--blue);background:rgba(14,165,233,.05);transform:translateX(-2px)}
+.mev-home-btn-arrow{display:grid;place-items:center}
+.mev-date-chip{
+    display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 12px;border-radius:11px;
+    background:rgba(14,165,233,.07);border:1px solid rgba(14,165,233,.16);color:var(--blue);
+    font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase
+}
+.dark .mev-date-chip{color:#7dd3fc;background:rgba(14,165,233,.09)}
+.mev-dot{width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 0 4px rgba(16,185,129,.10);animation:mevPulse 1.7s infinite}
 
-.mev-inner {
-    position: relative;
-    z-index: 1;
-    max-width: 1280px;
-    margin: 0 auto;
-    animation: fadeUp 0.5s ease both;
+.mev-header{margin:16px 0 0;display:flex;gap:14px;align-items:flex-start}
+.mev-header-icon{
+    width:48px;height:48px;flex:0 0 auto;border-radius:16px;display:grid;place-items:center;color:white;
+    background:linear-gradient(135deg,#0284c7,#06b6d4);box-shadow:0 10px 24px rgba(14,165,233,.18)
 }
+.mev-header-copy{min-width:0}
+.mev-eyebrow{
+    display:inline-flex;align-items:center;gap:7px;padding:5px 9px;border-radius:999px;
+    background:rgba(14,165,233,.07);color:var(--blue);font-size:9px;font-weight:950;
+    letter-spacing:.12em;text-transform:uppercase
+}
+.dark .mev-eyebrow{color:#7dd3fc;background:rgba(14,165,233,.10)}
+.mev-title{margin:7px 0 0;font-size:clamp(25px,3vw,32px);line-height:1.05;font-weight:950;letter-spacing:-.035em;color:var(--text)}
+.mev-title span{color:var(--cyan)}
+.mev-subtitle{margin-top:6px;color:var(--text-2);font-size:12px;font-weight:600;line-height:1.55}
+.mev-divider{display:none}
 
-/* ── TOP NAV BAR ── */
-.mev-topbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 3rem;
-    gap: 1rem;
+.mev-workflow{
+    margin-top:12px;padding:10px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;
+    border:1px solid var(--border);border-radius:18px;background:var(--surface)
 }
+.mev-step{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:var(--surface-soft);border:1px solid transparent}
+.mev-step.active{border-color:rgba(14,165,233,.14);background:rgba(14,165,233,.045)}
+.mev-step-no{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:var(--surface-muted);color:var(--text-2);font-size:10px;font-weight:950;flex:0 0 auto}
+.mev-step.active .mev-step-no{background:#0284c7;color:white}
+.mev-step.done .mev-step-no{background:#ecfdf5;color:#047857}
+.dark .mev-step.done .mev-step-no{background:rgba(16,185,129,.10);color:#6ee7b7}
+.mev-step strong{display:block;font-size:11px;color:var(--text);font-weight:950}
+.mev-step span{display:block;margin-top:2px;font-size:9px;color:var(--text-3);font-weight:650}
 
-.mev-home-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.65rem;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid var(--border);
-    border-radius: 100px;
-    padding: 0.7rem 1.4rem 0.7rem 1rem;
-    color: var(--text-secondary);
-    font-family: var(--font-mono);
-    font-size: 13px;
-    letter-spacing: 0.04em;
-    cursor: pointer;
-    transition: all 0.22s;
-    text-decoration: none;
-}
-.mev-home-btn:hover {
-    border-color: var(--border-accent);
-    color: var(--accent2);
-    background: rgba(108,92,231,0.07);
-    transform: translateX(-2px);
-}
-.mev-home-btn-arrow {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: rgba(108,92,231,0.15);
-    border: 1px solid rgba(108,92,231,0.3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    color: var(--accent2);
-    flex-shrink: 0;
-    transition: transform 0.22s;
-}
-.mev-home-btn:hover .mev-home-btn-arrow {
-    transform: translateX(-2px);
-}
+.mev-summary{margin-top:12px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.mev-summary-card{border:1px solid var(--border);border-radius:16px;background:var(--surface);padding:13px 14px}
+.mev-summary-label{font-size:8px;font-weight:950;text-transform:uppercase;letter-spacing:.11em;color:var(--text-3)}
+.mev-summary-value{margin-top:5px;font-size:20px;font-weight:950;letter-spacing:-.025em;color:var(--text)}
+.mev-summary-note{margin-top:3px;font-size:9px;font-weight:650;color:var(--text-3)}
 
-.mev-date-chip {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-    background: rgba(108,92,231,0.07);
-    border: 1px solid rgba(108,92,231,0.22);
-    border-radius: 100px;
-    padding: 0.8rem 1.5rem;
-    font-family: var(--font-mono);
-    font-size: 14px;
-    color: var(--accent2);
-    white-space: nowrap;
-    letter-spacing: 0.04em;
+.mev-glass{
+    position:relative;margin-top:12px;padding:18px;border-radius:20px;background:var(--surface);
+    border:1px solid var(--border);box-shadow:0 9px 28px rgba(15,23,42,.035);overflow:hidden
 }
-.mev-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--accent);
-    animation: pulse-dot 2s infinite;
-    flex-shrink: 0;
+.dark .mev-glass{box-shadow:0 12px 32px rgba(0,0,0,.14)}
+.mev-section-label{
+    display:flex;align-items:center;gap:9px;margin-bottom:14px;color:var(--blue);
+    font-size:9px;font-weight:950;letter-spacing:.13em;text-transform:uppercase
 }
+.mev-section-label::after{content:"";height:1px;background:var(--border);flex:1}
+.mev-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+.mev-section-title{font-size:16px;font-weight:950;letter-spacing:-.02em;color:var(--text)}
+.mev-section-sub{margin-top:3px;font-size:10px;font-weight:600;color:var(--text-3)}
 
-/* ── HEADER ── */
-.mev-header { margin-bottom: 3rem; }
-.mev-eyebrow {
-    font-family: var(--font-mono);
-    font-size: 13px;
-    letter-spacing: 0.22em;
-    color: var(--accent);
-    text-transform: uppercase;
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
+.mev-firms{display:grid;grid-template-columns:1fr 48px 1fr;gap:10px;align-items:center}
+.mev-firm-field{
+    background:var(--surface-soft);border:1px solid var(--border);border-radius:15px;padding:13px 14px;transition:.18s
 }
-.mev-eyebrow::before {
-    content: '';
-    display: inline-block;
-    width: 28px;
-    height: 2px;
-    background: linear-gradient(90deg, var(--accent), transparent);
-    border-radius: 2px;
-}
-.mev-title {
-    font-size: clamp(2.8rem, 5vw, 4.5rem);
-    font-weight: 800;
-    color: var(--text-primary);
-    line-height: 1.0;
-    letter-spacing: -0.04em;
-}
-.mev-title span {
-    background: linear-gradient(135deg, var(--accent2) 0%, var(--accent3) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-.mev-subtitle {
-    margin-top: 0.85rem;
-    font-family: var(--font-mono);
-    font-size: 15px;
-    color: var(--text-muted);
-    letter-spacing: 0.02em;
-}
+.mev-firm-field:focus-within{border-color:#38bdf8;box-shadow:0 0 0 4px rgba(14,165,233,.08)}
+.mev-firm-tag{font-size:8px;font-weight:950;letter-spacing:.12em;color:var(--text-3);text-transform:uppercase;margin-bottom:6px}
+.mev-firm-input{width:100%;background:transparent;border:0;outline:0;resize:none;color:var(--text);font-size:13px;font-weight:800;line-height:1.45}
+.mev-arrow-circle{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;justify-self:center;background:rgba(14,165,233,.08);border:1px solid rgba(14,165,233,.15);color:var(--blue)}
+.mev-desc-input{width:100%;min-height:84px;background:var(--surface-soft);border:1px solid var(--border);border-radius:15px;padding:13px 14px;outline:0;resize:none;color:var(--text-2);font-size:12px;font-weight:600;line-height:1.7}
 
-/* ── DIVIDER ── */
-.mev-divider {
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(108,92,231,0.3), transparent);
-    margin: 0 0 2.5rem;
+.mev-scanner-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.mev-scanner-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mev-scanner-title{font-size:17px;font-weight:950;letter-spacing:-.02em;color:var(--text)}
+.mev-count,.mev-scan-chip{height:27px;display:inline-flex;align-items:center;gap:6px;padding:0 9px;border-radius:9px;font-size:9px;font-weight:900}
+.mev-count{background:var(--surface-muted);color:var(--text-2);border:1px solid var(--border)}
+.mev-scan-chip{border:1px solid var(--border);background:var(--surface-soft);color:var(--text-3)}
+.mev-scan-chip.active{color:#047857;background:#ecfdf5;border-color:#a7f3d0}
+.dark .mev-scan-chip.active{color:#6ee7b7;background:rgba(16,185,129,.08);border-color:rgba(52,211,153,.16)}
+.mev-scan-pulse{width:6px;height:6px;border-radius:50%;background:#10b981;animation:mevPulse 1.1s infinite}
+.mev-settings-toggle,.mev-del-btn{
+    border:1px solid var(--border);background:var(--surface);color:var(--text-2);border-radius:11px;cursor:pointer;transition:.16s
 }
+.mev-settings-toggle{height:36px;padding:0 12px;font-size:10px;font-weight:900}
+.mev-settings-toggle:hover,.mev-settings-toggle.active{border-color:#7dd3fc;color:var(--blue);background:rgba(14,165,233,.05)}
+.mev-settings-panel{margin-bottom:13px;padding:14px;border-radius:15px;border:1px solid rgba(14,165,233,.13);background:rgba(14,165,233,.035)}
+.mev-settings-title{font-size:9px;font-weight:950;letter-spacing:.12em;color:var(--blue);text-transform:uppercase;margin-bottom:10px}
+.mev-settings-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.mev-toggle-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px;border-radius:12px;border:1px solid var(--border);background:var(--surface)}
+.mev-toggle-label{font-size:10px;font-weight:900;color:var(--text)}
+.mev-toggle-desc{margin-top:2px;font-size:8.5px;font-weight:600;color:var(--text-3)}
+.mev-switch{position:relative;width:38px;height:22px;flex:0 0 auto}
+.mev-switch input{opacity:0;width:0;height:0}
+.mev-switch-track{position:absolute;inset:0;border-radius:999px;background:var(--surface-muted);border:1px solid var(--border);cursor:pointer;transition:.2s}
+.mev-switch-track::after{content:"";position:absolute;width:14px;height:14px;border-radius:50%;background:#94a3b8;left:3px;top:3px;transition:.2s}
+.mev-switch input:checked + .mev-switch-track{background:#0284c7;border-color:#0284c7}
+.mev-switch input:checked + .mev-switch-track::after{left:19px;background:white}
 
-/* ── GLASS CARD ── */
-.mev-glass {
-    background: rgba(255,255,255,0.022);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-xl);
-    padding: 2.5rem;
-    margin-bottom: 1.75rem;
-    backdrop-filter: blur(16px);
-    position: relative;
-    overflow: hidden;
-    transition: border-color 0.2s;
-}
-.mev-glass::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-}
-.mev-glass:hover { border-color: rgba(108,92,231,0.18); }
+.mev-inline-hint{margin-bottom:10px;font-size:9.5px;font-weight:650;color:var(--text-3)}
+.mev-dup-warning,.mev-parse-error{display:flex;gap:8px;align-items:flex-start;margin-bottom:10px;padding:10px 11px;border-radius:12px;font-size:10px;font-weight:700}
+.mev-dup-warning{background:#fffbeb;border:1px solid #fde68a;color:#92400e}
+.mev-parse-error{background:#fff1f2;border:1px solid #fecdd3;color:#be123c}
+.dark .mev-dup-warning{background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.18);color:#fbbf24}
+.dark .mev-parse-error{background:rgba(225,29,72,.08);border-color:rgba(244,63,94,.18);color:#fda4af}
 
-/* ── SECTION LABEL ── */
-.mev-section-label {
-    font-family: var(--font-mono);
-    font-size: 13px;
-    letter-spacing: 0.2em;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    margin-bottom: 1.75rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-.mev-section-label::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-}
+.mev-manual-grid{display:grid;grid-template-columns:170px minmax(0,1fr) auto;gap:8px;margin-bottom:12px}
+.mev-manual-input{width:100%;height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--border);background:var(--surface-soft);color:var(--text);outline:0;font-size:11px;font-weight:700;transition:.16s}
+.mev-manual-input:focus{border-color:#38bdf8;box-shadow:0 0 0 4px rgba(14,165,233,.07)}
+.mev-manual-input::placeholder{color:var(--text-3)}
+.mev-add-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:12px;background:linear-gradient(90deg,#0284c7,#06b6d4);color:white;padding:0 15px;font-size:10px;font-weight:950;cursor:pointer;box-shadow:0 8px 18px rgba(14,165,233,.14);transition:.16s}
+.mev-add-btn:hover{transform:translateY(-1px);box-shadow:0 10px 22px rgba(14,165,233,.20)}
 
-/* ── FIRMS ── */
-.mev-firms {
-    display: grid;
-    grid-template-columns: 1fr 64px 1fr;
-    gap: 1.25rem;
-    align-items: center;
-}
-.mev-firm-field {
-    background: rgba(255,255,255,0.025);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: 1.4rem 1.6rem;
-    transition: border-color 0.2s;
-}
-.mev-firm-field:focus-within { border-color: var(--border-accent); }
-.mev-firm-tag {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.18em;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    margin-bottom: 0.75rem;
-}
-.mev-firm-input {
-    background: transparent;
-    border: none;
-    outline: none;
-    font-family: var(--font-display);
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--text-primary);
-    width: 100%;
-    resize: none;
-    line-height: 1.55;
-}
-.mev-arrow-circle {
-    width: 52px; height: 52px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, rgba(108,92,231,0.18), rgba(253,121,168,0.1));
-    border: 1px solid var(--border-accent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    justify-self: center;
-    color: var(--accent2);
-    font-size: 18px;
-    flex-shrink: 0;
-}
+.mev-barcode-field{position:relative;overflow:hidden;border:1px dashed var(--border-strong);border-radius:15px;background:var(--surface-soft);transition:.18s}
+.mev-barcode-field:hover{border-color:#7dd3fc;background:rgba(14,165,233,.035)}
+.mev-barcode-field.scanning{border-style:solid;border-color:#38bdf8;background:rgba(14,165,233,.055);box-shadow:0 0 0 4px rgba(14,165,233,.06)}
+.mev-barcode-field.scanning::after{content:"";position:absolute;inset:0 auto 0 0;width:28%;background:linear-gradient(90deg,transparent,rgba(34,211,238,.13),transparent);animation:mevScan 1.35s infinite}
+.mev-barcode-icon{width:38px;height:38px;display:grid;place-items:center;border-radius:11px;background:rgba(14,165,233,.09);color:var(--blue);flex:0 0 auto}
+.mev-scan-box-title{font-size:11px;font-weight:950;color:var(--text)}
+.mev-scan-box-sub{margin-top:3px;font-size:9px;font-weight:650;color:var(--text-3);word-break:break-all;line-height:1.4}
 
-/* ── DESCRIPTION ── */
-.mev-desc-input {
-    background: transparent;
-    border: none;
-    outline: none;
-    font-family: var(--font-display);
-    font-size: 17px;
-    color: var(--text-secondary);
-    width: 100%;
-    resize: none;
-    line-height: 2;
-}
+.mev-table-outer{overflow:auto;border:1px solid var(--border);border-radius:15px;max-height:560px}
+.mev-table{width:100%;border-collapse:separate;border-spacing:0;font-size:11px;min-width:620px}
+.mev-table thead{position:sticky;top:0;z-index:4}
+.mev-table thead tr{background:#0f172a}
+.dark .mev-table thead tr{background:#08111f}
+.mev-table th{padding:11px 12px;text-align:left;color:#cbd5e1;font-size:8px;font-weight:950;text-transform:uppercase;letter-spacing:.1em;border-right:1px solid rgba(255,255,255,.06)}
+.mev-table td{padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text-2);background:var(--surface)}
+.mev-table tbody tr:hover td{background:rgba(14,165,233,.04)}
+.mev-table tbody tr:last-child td{border-bottom:0}
+.mev-td-no{width:60px;color:var(--text-3)!important;font-size:9px;font-weight:900}
+.mev-td-date{width:180px}
+.mev-td-code{font-weight:800;color:var(--text)!important}
+.mev-edit-input{width:100%;border:0;background:transparent;color:inherit;outline:0;font:inherit;font-weight:inherit;padding:0}
+.mev-edit-input::placeholder{color:var(--text-3)}
+.mev-del-btn{width:30px;height:30px;display:grid;place-items:center;padding:0}
+.mev-del-btn:hover{border-color:#fecdd3;color:#e11d48;background:#fff1f2}
+.dark .mev-del-btn:hover{background:rgba(225,29,72,.08);border-color:rgba(244,63,94,.18)}
+.mev-empty{text-align:center;padding:44px 14px}
+.mev-empty-icon{width:46px;height:46px;margin:0 auto 10px;display:grid;place-items:center;border-radius:14px;background:var(--surface-muted);color:var(--text-3)}
+.mev-empty-text{font-size:10px;font-weight:650;color:var(--text-3)}
+.mev-flash td{animation:mevFlash .55s ease}
 
-/* ── SCANNER HEADER ── */
-.mev-scanner-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1.75rem;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-}
-.mev-scanner-left {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-}
-.mev-scanner-title {
-    font-size: 22px;
-    font-weight: 800;
-    color: var(--text-primary);
-    letter-spacing: -0.03em;
-}
-.mev-count {
-    font-family: var(--font-mono);
-    font-size: 13px;
-    color: var(--accent2);
-    background: rgba(108,92,231,0.12);
-    border: 1px solid rgba(108,92,231,0.25);
-    border-radius: 100px;
-    padding: 0.4rem 1rem;
-}
-.mev-scan-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.4rem 0.9rem;
-    border-radius: 999px;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    border: 1px solid var(--border);
-    color: var(--text-muted);
-    background: rgba(255,255,255,0.02);
-    transition: all 0.2s;
-}
-.mev-scan-chip.active {
-    color: var(--accent2);
-    border-color: var(--border-accent);
-    background: rgba(108,92,231,0.1);
-}
-.mev-scan-pulse {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 0 10px var(--accent);
-    animation: pulse-dot 1.2s infinite;
-}
+.mev-actions{position:sticky;bottom:12px;z-index:12;margin-top:12px;display:flex;justify-content:flex-end;gap:8px;padding:10px;border:1px solid var(--border);border-radius:16px;background:color-mix(in srgb,var(--surface) 94%,transparent);backdrop-filter:blur(14px);box-shadow:0 12px 30px rgba(15,23,42,.07)}
+.mev-btn-ghost,.mev-btn-print{height:40px;display:inline-flex;align-items:center;justify-content:center;gap:7px;border-radius:11px;padding:0 14px;font-size:10px;font-weight:950;cursor:pointer;transition:.16s}
+.mev-btn-ghost{border:1px solid var(--border);background:var(--surface);color:var(--text-2)}
+.mev-btn-ghost:hover{color:#e11d48;border-color:#fecdd3;background:#fff1f2}
+.dark .mev-btn-ghost:hover{background:rgba(225,29,72,.08);border-color:rgba(244,63,94,.18)}
+.mev-btn-print{border:0;background:linear-gradient(90deg,#0284c7,#06b6d4);color:white;box-shadow:0 9px 22px rgba(14,165,233,.16)}
+.mev-btn-print:hover{transform:translateY(-1px);box-shadow:0 11px 26px rgba(14,165,233,.22)}
+.mev-btn-print:disabled{opacity:.55;cursor:not-allowed;transform:none}
 
-/* ── SETTINGS TOGGLE ── */
-.mev-settings-toggle {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 0.7rem 1.2rem;
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    cursor: pointer;
-    transition: all 0.2s;
-    letter-spacing: 0.08em;
+@media(max-width:900px){
+    .mev{padding:14px}
+    .mev-workflow,.mev-summary,.mev-settings-grid{grid-template-columns:1fr}
+    .mev-firms{grid-template-columns:1fr}
+    .mev-arrow-circle{transform:rotate(90deg)}
+    .mev-manual-grid{grid-template-columns:1fr}
 }
-.mev-settings-toggle:hover, .mev-settings-toggle.active {
-    border-color: var(--border-accent);
-    color: var(--accent2);
-    background: rgba(108,92,231,0.07);
+@media(max-width:620px){
+    .mev-hero{padding:17px}
+    .mev-topbar{align-items:flex-start}
+    .mev-date-chip{font-size:8px}
+    .mev-summary{grid-template-columns:1fr 1fr}
+    .mev-actions{position:static;flex-direction:column}
+    .mev-btn-ghost,.mev-btn-print{width:100%}
 }
-
-/* ── SETTINGS PANEL ── */
-.mev-settings-panel {
-    background: rgba(108,92,231,0.04);
-    border: 1px solid rgba(108,92,231,0.15);
-    border-radius: var(--radius-md);
-    padding: 1.6rem 1.8rem;
-    margin-bottom: 1.5rem;
-}
-.mev-settings-title {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 0.2em;
-    color: var(--accent);
-    text-transform: uppercase;
-    margin-bottom: 1.2rem;
-}
-.mev-settings-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 0.9rem;
-}
-.mev-toggle-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: rgba(255,255,255,0.025);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 1rem 1.1rem;
-    gap: 0.75rem;
-}
-.mev-toggle-label {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 3px;
-}
-.mev-toggle-desc {
-    font-size: 12px;
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-}
-
-/* ── SWITCH ── */
-.mev-switch { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
-.mev-switch input { opacity: 0; width: 0; height: 0; }
-.mev-switch-track {
-    position: absolute; inset: 0;
-    border-radius: 100px;
-    background: rgba(255,255,255,0.07);
-    border: 1px solid rgba(255,255,255,0.1);
-    cursor: pointer;
-    transition: all 0.25s;
-}
-.mev-switch input:checked + .mev-switch-track {
-    background: linear-gradient(135deg, var(--accent), #a29bfe);
-    border-color: transparent;
-    box-shadow: 0 2px 14px rgba(108,92,231,0.45);
-}
-.mev-switch-track::after {
-    content: '';
-    position: absolute;
-    width: 16px; height: 16px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.45);
-    top: 3px; left: 3px;
-    transition: all 0.25s;
-}
-.mev-switch input:checked + .mev-switch-track::after {
-    left: 21px;
-    background: #fff;
-}
-
-/* ── INLINE HINT ── */
-.mev-inline-hint {
-    margin-bottom: 1.2rem;
-    font-family: var(--font-mono);
-    font-size: 13px;
-    color: var(--text-muted);
-}
-
-/* ── WARNINGS / ERRORS ── */
-.mev-dup-warning {
-    display: flex; align-items: center; gap: 0.6rem;
-    background: rgba(234,179,8,0.07);
-    border: 1px solid rgba(234,179,8,0.22);
-    border-radius: var(--radius-sm);
-    padding: 0.85rem 1.1rem;
-    font-family: var(--font-mono);
-    font-size: 13px;
-    color: #fbbf24;
-    margin-bottom: 1.2rem;
-}
-.mev-parse-error {
-    display: flex; align-items: flex-start; gap: 0.6rem;
-    background: rgba(239,68,68,0.07);
-    border: 1px solid rgba(239,68,68,0.22);
-    border-radius: var(--radius-sm);
-    padding: 0.85rem 1.1rem;
-    font-family: var(--font-mono);
-    font-size: 13px;
-    color: #f87171;
-    margin-bottom: 1.2rem;
-}
-
-/* ── MANUAL GRID ── */
-.mev-manual-grid {
-    display: grid;
-    grid-template-columns: 190px 1fr auto;
-    gap: 0.85rem;
-    margin-bottom: 1.75rem;
-}
-.mev-manual-input {
-    width: 100%;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: 1.1rem 1.2rem;
-    color: var(--text-primary);
-    font-family: var(--font-display);
-    font-size: 16px;
-    font-weight: 500;
-    outline: none;
-    transition: border-color 0.2s;
-}
-.mev-manual-input:focus { border-color: var(--border-accent); }
-.mev-manual-input::placeholder { color: var(--text-muted); }
-
-/* ── ADD BUTTON ── */
-.mev-add-btn {
-    background: linear-gradient(135deg, var(--accent), #a29bfe);
-    border: none;
-    border-radius: var(--radius-md);
-    padding: 0 1.75rem;
-    color: #fff;
-    font-family: var(--font-display);
-    font-size: 15px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: opacity 0.15s, transform 0.1s, box-shadow 0.2s;
-    white-space: nowrap;
-    box-shadow: 0 4px 24px rgba(108,92,231,0.35);
-    letter-spacing: 0.01em;
-}
-.mev-add-btn:hover { opacity: 0.9; box-shadow: 0 6px 30px rgba(108,92,231,0.5); }
-.mev-add-btn:active { transform: scale(0.97); }
-
-/* ── BARCODE AREA ── */
-.mev-barcode-field {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
-    background: rgba(255,255,255,0.025);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    transition: border-color 0.2s, background 0.2s;
-    overflow: hidden;
-    position: relative;
-}
-.mev-barcode-field.scanning {
-    border-color: var(--border-accent);
-    background: rgba(108,92,231,0.05);
-}
-.mev-barcode-field.scanning::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 0;
-    width: 30%; height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(108,92,231,0.12), transparent);
-    animation: scan-line 1.4s ease-in-out infinite;
-}
-.mev-barcode-icon { font-size: 22px; opacity: 0.35; flex-shrink: 0; }
-.mev-scan-box-title {
-    font-family: var(--font-display);
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: 5px;
-}
-.mev-scan-box-sub {
-    font-family: var(--font-mono);
-    font-size: 14px;
-    color: var(--text-muted);
-    word-break: break-all;
-    line-height: 1.5;
-}
-
-/* ── TABLE ── */
-.mev-table-outer {
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    border: 1px solid var(--border);
-}
-.mev-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-family: var(--font-mono);
-    font-size: 15px;
-}
-.mev-table thead tr { background: rgba(255,255,255,0.02); }
-.mev-table th {
-    color: var(--text-muted);
-    font-size: 12px;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    font-weight: 500;
-    padding: 1.1rem 1.3rem;
-    text-align: left;
-    border-bottom: 1px solid var(--border);
-}
-.mev-table td {
-    padding: 1.1rem 1.3rem;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
-    vertical-align: middle;
-    transition: background 0.15s;
-}
-.mev-table tbody tr:last-child td { border-bottom: none; }
-.mev-table tbody tr:hover td { background: rgba(108,92,231,0.05); }
-.mev-td-no { color: var(--text-muted); font-size: 13px; width: 64px; }
-.mev-td-date { color: var(--text-secondary); font-size: 15px; }
-.mev-td-code { color: var(--text-primary); font-weight: 500; letter-spacing: 0.04em; font-size: 15px; }
-
-.mev-del-btn {
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 0.5rem 0.9rem;
-    font-size: 12px;
-    transition: all 0.15s;
-    font-family: var(--font-display);
-}
-.mev-del-btn:hover {
-    border-color: rgba(239,68,68,0.4);
-    color: #f87171;
-    background: rgba(239,68,68,0.07);
-}
-
-.mev-empty {
-    text-align: center;
-    padding: 5rem 1rem;
-}
-.mev-empty-icon {
-    font-size: 3.5rem;
-    display: block;
-    margin-bottom: 1rem;
-    filter: grayscale(1);
-    opacity: 0.2;
-}
-.mev-empty-text {
-    font-family: var(--font-mono);
-    font-size: 14px;
-    letter-spacing: 0.1em;
-    color: var(--text-muted);
-}
-
-.mev-flash td { animation: flash-row 0.5s ease forwards; }
-
-.mev-edit-input {
-    width: 100%;
-    background: transparent;
-    border: none;
-    outline: none;
-    color: inherit;
-    font: inherit;
-    font-size: 15px;
-    padding: 0;
-}
-.mev-edit-input::placeholder { color: var(--text-muted); }
-
-/* ── ACTIONS ── */
-.mev-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 1rem;
-    padding-top: 0.75rem;
-    flex-wrap: wrap;
-}
-.mev-btn-ghost {
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 1rem 1.8rem;
-    color: var(--text-muted);
-    font-family: var(--font-display);
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s;
-}
-.mev-btn-ghost:hover {
-    border-color: rgba(239,68,68,0.35);
-    color: #f87171;
-}
-.mev-btn-print {
-    display: flex; align-items: center; gap: 0.6rem;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: var(--radius-sm);
-    padding: 1rem 2.2rem;
-    color: var(--text-primary);
-    font-family: var(--font-display);
-    font-size: 15px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-    letter-spacing: 0.01em;
-}
-.mev-btn-print:hover {
-    background: rgba(255,255,255,0.09);
-    border-color: rgba(255,255,255,0.2);
-}
-.mev-btn-print:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* ── PDF PRINT SHEET ── */
 .print-sheet {
@@ -883,6 +411,9 @@ function splitRowsForTwoColumns(rowsForPage) {
 }
 
 export default function MusteriEvraklari() {
+    const navigate = useNavigate();
+    useDarkMode();
+
     const [teslimEden, setTeslimEden] = useState(DEFAULT_EDEN);
     const [teslimAlan, setTeslimAlan] = useState(DEFAULT_ALAN);
     const aciklama = useMemo(() => buildDescription(teslimAlan), [teslimAlan]);
@@ -1104,13 +635,9 @@ export default function MusteriEvraklari() {
         }
     }, [waitForImages]);
 
-    // ── Ana Sayfaya Dön: React Router varsa import et, yoksa window.location kullanılıyor
     const handleGoHome = (e) => {
         e.preventDefault();
-        // React Router v6: import { useNavigate } from 'react-router-dom'; const navigate = useNavigate(); navigate('/');
-        // React Router v5: import { useHistory } from 'react-router-dom'; const history = useHistory(); history.push('/');
-        // Fallback (router yoksa):
-        window.location.href = "/";
+        navigate("/anasayfa");
     };
 
     return (
@@ -1120,36 +647,80 @@ export default function MusteriEvraklari() {
             <div className="mev">
                 <div className="mev-inner">
 
-                    {/* ── TOP NAV BAR ── */}
-                    <div className="mev-topbar">
-                        <button className="mev-home-btn" onClick={handleGoHome}>
-                            <span className="mev-home-btn-arrow">←</span>
-                            Ana Sayfaya Dön
-                        </button>
-                        <div className="mev-date-chip">
-                            <span className="mev-dot" />
-                            TESLİM TARİHİ — {today()}
+                    <section className="mev-hero">
+                        <div className="mev-topbar">
+                            <button className="mev-home-btn" onClick={handleGoHome} title="Ana sayfaya dön">
+                                <span className="mev-home-btn-arrow"><ArrowLeft size={17} /></span>
+                            </button>
+                            <div className="mev-date-chip">
+                                <span className="mev-dot" />
+                                Teslim tarihi · {today()}
+                            </div>
                         </div>
-                    </div>
 
-                    {/* ── HEADER ── */}
-                    <div className="mev-header">
-                        <div className="mev-eyebrow">Evrak Teslim Tutanağı</div>
-                        <h1 className="mev-title">Müşteri <span>Evrakları</span></h1>
-                        <p className="mev-subtitle">İrsaliye listesi oluştur &amp; PDF olarak indir</p>
-                    </div>
+                        <div className="mev-header">
+                            <div className="mev-header-icon"><FileText size={22} /></div>
+                            <div className="mev-header-copy">
+                                <div className="mev-eyebrow"><ShieldCheck size={12} /> Evrak Teslim Merkezi</div>
+                                <h1 className="mev-title">Müşteri <span>Evrakları</span></h1>
+                                <p className="mev-subtitle">Teslim taraflarını belirleyin, irsaliyeleri manuel veya barkod ile ekleyin ve teslim tutanağını PDF olarak oluşturun.</p>
+                            </div>
+                        </div>
+                    </section>
 
-                    <div className="mev-divider" />
+                    <section className="mev-workflow">
+                        <div className="mev-step active done">
+                            <div className="mev-step-no"><CheckCircle2 size={15} /></div>
+                            <div><strong>Tarafları Kontrol Et</strong><span>Teslim eden ve alan firma bilgileri</span></div>
+                        </div>
+                        <div className={`mev-step ${rows.length ? "active done" : "active"}`}>
+                            <div className="mev-step-no">{rows.length ? <CheckCircle2 size={15} /> : <ScanLine size={15} />}</div>
+                            <div><strong>İrsaliyeleri Ekle</strong><span>Manuel giriş veya barkod okutma</span></div>
+                        </div>
+                        <div className={`mev-step ${rows.length ? "active" : ""}`}>
+                            <div className="mev-step-no"><Download size={15} /></div>
+                            <div><strong>Tutanağı Oluştur</strong><span>Kontrol et ve PDF olarak indir</span></div>
+                        </div>
+                    </section>
+
+                    <section className="mev-summary">
+                        <div className="mev-summary-card">
+                            <div className="mev-summary-label">İrsaliye</div>
+                            <div className="mev-summary-value">{rows.length}</div>
+                            <div className="mev-summary-note">Listede bulunan kayıt</div>
+                        </div>
+                        <div className="mev-summary-card">
+                            <div className="mev-summary-label">Okutma</div>
+                            <div className="mev-summary-value">{scanMode ? "Aktif" : "Hazır"}</div>
+                            <div className="mev-summary-note">Barkod okuyucu durumu</div>
+                        </div>
+                        <div className="mev-summary-card">
+                            <div className="mev-summary-label">Tekrar Kontrolü</div>
+                            <div className="mev-summary-value">{dupCheck ? "Açık" : "Kapalı"}</div>
+                            <div className="mev-summary-note">Mükerrer kayıt koruması</div>
+                        </div>
+                        <div className="mev-summary-card">
+                            <div className="mev-summary-label">PDF Sayfası</div>
+                            <div className="mev-summary-value">{pdfPages.length}</div>
+                            <div className="mev-summary-note">Oluşturulacak tutanak</div>
+                        </div>
+                    </section>
 
                     {/* ── TARAFLAR ── */}
                     <div className="mev-glass">
-                        <div className="mev-section-label">Taraflar</div>
+                        <div className="mev-section-head">
+                            <div>
+                                <div className="mev-section-label"><Building2 size={12} /> Taraf Bilgileri</div>
+                                <div className="mev-section-title">Teslim eden ve teslim alan</div>
+                                <div className="mev-section-sub">Tutanakta görünecek firma bilgilerini kontrol edin.</div>
+                            </div>
+                        </div>
                         <div className="mev-firms">
                             <div className="mev-firm-field">
                                 <div className="mev-firm-tag">Teslim Eden</div>
                                 <textarea className="mev-firm-input" rows={2} value={teslimEden} onChange={(e) => setTeslimEden(e.target.value)} />
                             </div>
-                            <div className="mev-arrow-circle">→</div>
+                            <div className="mev-arrow-circle"><ArrowRight size={16} /></div>
                             <div className="mev-firm-field">
                                 <div className="mev-firm-tag">Teslim Alan</div>
                                 <textarea className="mev-firm-input" rows={2} value={teslimAlan} onChange={(e) => setTeslimAlan(e.target.value)} />
@@ -1159,7 +730,13 @@ export default function MusteriEvraklari() {
 
                     {/* ── AÇIKLAMA ── */}
                     <div className="mev-glass">
-                        <div className="mev-section-label">Açıklama</div>
+                        <div className="mev-section-head">
+                            <div>
+                                <div className="mev-section-label"><FileText size={12} /> Tutanak Açıklaması</div>
+                                <div className="mev-section-title">PDF'de yer alacak açıklama</div>
+                                <div className="mev-section-sub">Teslim alan bilgisine göre otomatik hazırlanır.</div>
+                            </div>
+                        </div>
                         <textarea className="mev-desc-input" value={aciklama} rows={4} readOnly />
                     </div>
 
@@ -1179,7 +756,7 @@ export default function MusteriEvraklari() {
                                 onClick={() => setShowSettings((p) => !p)}
                                 type="button"
                             >
-                                ⚙ Barkod Ayarları
+                                <Settings2 size={14} /> Barkod Ayarları
                             </button>
                         </div>
 
@@ -1258,7 +835,7 @@ export default function MusteriEvraklari() {
                                 onClick={handleManualAdd}
                                 style={{ minHeight: 56, padding: "0 1.5rem" }}
                             >
-                                Manuel Ekle
+                                <Plus size={15} /> Manuel Ekle
                             </button>
                         </div>
 
@@ -1280,7 +857,7 @@ export default function MusteriEvraklari() {
                                 }}
                             >
                                 <div style={{ display: "flex", alignItems: "center", gap: "0.9rem", width: "100%", position: "relative", zIndex: 1 }}>
-                                    <span className="mev-barcode-icon">▦</span>
+                                    <span className="mev-barcode-icon"><Barcode size={18} /></span>
                                     <div style={{ flex: 1 }}>
                                         <div className="mev-scan-box-title">
                                             {scanMode ? "Okutma aktif — barkodu okutun" : "Barkod okutmak için tıklayın"}
@@ -1296,7 +873,7 @@ export default function MusteriEvraklari() {
                                             onClick={(e) => { e.stopPropagation(); stopScanMode(); }}
                                             style={{ fontSize: 14, padding: "0.6rem 1.1rem" }}
                                         >
-                                            Kapat
+                                            <X size={14} />
                                         </button>
                                     ) : (
                                         <button
@@ -1305,7 +882,7 @@ export default function MusteriEvraklari() {
                                             onClick={(e) => { e.stopPropagation(); startScanMode(); }}
                                             style={{ height: 44, padding: "0 1.2rem", fontSize: 14 }}
                                         >
-                                            Okutmayı Başlat
+                                            <ScanLine size={15} /> Okutmayı Başlat
                                         </button>
                                     )}
                                 </div>
@@ -1328,7 +905,7 @@ export default function MusteriEvraklari() {
                                         <tr>
                                             <td colSpan={4}>
                                                 <div className="mev-empty">
-                                                    <span className="mev-empty-icon">▤</span>
+                                                    <span className="mev-empty-icon"><FileText size={20} /></span>
                                                     <span className="mev-empty-text">
                                                         Manuel ekleyin veya barkod okutun — irsaliyeler burada görünecek
                                                     </span>
@@ -1359,7 +936,7 @@ export default function MusteriEvraklari() {
                                                 </td>
                                                 <td>
                                                     <button type="button" className="mev-del-btn" onClick={() => deleteRow(row.id)}>
-                                                        ✕
+                                                        <Trash2 size={14} />
                                                     </button>
                                                 </td>
                                             </tr>
@@ -1373,10 +950,10 @@ export default function MusteriEvraklari() {
                     {/* ── ACTIONS ── */}
                     <div className="mev-actions">
                         <button type="button" className="mev-btn-ghost" onClick={handleClear}>
-                            Sıfırla
+                            <RotateCcw size={14} /> Sıfırla
                         </button>
                         <button type="button" className="mev-btn-print" onClick={exportPDF} disabled={isExporting}>
-                            <span>⎙</span> {isExporting ? "PDF Oluşturuluyor..." : "PDF İndir"}
+                            <Download size={15} /> {isExporting ? "PDF Oluşturuluyor..." : "PDF İndir"}
                         </button>
                     </div>
 

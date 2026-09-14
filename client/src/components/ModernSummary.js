@@ -1,6 +1,7 @@
 ﻿import React, { useMemo } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { motion } from "framer-motion";
+import { FiPieChart } from "react-icons/fi";
 
 /**
  * ModernSummary (Pro)
@@ -64,8 +65,8 @@ export default function ModernSummary({
         >
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
-                <h4 className="text-lg font-semibold flex items-center gap-2">
-                    <span role="img" aria-label="chart">📊</span>
+                <h4 className="text-lg font-extrabold flex items-center gap-2">
+                    <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-400 text-white shadow-[0_8px_20px_rgba(8,145,178,.2)]"><FiPieChart /></span>
                     <span className="truncate max-w-[70vw]">{title}</span>
                 </h4>
                 {top ? (
@@ -80,7 +81,7 @@ export default function ModernSummary({
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-center">
                 {/* Left: Donut chart */}
                 <div className="relative h-[280px]">
-                    <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-indigo-500/5 via-emerald-500/5 to-fuchsia-500/5 pointer-events-none" />
+                    <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-cyan-500/5 via-blue-500/5 to-emerald-500/5 pointer-events-none" />
 
                     {loading ? (
                         <div className="animate-pulse h-full w-full rounded-xl bg-gray-100 dark:bg-gray-700" />
@@ -157,7 +158,7 @@ export default function ModernSummary({
                                 <motion.button
                                     key={item.name}
                                     onClick={() => handleClick(item.name)}
-                                    className="group flex flex-col gap-2 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/60 hover:bg-indigo-50/60 dark:hover:bg-indigo-900/20 transition-colors text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                    className="group flex flex-col gap-2 px-4 py-3 rounded-xl border border-slate-200 dark:border-white/[0.08] bg-slate-50/70 dark:bg-[#0b1320] hover:border-cyan-300 hover:bg-cyan-50/60 dark:hover:border-cyan-500/25 dark:hover:bg-cyan-950/10 transition-colors text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
                                     whileHover={{ y: -1 }}
                                     whileTap={{ scale: 0.98 }}
                                     aria-label={`${item.name} – ${item.value}`}

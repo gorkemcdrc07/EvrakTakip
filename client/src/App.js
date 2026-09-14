@@ -13,7 +13,7 @@ function App() {
     }, [darkMode]);
 
     return (
-        <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-[#0a0a0f] dark:text-gray-100 transition-colors duration-300">
+        <div className="min-h-screen bg-[#f4f6f9] text-[#101827] dark:bg-[#0c111b] dark:text-gray-100 transition-colors duration-300">
             <Router>
                 <Routes>
                     <Route path="/" element={<Navigate to="/app/anasayfa" replace />} />

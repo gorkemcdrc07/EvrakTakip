@@ -231,7 +231,7 @@ export default function EditEvrakModal({
             <motion.div
                 ref={overlayRef}
                 onMouseDown={onOverlayClick}
-                className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-md flex items-end sm:items-center justify-center"
+                className="fixed inset-x-0 bottom-0 top-[68px] z-[10020] flex items-end justify-center bg-slate-950/60 backdrop-blur-[4px] sm:items-center sm:p-3"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -240,10 +240,10 @@ export default function EditEvrakModal({
                     role="dialog"
                     aria-modal="true"
                     className={cx(
-                        "w-full sm:max-w-7xl xl:max-w-[1320px] h-[92vh] sm:h-[90vh] min-h-0",
-                        "bg-white/85 dark:bg-gray-900/80 supports-[backdrop-filter]:backdrop-blur-2xl",
-                        "rounded-t-3xl sm:rounded-3xl shadow-[0_30px_120px_-30px_rgba(0,0,0,.55)] overflow-hidden overflow-x-hidden",
-                        "grid sm:grid-cols-[minmax(0,1fr)_420px] border border-white/25 dark:border-gray-700/70"
+                        "h-full min-h-0 w-full sm:h-[calc(100%-8px)] sm:max-w-7xl xl:max-w-[1380px]",
+                        "bg-white dark:bg-[#0d1624]",
+                        "overflow-hidden overflow-x-hidden rounded-t-2xl shadow-[0_30px_120px_-30px_rgba(0,0,0,.65)] sm:rounded-2xl",
+                        "grid border border-slate-200 sm:grid-cols-[minmax(0,1fr)_420px] dark:border-white/10"
                     )}
                     initial={{ y: 40, opacity: 0, scale: 0.99 }}
                     animate={{ y: 0, opacity: 1, scale: 1 }}
@@ -254,8 +254,8 @@ export default function EditEvrakModal({
                     <div className="flex flex-col min-w-0 min-h-0">
                         {/* Sticky Header */}
                         <div className="sticky top-0 z-10 px-5 sm:px-6 pt-4 pb-4
-              bg-gradient-to-b from-white/95 to-white/70 dark:from-gray-900/95 dark:to-gray-900/70
-              border-b border-black/5 dark:border-white/10">
+              bg-gradient-to-r from-white via-white to-cyan-50/60 dark:from-[#0d1624] dark:via-[#0d1624] dark:to-cyan-950/20
+              border-b border-slate-200 dark:border-white/10">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
                                     <div className="flex flex-wrap items-center gap-2">

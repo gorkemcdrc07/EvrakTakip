@@ -10,8 +10,8 @@ function ETSLogo({ className = "h-10 w-10" }) {
                 {/* Outer ring */}
                 <path
                     d="M32 6c14.36 0 26 11.64 26 26S46.36 58 32 58 6 46.36 6 32 17.64 6 32 6Z"
-                    fill="rgba(168,85,247,0.10)"          /* purple-500-ish */
-                    stroke="rgba(216,180,254,0.22)"       /* purple-200-ish */
+                    fill="rgba(225,29,46,0.10)"
+                    stroke="rgba(225,29,46,0.30)"
                     strokeWidth="2"
                 />
                 {/* Document */}
@@ -47,8 +47,7 @@ function ETSLogo({ className = "h-10 w-10" }) {
                 />
             </svg>
 
-            {/* purple glow */}
-            <div className="pointer-events-none absolute inset-0 rounded-2xl blur-[16px] bg-fuchsia-500/15" />
+            <div className="pointer-events-none absolute inset-0 rounded-2xl blur-[16px] bg-red-500/10" />
         </div>
     );
 }
@@ -132,28 +131,27 @@ export default function Login() {
 
     return (
         <Layout>
-            <div className="relative min-h-screen overflow-hidden bg-[#05020b] text-white">
+            <div className="relative min-h-screen overflow-hidden bg-[#0b111c] text-white">
                 {/* Purple dark background */}
                 <div className="pointer-events-none absolute inset-0 -z-10">
-                    <div className="absolute inset-0 bg-[radial-gradient(1200px_circle_at_20%_10%,rgba(168,85,247,0.18),transparent_55%)]" />
-                    <div className="absolute inset-0 bg-[radial-gradient(900px_circle_at_80%_90%,rgba(236,72,153,0.14),transparent_55%)]" />
-                    <div className="absolute inset-0 bg-[radial-gradient(700px_circle_at_50%_120%,rgba(139,92,246,0.10),transparent_60%)]" />
+                    <div className="absolute inset-0 bg-[radial-gradient(900px_circle_at_18%_10%,rgba(225,29,46,0.15),transparent_58%)]" />
+                    <div className="absolute inset-0 bg-[radial-gradient(800px_circle_at_85%_90%,rgba(51,65,85,0.30),transparent_60%)]" />
 
                     {/* subtle grid */}
-                    <div className="absolute inset-0 opacity-[0.14] bg-[linear-gradient(to_right,rgba(233,213,255,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(233,213,255,0.08)_1px,transparent_1px)] bg-[size:48px_48px]" />
+                    <div className="absolute inset-0 opacity-[0.12] bg-[linear-gradient(to_right,rgba(255,255,255,0.07)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.07)_1px,transparent_1px)] bg-[size:56px_56px]" />
 
                     {/* floating blobs */}
                     <div
                         className={[
                             "absolute -top-48 left-1/3 h-[34rem] w-[34rem] -translate-x-1/2 rounded-full blur-[140px]",
-                            "bg-purple-500/18",
+                            "bg-red-600/10",
                             !reduceMotion ? "animate-[floatSoft_12s_ease-in-out_infinite]" : "",
                         ].join(" ")}
                     />
                     <div
                         className={[
                             "absolute -bottom-56 left-2/3 h-[38rem] w-[38rem] -translate-x-1/2 rounded-full blur-[150px]",
-                            "bg-fuchsia-500/14",
+                            "bg-slate-500/10",
                             !reduceMotion ? "animate-[floatSoft2_14s_ease-in-out_infinite]" : "",
                         ].join(" ")}
                     />
@@ -166,7 +164,7 @@ export default function Login() {
                             <div className="mb-6 flex items-center gap-4">
                                 <ETSLogo className="h-12 w-12" />
                                 <div>
-                                    <div className="text-sm font-semibold tracking-wide text-white/70">ETS</div>
+                                    <div className="text-sm font-semibold tracking-[0.18em] text-red-400">ODAK LOJİSTİK</div>
                                     <h2 className="text-3xl font-extrabold tracking-tight">
                                         Evrak Takip Sistemi
                                     </h2>
@@ -174,8 +172,7 @@ export default function Login() {
                             </div>
 
                             <p className="max-w-xl text-base leading-relaxed text-white/70">
-                                Kayıt, zimmet, durum takibi ve arşiv tek panelde. Mor tonlu koyu tema ile modern,
-                                premium bir yönetim ekranı.
+                                Evrak, kargo, tahakkuk ve raporlama süreçlerini tek çalışma alanından yönetin.
                             </p>
 
                             <div className="mt-8 grid max-w-xl grid-cols-2 gap-4">
@@ -187,7 +184,7 @@ export default function Login() {
                                 ].map((x) => (
                                     <div
                                         key={x.title}
-                                        className="rounded-3xl border border-white/10 bg-white/[0.04] p-4 shadow-xl shadow-black/40"
+                                        className="rounded-2xl border border-white/10 bg-white/[0.035] p-4"
                                     >
                                         <div className="text-sm font-extrabold">{x.title}</div>
                                         <div className="mt-1 text-sm text-white/60">{x.desc}</div>
@@ -212,21 +209,21 @@ export default function Login() {
                             <div className="w-full max-w-md">
                                 <div
                                     className={[
-                                        "relative overflow-hidden rounded-3xl border border-white/10 p-8 sm:p-10",
-                                        "bg-white/[0.055] shadow-2xl shadow-black/60 backdrop-blur-xl",
+                                        "relative overflow-hidden rounded-2xl border border-white/10 p-8 sm:p-10",
+                                        "bg-[#111927]/95 shadow-2xl shadow-black/40",
                                         !reduceMotion ? "animate-[enter_420ms_ease-out]" : "",
                                         shake ? "animate-[shake_520ms_ease-in-out]" : "",
                                     ].join(" ")}
                                 >
                                     {/* top hairline + subtle purple */}
-                                    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-200/25 to-transparent" />
+                                    <div className="absolute inset-x-0 top-0 h-1 bg-[#e11d2e]" />
 
                                     {/* header */}
                                     <div className="mb-8 flex flex-col items-center">
                                         <div className="mb-4 flex items-center gap-3">
                                             <ETSLogo className="h-12 w-12" />
                                             <div className="lg:hidden">
-                                                <div className="text-xs font-semibold tracking-wide text-white/60">ETS</div>
+                                                <div className="text-xs font-semibold tracking-[0.16em] text-red-400">ODAK LOJİSTİK</div>
                                                 <div className="text-lg font-extrabold">Evrak Takip Sistemi</div>
                                             </div>
                                         </div>
