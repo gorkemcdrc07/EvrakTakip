@@ -9,6 +9,7 @@ const multer = require('multer');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 const execFileAsync = promisify(execFile);
+const { startReportScheduler } = require('./reportScheduler');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
@@ -250,6 +251,8 @@ app.use((err, req, res, next) => {
 app.get('/', (req, res) => {
     res.send('✅ Sunucu çalışıyor');
 });
+
+startReportScheduler();
 
 app.listen(PORT, () => {
     console.log(`🚀 Proxy sunucu http://localhost:${PORT} adresinde çalışıyor.`);

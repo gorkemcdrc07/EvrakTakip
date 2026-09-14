@@ -1,31 +1,111 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Menu, X, Moon, Sun, LogOut, LayoutDashboard, FilePlus2, Files, MapPinned, FolderKanban, ChartNoAxesCombined, Truck, FileSpreadsheet, ImageDown, FileArchive, ReceiptText, LifeBuoy, Command, Search, ChevronLeft, ChevronRight, Layers3 } from "lucide-react";
+import { Menu, X, Moon, Sun, LogOut, LayoutDashboard, FilePlus2, Files, MapPinned, FolderKanban, ChartNoAxesCombined, Truck, FileSpreadsheet, ImageDown, FileArchive, ReceiptText, LifeBuoy, Command, Search, ChevronLeft, ChevronRight, Layers3, BellRing, ShieldCheck, UserCog } from "lucide-react";
 import useDarkMode from "./hooks/useDarkMode";
 import useTabStore from "./stores/tabStore";
 import TicketCenter from "./components/TicketCenter";
+import NotificationCenter from "./components/NotificationCenter";
+import GlobalSearch from "./components/GlobalSearch";
+import { fetchNotifications, touchActivity } from "./services/operationsHub";
+import { screenRegistry } from "./screenRegistry";
+import { fetchNewTicketCount } from "./services/ticketService";
+import { isTicketAdmin } from "./utils/ticketUtils";
+import { supabase } from "./supabaseClient";
 
-const tabIcons = { "/anasayfa": LayoutDashboard, "/evrak-ekle": FilePlus2, "/toplu-evraklar": Files, "/lokasyonlar": MapPinned, "/projeler": FolderKanban, "/evrak-raporlari": ChartNoAxesCombined, "/raporlar": ChartNoAxesCombined, "/kargo-bilgisi-ekle": Truck, "/tum-kargo-bilgileri": Truck, "/ExcelDonusum": FileSpreadsheet, "/jpg-to-pdf": ImageDown, "/pdf-sikistirma": FileArchive, "/tahakkuk": ReceiptText };
+const tabIcons = { "/anasayfa": LayoutDashboard, "/evrak-ekle": FilePlus2, "/toplu-evraklar": Files, "/lokasyonlar": MapPinned, "/projeler": FolderKanban, "/evrak-raporlari": ChartNoAxesCombined, "/raporlar": ChartNoAxesCombined, "/kargo-bilgisi-ekle": Truck, "/tum-kargo-bilgileri": Truck, "/ExcelDonusum": FileSpreadsheet, "/jpg-to-pdf": ImageDown, "/pdf-sikistirma": FileArchive, "/tahakkuk": ReceiptText, "/ticket-yonetimi": ShieldCheck, "/yonetim-paneli": UserCog };
 
 export default function TopTabs({ onMenuClick }) {
     const navigate = useNavigate();
     const [darkMode, setDarkMode] = useDarkMode();
     const [ticketOpen, setTicketOpen] = useState(false);
+    const [notificationOpen, setNotificationOpen] = useState(false);
+    const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
+    const [unreadNotifications, setUnreadNotifications] = useState(0);
     const [quickOpen, setQuickOpen] = useState(false);
     const [quickQuery, setQuickQuery] = useState("");
     const [scrollState, setScrollState] = useState({ left: false, right: false });
+    const [newTicketCount, setNewTicketCount] = useState(0);
+    const [ticketToast, setTicketToast] = useState(false);
+    const previousTicketCountRef = useRef(null);
     const tabStripRef = useRef(null);
     const tabRefs = useRef({});
     const tabs = useTabStore((s) => s.tabs);
     const activeTabId = useTabStore((s) => s.activeTabId);
     const setActiveTab = useTabStore((s) => s.setActiveTab);
+    const openTab = useTabStore((s) => s.openTab);
     const closeTab = useTabStore((s) => s.closeTab);
     const name = localStorage.getItem("ad") || "Kullanıcı";
+    const ticketAdmin = isTicketAdmin();
     const filteredTabs = useMemo(() => {
         const needle = quickQuery.trim().toLocaleLowerCase("tr-TR");
         return needle ? tabs.filter((tab) => tab.title.toLocaleLowerCase("tr-TR").includes(needle)) : tabs;
     }, [quickQuery, tabs]);
+
+    useEffect(() => {
+        if (!ticketAdmin) return undefined;
+
+        let alive = true;
+        const refreshTickets = async () => {
+            try {
+                const count = await fetchNewTicketCount();
+                if (alive) {
+                    if (previousTicketCountRef.current !== null && count > previousTicketCountRef.current) {
+                        setTicketToast(true);
+                        window.setTimeout(() => setTicketToast(false), 4500);
+                    }
+                    previousTicketCountRef.current = count;
+                    setNewTicketCount(count);
+                }
+            } catch (error) {
+                console.warn("Ticket bildirimi alınamadı", error);
+            }
+        };
+
+        refreshTickets();
+        const timer = window.setInterval(refreshTickets, 20000);
+        const channel = supabase
+            .channel("ticket-navbar-notifications")
+            .on("postgres_changes", { event: "*", schema: "public", table: "support_tickets" }, refreshTickets)
+            .subscribe();
+        window.addEventListener("ticket:changed", refreshTickets);
+
+        return () => {
+            alive = false;
+            window.clearInterval(timer);
+            window.removeEventListener("ticket:changed", refreshTickets);
+            supabase.removeChannel(channel);
+        };
+    }, [ticketAdmin]);
+
+    useEffect(() => {
+        let alive = true;
+        const refreshNotifications = async () => {
+            try {
+                const rows = await fetchNotifications();
+                if (alive) setUnreadNotifications(rows.filter((item) => !item.read).length);
+            } catch (_) {}
+        };
+        refreshNotifications();
+        touchActivity("heartbeat");
+        const notifyTimer = window.setInterval(refreshNotifications, 30000);
+        const activityTimer = window.setInterval(() => touchActivity("heartbeat"), 60000);
+        window.addEventListener("notifications:preferences-changed", refreshNotifications);
+        return () => {
+            alive = false;
+            window.clearInterval(notifyTimer);
+            window.clearInterval(activityTimer);
+            window.removeEventListener("notifications:preferences-changed", refreshNotifications);
+        };
+    }, []);
+
+    const navigateHub = (path) => {
+        const screen = screenRegistry[path];
+        if (screen) openTab({ path, title: screen.title });
+        navigate(`/app${path}`);
+        setNotificationOpen(false);
+        setGlobalSearchOpen(false);
+    };
 
     const refreshScrollState = () => {
         const node = tabStripRef.current;
@@ -37,6 +117,7 @@ export default function TopTabs({ onMenuClick }) {
         const shortcut = (event) => {
             if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "t") { event.preventDefault(); setTicketOpen(true); }
             if (event.ctrlKey && event.key.toLowerCase() === "k") { event.preventDefault(); setQuickOpen(true); }
+            if (event.ctrlKey && event.key === "/") { event.preventDefault(); setGlobalSearchOpen(true); }
             if (event.key === "Escape") setQuickOpen(false);
         };
         window.addEventListener("keydown", shortcut);
@@ -89,6 +170,13 @@ export default function TopTabs({ onMenuClick }) {
 
                 <button onClick={() => setQuickOpen(true)} className="hidden h-10 shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.045] px-3 text-xs font-semibold text-slate-400 transition hover:bg-white/[0.08] hover:text-white xl:flex" title="Tüm açık uygulamalar"><Layers3 size={15} /><span>{tabs.length}</span><kbd className="ml-1 flex items-center gap-0.5 rounded-md border border-white/10 bg-black/20 px-1.5 py-0.5 text-[10px] text-slate-500"><Command size={10} />K</kbd></button>
 
+                <motion.button whileHover={{ y: -2 }} whileTap={{ scale: .96 }} onClick={() => setGlobalSearchOpen(true)} className="hidden h-10 shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[.045] px-3 text-xs font-semibold text-slate-400 hover:bg-white/[.08] hover:text-white lg:flex" title="Global Arama"><Search size={16}/><span>Ara</span><kbd className="rounded-md border border-white/10 bg-black/20 px-1.5 py-0.5 text-[9px]">Ctrl /</kbd></motion.button>
+
+                <motion.button whileHover={{ y: -2 }} whileTap={{ scale: .96 }} onClick={() => setNotificationOpen(true)} className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-amber-400/20 bg-amber-400/[.08] text-amber-200 transition hover:bg-amber-400/[.13]" title="Bildirim Merkezi">
+                    <BellRing size={17} />
+                    {unreadNotifications > 0 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -right-1.5 -top-1.5 grid min-h-[19px] min-w-[19px] place-items-center rounded-full border-2 border-[#0b1524] bg-rose-500 px-1 text-[9px] font-black text-white shadow-lg">{unreadNotifications > 99 ? "99+" : unreadNotifications}</motion.span>}
+                </motion.button>
+
                 <motion.button whileHover={{ y: -2 }} whileTap={{ scale: .96 }} onClick={() => setTicketOpen(true)} className="relative flex h-10 shrink-0 items-center gap-2 overflow-hidden rounded-xl border border-cyan-400/25 bg-cyan-400/[0.09] px-3 text-xs font-extrabold text-cyan-200 shadow-[0_8px_22px_rgba(8,145,178,0.10)] hover:bg-cyan-400/[0.14]">
                     <motion.span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent" animate={{ x: ["-120%", "120%"] }} transition={{ duration: 2.8, repeat: Infinity, repeatDelay: 2 }} />
                     <LifeBuoy size={16} className="relative" /><span className="relative hidden sm:inline">Ticket</span><span className="relative hidden rounded-md border border-cyan-300/15 bg-black/10 px-1.5 py-0.5 text-[9px] text-cyan-300/60 lg:inline">Ctrl ⇧ T</span>
@@ -107,6 +195,12 @@ export default function TopTabs({ onMenuClick }) {
                 <div className="flex items-center justify-between border-t border-white/10 px-4 py-2.5 text-[10px] text-slate-600"><span>Yazarak filtrele, uygulamaya tıklayarak geç</span><span>{filteredTabs.length} uygulama</span></div>
             </motion.div>
         </>}</AnimatePresence>
+        <AnimatePresence>{ticketAdmin && ticketToast && <motion.button onClick={() => { setTicketToast(false); navigate("/app/ticket-yonetimi"); }} initial={{ opacity: 0, y: -14, scale: .96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: .97 }} className="fixed right-5 top-[82px] z-[10950] flex w-[min(360px,calc(100vw-40px))] items-start gap-3 rounded-2xl border border-cyan-400/20 bg-[#0d1829]/98 p-4 text-left text-white shadow-[0_22px_70px_rgba(0,0,0,.38)] backdrop-blur-xl">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-400 text-white"><BellRing size={18} /></span>
+            <span className="min-w-0 flex-1"><span className="block text-sm font-black">Yeni ticket geldi</span><span className="mt-1 block text-[11px] leading-4 text-slate-400">Bekleyen {newTicketCount} yeni ticket var. Yönetim ekranını açmak için tıkla.</span></span>
+        </motion.button>}</AnimatePresence>
+        <GlobalSearch open={globalSearchOpen} onClose={() => setGlobalSearchOpen(false)} onNavigate={(path) => navigateHub(path)} />
+        <NotificationCenter open={notificationOpen} onClose={() => setNotificationOpen(false)} onNavigate={(path) => navigateHub(path)} />
         <TicketCenter open={ticketOpen} onClose={() => setTicketOpen(false)} />
     </>;
 }

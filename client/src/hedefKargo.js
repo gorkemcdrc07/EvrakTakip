@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { supabase } from './supabaseClient';
+import { logAudit } from './services/operationsHub';
 import { AnimatePresence, motion } from 'framer-motion';
 import { FiArrowLeft, FiPlus, FiDownload, FiRefreshCw, FiSearch, FiCalendar, FiPackage, FiCheckCircle, FiClock, FiEdit3, FiTrash2, FiChevronLeft, FiChevronRight, FiZap, FiSliders, FiInbox, FiTruck, FiUser, FiMoreHorizontal, FiX, FiDatabase } from 'react-icons/fi';
 
@@ -56,6 +57,7 @@ function HedefKargo() {
         gonderici: '',
         tedarikci: '',
         teslim_edilen_kisi: '',
+        beklenen_teslim_tarihi: '',
         teslim_tarihi: ''
     });
 
@@ -64,6 +66,7 @@ function HedefKargo() {
         gonderici: 'Gönderici',
         tedarikci: 'Tedarikçi',
         teslim_edilen_kisi: 'Teslim Edilen Kişi',
+        beklenen_teslim_tarihi: 'Beklenen Teslim Tarihi',
         teslim_tarihi: 'Teslim Tarihi'
     };
 
@@ -72,6 +75,7 @@ function HedefKargo() {
         gonderici: '',
         tedarikci: '',
         teslim_edilen_kisi: '',
+        beklenen_teslim_tarihi: '',
         teslim_tarihi: ''
     });
 
@@ -80,6 +84,7 @@ function HedefKargo() {
         gonderici: '',
         tedarikci: '',
         teslim_edilen_kisi: '',
+        beklenen_teslim_tarihi: '',
         teslim_tarihi: ''
     });
 
@@ -151,9 +156,10 @@ function HedefKargo() {
                 const { data, error } = await supabase
                     .from('hedef_kargo')
                     .select('*')
-                    .gte('tarih', startDate)
-                    .lte('tarih', endDate)
-                    .order('tarih', { ascending: false })
+                    // Tarih filtresi tabloda Durum alanında gösterilen teslim tarihini baz alır.
+                    .gte('teslim_tarihi', startDate)
+                    .lte('teslim_tarihi', endDate)
+                    .order('teslim_tarihi', { ascending: false })
                     .range(from, from + chunkSize - 1);
 
                 if (error) throw error;
@@ -219,6 +225,7 @@ function HedefKargo() {
             gonderici: '',
             tedarikci: '',
             teslim_edilen_kisi: '',
+            beklenen_teslim_tarihi: '',
             teslim_tarihi: ''
         });
         setQuickFilter('all');
@@ -336,6 +343,7 @@ function HedefKargo() {
             gonderici: '',
             tedarikci: '',
             teslim_edilen_kisi: '',
+            beklenen_teslim_tarihi: '',
             teslim_tarihi: ''
         });
         setEditingItem(null);
@@ -349,6 +357,7 @@ function HedefKargo() {
             gonderici: item.gonderici ?? '',
             tedarikci: item.tedarikci ?? '',
             teslim_edilen_kisi: item.teslim_edilen_kisi ?? '',
+            beklenen_teslim_tarihi: item.beklenen_teslim_tarihi ?? '',
             teslim_tarihi: item.teslim_tarihi ?? ''
         });
         setSheetMode('edit');
@@ -375,6 +384,7 @@ function HedefKargo() {
             'gonderici',
             'tedarikci',
             'teslim_edilen_kisi',
+            'beklenen_teslim_tarihi',
             'teslim_tarihi'
         ];
 
@@ -403,6 +413,7 @@ function HedefKargo() {
         }
 
         setKargoData((prev) => prev.map((it) => (it.id === editingItem.id ? data : it)));
+        await logAudit('Hedef Kargo kaydını düzenledi', 'hedef_kargo', editingItem.id, editingItem, cleaned, '/hedef-kargo');
         showToast('success', 'Kayıt güncellendi.');
         closeSheet();
         await fetchData();
@@ -431,6 +442,7 @@ function HedefKargo() {
         }
 
         setKargoData((prev) => [data, ...prev]);
+        await logAudit('Hedef Kargo kaydı ekledi', 'hedef_kargo', data.id, null, data, '/hedef-kargo');
         showToast('success', 'Yeni kayıt eklendi.');
         closeSheet();
         await fetchData();
@@ -459,6 +471,7 @@ function HedefKargo() {
             return next;
         });
         setDeletingItem(null);
+        await logAudit('Hedef Kargo kaydını sildi', 'hedef_kargo', deletingItem.id, deletingItem, null, '/hedef-kargo');
         showToast('success', 'Kayıt silindi.');
         await fetchData();
     };
@@ -657,7 +670,7 @@ function HedefKargo() {
         writeRanking('H', 'TESLİM ALAN KİŞİLER', receiverRanking, COLORS.green);
 
         summary.mergeCells('B29:I29');
-        summary.getCell('B29').value = 'Bu rapor Hedef Kargo ekranındaki mevcut tarih aralığı ve aktif filtreler dikkate alınarak hazırlanmıştır.';
+        summary.getCell('B29').value = 'Bu rapor Hedef Kargo ekranındaki Durum/Teslim Tarihi aralığı ve aktif filtreler dikkate alınarak hazırlanmıştır.';
         summary.getCell('B29').font = { italic: true, size: 9, color: { argb: COLORS.muted }, name: 'Aptos' };
         summary.getCell('B29').alignment = { wrapText: true };
 
@@ -704,7 +717,7 @@ function HedefKargo() {
         worksheet.mergeCells('A5:F5');
         worksheet.getCell('A5').value = activeFilterCount
             ? `Aktif filtre sayısı: ${activeFilterCount}  •  Bu dosya yalnızca ekranda filtrelenmiş kayıtları içerir.`
-            : 'Aktif ek filtre yok  •  Seçili tarih aralığındaki tüm kayıtlar rapora dahil edilmiştir.';
+            : 'Aktif ek filtre yok  •  Seçili Durum/Teslim Tarihi aralığındaki tüm kayıtlar rapora dahil edilmiştir.';
         worksheet.getCell('A5').font = { italic: true, size: 9, color: { argb: COLORS.muted }, name: 'Aptos' };
         worksheet.getCell('A5').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.soft } };
         worksheet.getCell('A5').alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
@@ -880,8 +893,8 @@ function HedefKargo() {
                             <p className={`mt-1 text-xs ${ui.muted}`}>Ekran ilk açıldığında son 7 günü otomatik getirir. Daha eski kayıtlar için istediğin aralığı seçebilirsin.</p>
                         </div>
                         <div className="flex flex-wrap items-end gap-2">
-                            <label className="text-[11px] font-bold text-slate-500">Başlangıç<input type="date" value={dateStart} onChange={(e) => setDateStart(e.target.value)} className={`${ui.input} mt-1 min-w-[170px]`} /></label>
-                            <label className="text-[11px] font-bold text-slate-500">Bitiş<input type="date" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} className={`${ui.input} mt-1 min-w-[170px]`} /></label>
+                            <label className="text-[11px] font-bold text-slate-500">Durum Tarihi Başlangıç<input type="date" value={dateStart} onChange={(e) => setDateStart(e.target.value)} className={`${ui.input} mt-1 min-w-[170px]`} /></label>
+                            <label className="text-[11px] font-bold text-slate-500">Durum Tarihi Bitiş<input type="date" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} className={`${ui.input} mt-1 min-w-[170px]`} /></label>
                             <motion.button whileHover={{ y: -2 }} whileTap={{ scale: .98 }} onClick={() => fetchData(dateStart, dateEnd)} className="inline-flex h-12 items-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 to-cyan-500 px-5 text-sm font-black text-white shadow-lg shadow-sky-600/20"><FiZap /> Verileri Getir</motion.button>
                         </div>
                     </div>
@@ -1264,6 +1277,7 @@ const FilterDrawer = ({ open, onClose, filters, onChange, onClear, uniqueValues 
         { name: 'gonderici', label: 'Gönderici', type: 'text' },
         { name: 'tedarikci', label: 'Tedarikçi', type: 'text' },
         { name: 'teslim_edilen_kisi', label: 'Teslim Edilen Kişi', type: 'text' },
+        { name: 'beklenen_teslim_tarihi', label: 'Beklenen Teslim Tarihi', type: 'date' },
         { name: 'teslim_tarihi', label: 'Teslim Tarihi', type: 'date' }
     ];
 
@@ -1378,6 +1392,7 @@ const FormGrid = ({ form, onChange, onCancel, onSubmit, submitLabel, tone = 'pri
         { name: 'gonderici', label: 'Gönderici', type: 'text' },
         { name: 'tedarikci', label: 'Tedarikçi', type: 'text' },
         { name: 'teslim_edilen_kisi', label: 'Teslim Edilen Kişi', type: 'text' },
+        { name: 'beklenen_teslim_tarihi', label: 'Beklenen Teslim Tarihi', type: 'date' },
         { name: 'teslim_tarihi', label: 'Teslim Tarihi', type: 'date' }
     ];
 

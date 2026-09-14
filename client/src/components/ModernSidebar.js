@@ -3,14 +3,16 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import useTabStore from "../stores/tabStore";
 import { screenRegistry } from "../screenRegistry";
-import { LayoutDashboard, FilePlus2, Files, MapPinned, FolderKanban, ChartNoAxesCombined, Truck, ClipboardCheck, FileSpreadsheet, ImageDown, FileArchive, ReceiptText, Search, ChevronDown, X, Sparkles } from "lucide-react";
+import { usePermissions } from "../permissions/PermissionContext";
+import { LayoutDashboard, FilePlus2, Files, MapPinned, FolderKanban, ChartNoAxesCombined, Truck, ClipboardCheck, FileSpreadsheet, ImageDown, FileArchive, ReceiptText, Search, ChevronDown, X, Sparkles, ShieldCheck, UserCog, ListTodo, CalendarClock, History, FileClock, CalendarCheck2 } from "lucide-react";
 
 const groups = [
     { label: "Genel", items: [["/anasayfa", "Genel Bakış", LayoutDashboard]] },
-    { label: "Operasyon", items: [["/evrak-ekle", "Evrak Ekle", FilePlus2], ["/toplu-evraklar", "Tüm Evraklar", Files], ["/tahakkuk", "Tahakkuk", ReceiptText], ["/lokasyonlar", "Lokasyonlar", MapPinned], ["/projeler", "Projeler", FolderKanban]] },
+    { label: "Operasyon", items: [["/evrak-ekle", "Evrak Ekle", FilePlus2], ["/toplu-evraklar", "Tüm Evraklar", Files], ["/tahakkuk", "Tahakkuk", ReceiptText], ["/tahakkuk-takip", "Tahakkuk Takip", CalendarCheck2], ["/lokasyonlar", "Lokasyonlar", MapPinned], ["/projeler", "Projeler", FolderKanban]] },
     { label: "Kargo", items: [["/kargo-bilgisi-ekle", "Kargo Bilgisi Ekle", Truck], ["/tum-kargo-bilgileri", "Tüm Kargolar", ClipboardCheck], ["/hedef-kargo", "Hedef Kargo", Sparkles]] },
     { label: "Raporlar", items: [["/evrak-raporlari", "Evrak Raporları", ChartNoAxesCombined], ["/raporlar", "Reel Raporları", ChartNoAxesCombined], ["/toplu-tutanak", "Toplu Tutanak", FileArchive], ["/tutanak", "Tutanak", ReceiptText]] },
     { label: "Araçlar", items: [["/ExcelDonusum", "Excel & Word", FileSpreadsheet], ["/jpg-to-pdf", "JPG → PDF", ImageDown], ["/pdf-sikistirma", "PDF Sıkıştırma", FileArchive], ["/musteri-evraki", "Müşteri Evrakları", Files]] },
+    { label: "Yönetim", items: [["/gorev-merkezi", "İş / Görev Merkezi", ListTodo], ["/operasyon-takvimi", "Operasyon Takvimi", CalendarClock], ["/ticket-yonetimi", "Ticket Yönetimi", ShieldCheck], ["/yonetim-paneli", "Yönetim Paneli", UserCog], ["/audit-log", "Aktivite / Audit Log", History], ["/rapor-merkezi", "Otomatik Rapor Merkezi", FileClock]] },
 ];
 
 export default function ModernSidebar({ mobileOpen, onMobileClose }) {
@@ -22,21 +24,19 @@ export default function ModernSidebar({ mobileOpen, onMobileClose }) {
     const [hovered, setHovered] = useState(false);
     const name = localStorage.getItem("ad") || "Kullanıcı";
     const username = localStorage.getItem("username") || "personel";
-    const userKey = username.trim().toLowerCase();
-    const isManager = ["yaren", "ozge", "mehmet", "rabia"].includes(userKey);
-    const isRefika = userKey === "refika";
-    const canSeeTahakkuk = ["aleynagncl", "cagla123", "didem", "canan", "merve"].includes(userKey);
-    const canSeePath = (path) => {
-        if (path === "/anasayfa") return true;
-        if (path === "/tahakkuk") return canSeeTahakkuk;
-        if (path === "/kargo-bilgisi-ekle") return isRefika;
-        if (path === "/musteri-evraki") return ["ozge", "yaren", "rabia"].includes(userKey);
-        return isManager || (isRefika && path === "/tum-kargo-bilgileri");
-    };
+    const userKey = username.trim().toLocaleLowerCase("tr-TR");
+    const { canAccessScreen } = usePermissions();
     const visibleGroups = useMemo(() => {
         const needle = query.trim().toLocaleLowerCase("tr-TR");
-        return groups.map((group) => ({ ...group, items: group.items.filter(([path, title]) => canSeePath(path) && (!needle || title.toLocaleLowerCase("tr-TR").includes(needle))) })).filter((group) => group.items.length);
-    }, [query, userKey]);
+        return groups
+            .map((group) => ({
+                ...group,
+                items: group.items.filter(([path, title]) =>
+                    canAccessScreen(path) && (!needle || title.toLocaleLowerCase("tr-TR").includes(needle))
+                )
+            }))
+            .filter((group) => group.items.length);
+    }, [query, userKey, canAccessScreen]);
     const go = (path, title) => { openTab({ path, title: screenRegistry[path]?.title || title }); navigate(`/app${path}`); onMobileClose?.(); };
     const initials = name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
     const compact = !hovered && !mobileOpen;

@@ -5,6 +5,7 @@ import { ArrowLeft, CalendarDays, Check, CircleDollarSign, Download, Edit3, File
 import { supabase } from "./supabaseClient";
 import { motion, AnimatePresence } from "framer-motion";
 import * as XLSX from "xlsx";
+import { logAudit } from "./services/operationsHub";
 
 const formatTR = (dateStr, time = false) => {
     if (!dateStr) return "-";
@@ -35,6 +36,11 @@ const canonicalTurkishName = (value) =>
         .normalize("NFC")
         .trim()
         .replace(/\s+/g, " ")
+        .toLocaleUpperCase("tr-TR");
+
+const uppercaseTurkishLive = (value) =>
+    String(value ?? "")
+        .normalize("NFC")
         .toLocaleUpperCase("tr-TR");
 
 const dedupeTahakkukRows = (list = []) => {
@@ -78,6 +84,7 @@ export default function Tahakkuk() {
     useDarkMode();
     const adSoyad = canonicalTurkishName(localStorage.getItem("ad") ?? "Kullanıcı");
     const [rows, setRows] = useState([]);
+    const [firmCatalogRows, setFirmCatalogRows] = useState([]);
     const [q, setQ] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
     const [filterPaymentDay, setFilterPaymentDay] = useState("all");
@@ -134,22 +141,55 @@ export default function Tahakkuk() {
     const existingFirmNames = useMemo(() => {
         const uniqueMap = new Map();
 
-        rows.forEach((r) => {
+        // Supabase sonucu newest-first geliyor. Reverse ile ilk/eskiden kayıtlı yazımı
+        // canonical kabul ediyoruz; sonradan girilen ARAŞ/ARAS varyasyonları master adı bozmaz.
+        [...firmCatalogRows].reverse().forEach((r) => {
             const original = canonicalTurkishName(r.tedarikci_firma);
             const normalized = normalizedFirmName(original);
 
-            if (!original) return;
+            if (!original || !normalized) return;
             if (editingId && r.id === editingId) return;
-
-            if (!uniqueMap.has(normalized)) {
-                uniqueMap.set(normalized, original);
-            }
+            if (!uniqueMap.has(normalized)) uniqueMap.set(normalized, original);
         });
 
         return Array.from(uniqueMap.values()).sort((a, b) =>
             a.localeCompare(b, "tr-TR", { sensitivity: "base" })
         );
-    }, [rows, editingId]);
+    }, [firmCatalogRows, editingId]);
+
+    const canonicalWordMap = useMemo(() => {
+        const map = new Map();
+
+        // Firma adlarının içindeki kelimeleri de öğren:
+        // ör. sistemde "ARAS" varsa kullanıcı "ARAŞ" yazdığında normalized token "aras"
+        // üzerinden mevcut yazım "ARAS" olarak geri kullanılır.
+        [...firmCatalogRows].reverse().forEach((row) => {
+            const original = canonicalTurkishName(row.tedarikci_firma);
+            original.split(/\s+/).filter(Boolean).forEach((word) => {
+                const key = normalizedFirmName(word);
+                if (key && !map.has(key)) map.set(key, word);
+            });
+        });
+
+        return map;
+    }, [firmCatalogRows]);
+
+    const applyKnownFirmSpelling = (value) => {
+        const upperValue = uppercaseTurkishLive(value);
+        const fullKey = normalizedFirmName(upperValue);
+        const exact = existingFirmNames.find(
+            (name) => normalizedFirmName(name) === fullKey
+        );
+        if (exact) return exact;
+
+        return upperValue
+            .split(/(\s+)/)
+            .map((part) => {
+                if (/^\s+$/.test(part)) return part;
+                return canonicalWordMap.get(normalizedFirmName(part)) || part;
+            })
+            .join("");
+    };
 
     const firmSuggestions = useMemo(() => {
         const query = normalizedFirmName(form.tedarikci_firma);
@@ -160,15 +200,33 @@ export default function Tahakkuk() {
             .slice(0, 6);
     }, [form.tedarikci_firma, existingFirmNames]);
 
+    const exactMatchedFirm = useMemo(() => {
+        const current = normalizedFirmName(form.tedarikci_firma);
+        if (!current) return "";
+
+        return existingFirmNames.find(
+            (name) => normalizedFirmName(name) === current
+        ) || "";
+    }, [form.tedarikci_firma, existingFirmNames]);
+
+    const handleFirmNameChange = (rawValue) => {
+        setForm((prev) => ({
+            ...prev,
+            // Hem tam firma eşleşmesini hem de bilinen kelime yazımlarını uygula.
+            tedarikci_firma: applyKnownFirmSpelling(rawValue)
+        }));
+        setShowSuggestions(true);
+    };
+
     const duplicateFirm = useMemo(() => {
         const current = normalizedFirmName(form.tedarikci_firma);
         if (!current) return false;
 
-        return rows.some((r) => {
+        return firmCatalogRows.some((r) => {
             if (editingId && r.id === editingId) return false;
             return normalizedFirmName(r.tedarikci_firma) === current;
         });
-    }, [form.tedarikci_firma, rows, editingId]);
+    }, [form.tedarikci_firma, firmCatalogRows, editingId]);
 
     useEffect(() => {
         if (open && !editingId) {
@@ -182,7 +240,10 @@ export default function Tahakkuk() {
             .select("*")
             .order("olusturulma_tarihi", { ascending: false });
 
-        if (data) setRows(dedupeTahakkukRows(data));
+        if (data) {
+            setFirmCatalogRows(data);
+            setRows(dedupeTahakkukRows(data));
+        }
     };
 
     const checkExpiredRows = async () => {
@@ -263,6 +324,7 @@ export default function Tahakkuk() {
 
         try {
             await deleteByChunks(targetIds);
+            await logAudit(confirmDelete.isBulk ? "Tahakkuk kayıtlarını toplu sildi" : "Tahakkuk kaydını sildi", "tahakkuk", targetIds.join(","), { ids: targetIds }, null, "/tahakkuk");
 
             await fetchRows();
             await checkExpiredRows();
@@ -324,6 +386,7 @@ export default function Tahakkuk() {
             .eq("id", id);
 
         if (!error) {
+            await logAudit("Tahakkuk durumunu değiştirdi", "tahakkuk", id, selectedRow?.id === id ? selectedRow : null, { durum: newStatus }, "/tahakkuk");
             fetchRows();
             checkExpiredRows();
 
@@ -341,12 +404,35 @@ export default function Tahakkuk() {
 
     const handleSave = async () => {
         if (!form.tedarikci_firma.trim()) return alert("Firma adı giriniz!");
-        if (duplicateFirm) return alert("Bu firma listede zaten mevcut!");
+
+        const correctedFirmName = canonicalTurkishName(applyKnownFirmSpelling(form.tedarikci_firma));
+        const correctedKey = normalizedFirmName(correctedFirmName);
+
+        // Ekrandaki liste eski kalmış olsa bile kaydetmeden hemen önce DB'den kontrol et.
+        const { data: latestFirms, error: firmCheckError } = await supabase
+            .from("tahakkuk")
+            .select("id,tedarikci_firma,olusturulma_tarihi")
+            .order("olusturulma_tarihi", { ascending: true });
+
+        if (firmCheckError) {
+            return alert("Firma kontrolü yapılamadı. Lütfen tekrar deneyin.");
+        }
+
+        const dbDuplicate = (latestFirms || []).find((row) =>
+            (!editingId || row.id !== editingId) &&
+            normalizedFirmName(row.tedarikci_firma) === correctedKey
+        );
+
+        if (dbDuplicate) {
+            const registeredName = canonicalTurkishName(dbDuplicate.tedarikci_firma);
+            setForm((prev) => ({ ...prev, tedarikci_firma: registeredName }));
+            return alert(`Bu firma zaten kayıtlı: ${registeredName}`);
+        }
 
         setSaving(true);
 
         const payload = {
-            tedarikci_firma: canonicalTurkishName(form.tedarikci_firma),
+            tedarikci_firma: correctedFirmName,
             tarih: form.tarih,
             odeme_gunu: form.odeme_gunu,
             aciklama: form.not,
@@ -368,6 +454,7 @@ export default function Tahakkuk() {
         }
 
         if (!error) {
+            await logAudit(editingId ? "Tahakkuk kaydını düzenledi" : "Tahakkuk kaydı ekledi", "tahakkuk", editingId || correctedFirmName, editingId ? selectedRow : null, payload, "/tahakkuk");
             setOpen(false);
             setEditingId(null);
             setShowSuggestions(false);
@@ -426,7 +513,7 @@ export default function Tahakkuk() {
                 {/* Geçmiş Tarihli Kayıtlar Paneli */}
                 <AnimatePresence>
                     {expiredPanelOpen && expiredRows.length > 0 && (
-                        <div className="fixed inset-0 z-[700] flex items-center justify-center p-8 bg-black/95 backdrop-blur-xl">
+                        <div className="fixed inset-0 z-[11050] flex items-center justify-center p-8 bg-black/95 backdrop-blur-xl">
                             <motion.div
                                 initial={{ scale: 0.95, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
@@ -557,7 +644,7 @@ export default function Tahakkuk() {
                             initial={{ y: -100 }}
                             animate={{ y: 0 }}
                             exit={{ y: -100 }}
-                            className="fixed top-0 left-0 right-0 z-[300] bg-indigo-600 p-6 flex justify-between items-center shadow-2xl"
+                            className="fixed top-[68px] left-0 right-0 z-[10000] bg-indigo-600 p-6 flex justify-between items-center shadow-2xl"
                         >
                             <div className="flex items-center gap-8 pl-10">
                                 <span className="text-3xl font-black text-white">
@@ -824,7 +911,7 @@ export default function Tahakkuk() {
 
                 <AnimatePresence>
                     {confirmDelete.open && (
-                        <div className="fixed inset-0 z-[600] flex items-center justify-center p-8 bg-black/95 backdrop-blur-xl">
+                        <div className="fixed inset-0 z-[11050] flex items-center justify-center p-8 bg-black/95 backdrop-blur-xl">
                             <motion.div
                                 initial={{ scale: 0.9 }}
                                 animate={{ scale: 1 }}
@@ -872,7 +959,7 @@ export default function Tahakkuk() {
 
                 <AnimatePresence>
                     {open && (
-                        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+                        <div className="fixed inset-0 z-[11050] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
                             <motion.div
                                 initial={{ y: 100 }}
                                 animate={{ y: 0 }}
@@ -889,26 +976,33 @@ export default function Tahakkuk() {
                                             className={`w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-[#0d141f] border text-base font-black text-slate-900 dark:text-white focus:border-sky-400 outline-none ${duplicateFirm ? "border-rose-500" : "border-slate-800"
                                                 }`}
                                             placeholder="FİRMA ADI"
-                                            onChange={(e) => {
-                                                setForm({
-                                                    ...form,
-                                                    tedarikci_firma: e.target.value
-                                                });
-                                                setShowSuggestions(true);
-                                            }}
+                                            onChange={(e) => handleFirmNameChange(e.target.value)}
                                             onFocus={() => setShowSuggestions(true)}
                                             onBlur={() => {
-                                                setForm((prev) => ({
-                                                    ...prev,
-                                                    tedarikci_firma: canonicalTurkishName(prev.tedarikci_firma)
-                                                }));
+                                                setForm((prev) => {
+                                                    const currentKey = normalizedFirmName(prev.tedarikci_firma);
+                                                    const existingMatch = existingFirmNames.find(
+                                                        (name) => normalizedFirmName(name) === currentKey
+                                                    );
+
+                                                    return {
+                                                        ...prev,
+                                                        tedarikci_firma: existingMatch || canonicalTurkishName(applyKnownFirmSpelling(prev.tedarikci_firma))
+                                                    };
+                                                });
                                                 setTimeout(() => setShowSuggestions(false), 150);
                                             }}
                                         />
 
+                                        {exactMatchedFirm && (
+                                            <div className="mt-2 px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-bold">
+                                                ✓ Mevcut kayıtla eşleştirildi: {exactMatchedFirm}
+                                            </div>
+                                        )}
+
                                         {duplicateFirm && (
                                             <div className="mt-2 px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-300 text-xs font-bold">
-                                                ⚠️ Bu firma listede zaten mevcut.
+                                                ⚠️ Bu firma zaten listede mevcut. Yeni bir kopya oluşturulamaz.
                                             </div>
                                         )}
 

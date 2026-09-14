@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Area, AreaChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, Building2, CalendarDays, ChevronRight, Clock3, FileCheck2, FileStack, Gauge, MapPinned, PackageCheck, ReceiptText, RefreshCw, Route, Send, Sparkles } from "lucide-react";
 import { supabase } from "./supabaseClient";
+import { usePermissions } from "./permissions/PermissionContext";
 
 const palette = ["#22d3ee", "#3b82f6", "#8b5cf6", "#14b8a6", "#f59e0b", "#ec4899"];
 const trDays = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
@@ -53,8 +54,10 @@ function DailyBreakdown({ daily, loading }) {
 
 export default function Anasayfa() {
     const name = localStorage.getItem("ad") || "Kullanıcı";
-    const username = (localStorage.getItem("username") || "").trim().toLowerCase();
-    const canSeeDashboard = ["yaren", "ozge", "mehmet", "rabia", "refika"].includes(username);
+    const username = (localStorage.getItem("username") || "").trim().toLocaleLowerCase("tr-TR");
+    const { access } = usePermissions();
+    const legacyDashboardUsers = ["yaren", "ozge", "mehmet", "rabia", "refika"];
+    const canSeeDashboard = username === "admin" || (access?.configured ? access?.screen_permissions?.["/anasayfa"] === true : legacyDashboardUsers.includes(username));
     const [range, setRange] = useState(14);
     const [company, setCompany] = useState("Hepsi");
     const [companies, setCompanies] = useState(["Hepsi"]);
@@ -134,11 +137,25 @@ export default function Anasayfa() {
         const todayCargo = daily[daily.length - 1]?.cargoRecords || 0;
         const yesterdayCargo = daily[daily.length - 2]?.cargoRecords || 0;
         const change = yesterdayCargo ? Math.round(((todayCargo - yesterdayCargo) / yesterdayCargo) * 100) : 0;
+        const todayCargoDocuments = daily[daily.length - 1]?.cargoDocuments || 0;
+        const yesterdayCargoDocuments = daily[daily.length - 2]?.cargoDocuments || 0;
+        const cargoDocumentChange = yesterdayCargoDocuments
+            ? Math.round(((todayCargoDocuments - yesterdayCargoDocuments) / yesterdayCargoDocuments) * 100)
+            : 0;
         const peak = daily.reduce((best, item) => item.cargoDocuments > (best?.cargoDocuments || -1) ? item : best, null);
         const activeDays = daily.filter((item) => item.cargoRecords > 0 || item.documentRecords > 0).length;
         const invoiceCount = cargoRows.filter((row) => String(row.irsaliye_no || "").trim()).length;
         const senderCount = new Set(cargoRows.map((row) => row.gonderen_firma?.trim().toUpperCase()).filter(Boolean)).size;
-        return { daily, firms, cargoCount, cargoDocuments, documentCount, tripCount, todayCargo, change, peak, activeDays, invoiceCount, senderCount };
+        const avgDocumentsPerCargo = cargoCount ? cargoDocuments / cargoCount : 0;
+        const documentsPerTrip = tripCount ? cargoDocuments / tripCount : 0;
+        const topFirmShare = cargoDocuments && firms[0] ? Math.round((firms[0].value / cargoDocuments) * 100) : 0;
+        const inactiveDays = Math.max(range - activeDays, 0);
+        return {
+            daily, firms, cargoCount, cargoDocuments, documentCount, tripCount,
+            todayCargo, change, todayCargoDocuments, cargoDocumentChange,
+            peak, activeDays, inactiveDays, invoiceCount, senderCount,
+            avgDocumentsPerCargo, documentsPerTrip, topFirmShare
+        };
     }, [cargoRows, documentRows, range]);
 
     if (!canSeeDashboard) return <div className="min-h-full bg-slate-50 p-6 dark:bg-[#080e18]"><Panel className="mx-auto mt-16 max-w-xl p-8 text-center"><div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-cyan-500/10 text-cyan-500"><FileCheck2 size={26} /></div><h1 className="mt-5 text-2xl font-black text-slate-900 dark:text-white">Hoş geldin, {name.split(" ")[0]}</h1><p className="mt-2 text-sm leading-relaxed text-slate-500">Yetkin olan işlemlere sol menüden ulaşabilirsin.</p></Panel></div>;
@@ -175,10 +192,59 @@ export default function Anasayfa() {
                 ].map((item) => <div key={item.label} className="group flex items-center gap-3 p-4 transition hover:bg-slate-50 dark:hover:bg-white/[0.025]"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-500 transition group-hover:bg-cyan-500/10 group-hover:text-cyan-500 dark:bg-white/[0.05]"><item.icon size={17} /></span><div className="min-w-0"><div className="text-lg font-black">{typeof item.value === "number" ? item.value.toLocaleString("tr-TR") : item.value}</div><div className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-400">{item.label}</div></div></div>)}
             </Panel>
 
+            <Panel delay={.18} className="overflow-hidden">
+                <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-white/[0.08]">
+                    <div>
+                        <h2 className="flex items-center gap-2 text-base font-black"><Sparkles size={18} className="text-cyan-500" />Operasyon İçgörüleri</h2>
+                        <p className="mt-1 text-xs text-slate-500">Seçili dönemin hacim, verim ve yoğunluk göstergeleri</p>
+                    </div>
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:bg-white/[0.05] dark:text-slate-400">{range} günlük analiz</span>
+                </div>
+                <div className="grid grid-cols-1 divide-y divide-slate-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4 dark:divide-white/[0.06]">
+                    {[
+                        {
+                            label: "Kayıt başına evrak",
+                            value: analytics.avgDocumentsPerCargo.toLocaleString("tr-TR", { maximumFractionDigits: 1 }),
+                            note: `${analytics.cargoDocuments.toLocaleString("tr-TR")} evrak / ${analytics.cargoCount.toLocaleString("tr-TR")} kargo kaydı`,
+                            icon: FileStack,
+                            tone: "text-blue-500 bg-blue-500/10"
+                        },
+                        {
+                            label: "Sefer başına kargo evrakı",
+                            value: analytics.documentsPerTrip.toLocaleString("tr-TR", { maximumFractionDigits: 1 }),
+                            note: `${analytics.tripCount.toLocaleString("tr-TR")} toplam sefer`,
+                            icon: Route,
+                            tone: "text-emerald-500 bg-emerald-500/10"
+                        },
+                        {
+                            label: "Bugünkü kargo evrakı",
+                            value: analytics.todayCargoDocuments.toLocaleString("tr-TR"),
+                            note: analytics.cargoDocumentChange >= 0 ? `Düne göre %${analytics.cargoDocumentChange} artış` : `Düne göre %${Math.abs(analytics.cargoDocumentChange)} düşüş`,
+                            icon: PackageCheck,
+                            tone: analytics.cargoDocumentChange >= 0 ? "text-cyan-500 bg-cyan-500/10" : "text-rose-500 bg-rose-500/10"
+                        },
+                        {
+                            label: "Lider firma payı",
+                            value: `%${analytics.topFirmShare}`,
+                            note: analytics.firms[0]?.name || "Firma verisi yok",
+                            icon: Building2,
+                            tone: "text-amber-500 bg-amber-500/10"
+                        }
+                    ].map((item) => <div key={item.label} className="group flex items-center gap-4 p-5 transition hover:bg-slate-50 dark:hover:bg-white/[0.025]">
+                        <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${item.tone}`}><item.icon size={19} /></span>
+                        <div className="min-w-0">
+                            <div className="text-[10px] font-extrabold uppercase tracking-[.12em] text-slate-400">{item.label}</div>
+                            <div className="mt-1 text-2xl font-black tracking-tight">{item.value}</div>
+                            <div className="mt-1 truncate text-[11px] font-semibold text-slate-500">{item.note}</div>
+                        </div>
+                    </div>)}
+                </div>
+            </Panel>
+
             <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.65fr_1fr]">
                 <Panel delay={.2} className="min-w-0 p-5 sm:p-6">
-                    <div className="mb-5 flex items-start justify-between"><div><h2 className="flex items-center gap-2 text-lg font-black"><BarChart3 size={19} className="text-cyan-500" />Kargo ve Evrak Trendi</h2><p className="mt-1 text-xs text-slate-500">İki farklı kayıt kaynağının günlük karşılaştırması</p></div><span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-extrabold text-emerald-500"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />Güncel</span></div>
-                    <div className="h-[330px]">{loading ? <div className="h-full animate-pulse rounded-xl bg-slate-100 dark:bg-white/[0.04]" /> : <ResponsiveContainer width="100%" height="100%"><AreaChart data={analytics.daily} margin={{ top: 12, right: 10, left: -18, bottom: 0 }}><defs><linearGradient id="cargoArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#22d3ee" stopOpacity={.28} /><stop offset="100%" stopColor="#22d3ee" stopOpacity={.01} /></linearGradient><linearGradient id="documentArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#8b5cf6" stopOpacity={.24} /><stop offset="100%" stopColor="#8b5cf6" stopOpacity={.01} /></linearGradient></defs><CartesianGrid vertical={false} stroke="rgba(148,163,184,.14)" strokeDasharray="4 5" /><XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "#7c8a9d", fontSize: 11 }} /><YAxis axisLine={false} tickLine={false} tick={{ fill: "#7c8a9d", fontSize: 11 }} allowDecimals={false} /><Tooltip cursor={{ stroke: "#22d3ee", strokeDasharray: "4 4" }} contentStyle={{ background: "#101827", border: "1px solid rgba(255,255,255,.1)", borderRadius: 12, color: "white", boxShadow: "0 16px 40px rgba(0,0,0,.25)" }} /><Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 10 }} /><Area name="Kargo Kaydı" type="monotone" dataKey="cargoRecords" stroke="#22d3ee" strokeWidth={2.5} fill="url(#cargoArea)" /><Area name="Evrak Kaydı" type="monotone" dataKey="documentRecords" stroke="#8b5cf6" strokeWidth={2.5} fill="url(#documentArea)" /></AreaChart></ResponsiveContainer>}</div>
+                    <div className="mb-5 flex items-start justify-between"><div><h2 className="flex items-center gap-2 text-lg font-black"><BarChart3 size={19} className="text-cyan-500" />Kargo ve Evrak Trendi</h2><p className="mt-1 text-xs text-slate-500">Kargo kaydı, kargo evrakı ve operasyon evrakının günlük karşılaştırması</p></div><span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-extrabold text-emerald-500"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />Güncel</span></div>
+                    <div className="h-[330px]">{loading ? <div className="h-full animate-pulse rounded-xl bg-slate-100 dark:bg-white/[0.04]" /> : <ResponsiveContainer width="100%" height="100%"><AreaChart data={analytics.daily} margin={{ top: 12, right: 10, left: -18, bottom: 0 }}><defs><linearGradient id="cargoArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#22d3ee" stopOpacity={.28} /><stop offset="100%" stopColor="#22d3ee" stopOpacity={.01} /></linearGradient><linearGradient id="cargoDocumentArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3b82f6" stopOpacity={.24} /><stop offset="100%" stopColor="#3b82f6" stopOpacity={.01} /></linearGradient><linearGradient id="documentArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#8b5cf6" stopOpacity={.24} /><stop offset="100%" stopColor="#8b5cf6" stopOpacity={.01} /></linearGradient></defs><CartesianGrid vertical={false} stroke="rgba(148,163,184,.14)" strokeDasharray="4 5" /><XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "#7c8a9d", fontSize: 11 }} /><YAxis axisLine={false} tickLine={false} tick={{ fill: "#7c8a9d", fontSize: 11 }} allowDecimals={false} /><Tooltip cursor={{ stroke: "#22d3ee", strokeDasharray: "4 4" }} contentStyle={{ background: "#101827", border: "1px solid rgba(255,255,255,.1)", borderRadius: 12, color: "white", boxShadow: "0 16px 40px rgba(0,0,0,.25)" }} /><Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 10 }} /><Area name="Kargo Kaydı" type="monotone" dataKey="cargoRecords" stroke="#22d3ee" strokeWidth={2.5} fill="url(#cargoArea)" /><Area name="Kargo Evrakı" type="monotone" dataKey="cargoDocuments" stroke="#3b82f6" strokeWidth={2.5} fill="url(#cargoDocumentArea)" /><Area name="Evrak Kaydı" type="monotone" dataKey="documentRecords" stroke="#8b5cf6" strokeWidth={2.5} fill="url(#documentArea)" /></AreaChart></ResponsiveContainer>}</div>
                 </Panel>
 
                 <Panel delay={.25} className="p-5 sm:p-6"><div className="mb-4"><h2 className="flex items-center gap-2 text-lg font-black"><Gauge size={19} className="text-violet-500" />Kargo Firması Dağılımı</h2><p className="mt-1 text-xs text-slate-500">Kargoyla gönderilen evrak hacmindeki paylar</p></div><div className="relative h-[210px]">{loading ? <div className="h-full animate-pulse rounded-xl bg-slate-100 dark:bg-white/[0.04]" /> : <><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={analytics.firms.slice(0, 6)} dataKey="value" nameKey="name" innerRadius={64} outerRadius={88} paddingAngle={3} stroke="none">{analytics.firms.slice(0, 6).map((item, index) => <Cell key={item.name} fill={palette[index % palette.length]} />)}</Pie><Tooltip contentStyle={{ background: "#101827", border: "1px solid rgba(255,255,255,.1)", borderRadius: 12, color: "white" }} formatter={(value) => [`${value} evrak`, "Kargo evrakı"]} /></PieChart></ResponsiveContainer><div className="pointer-events-none absolute inset-0 grid place-items-center text-center"><div><div className="text-2xl font-black">{analytics.firms.length}</div><div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Kargo Firması</div></div></div></>}</div><div className="mt-3 space-y-2">{analytics.firms.slice(0, 4).map((firm, index) => <div key={firm.name} className="flex items-center gap-2 text-xs"><span className="h-2 w-2 rounded-full" style={{ background: palette[index] }} /><span className="min-w-0 flex-1 truncate font-semibold text-slate-600 dark:text-slate-300">{firm.name}</span><span className="font-black">%{analytics.cargoDocuments ? Math.round((firm.value / analytics.cargoDocuments) * 100) : 0}</span></div>)}</div></Panel>

@@ -1,0 +1,14 @@
+import React,{useEffect,useMemo,useState} from "react";
+import {AnimatePresence,motion} from "framer-motion";
+import {Search,X,PackageSearch,ReceiptText,MapPinned,FolderKanban} from "lucide-react";
+import {globalSearch} from "../services/operationsHub";
+export default function GlobalSearch({open,onClose,onNavigate}){
+ const [q,setQ]=useState(""),[rows,setRows]=useState([]),[loading,setLoading]=useState(false);
+ useEffect(()=>{if(!open){setQ("");setRows([]);return} const t=setTimeout(async()=>{if(q.trim().length<2){setRows([]);return}setLoading(true);try{setRows(await globalSearch(q))}finally{setLoading(false)}},280);return()=>clearTimeout(t)},[q,open]);
+ const groups=useMemo(()=>rows.reduce((a,x)=>{(a[x.group]??=[]).push(x);return a},{}),[rows]);
+ const icons={Kargo:PackageSearch,"Hedef Kargo":PackageSearch,Evrak:PackageSearch,Tahakkuk:ReceiptText,Lokasyon:MapPinned,Proje:FolderKanban};
+ return <AnimatePresence>{open&&<><motion.button initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={onClose} className="fixed inset-0 z-[10700] bg-slate-950/65 backdrop-blur-[5px]"/><motion.div initial={{opacity:0,y:-20,scale:.97}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-15}} className="fixed left-1/2 top-[10vh] z-[10710] w-[min(760px,calc(100vw-28px))] -translate-x-1/2 overflow-hidden rounded-3xl border border-white/10 bg-[#0d1726] text-white shadow-2xl">
+ <div className="flex h-16 items-center gap-3 border-b border-white/10 px-5"><Search className="text-cyan-400"/><input autoFocus value={q} onChange={e=>setQ(e.target.value)} placeholder="Evrak, irsaliye, firma, kargo, tahakkuk, lokasyon, proje ara…" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-600"/><span className="text-xs text-slate-500">{loading?"Aranıyor…":`${rows.length} sonuç`}</span><button onClick={onClose}><X/></button></div>
+ <div className="max-h-[62vh] overflow-y-auto p-3">{Object.entries(groups).map(([group,list])=>{const Icon=icons[group]||Search;return <section key={group} className="mb-3"><div className="flex items-center justify-between px-2 py-2 text-[10px] font-black uppercase tracking-wider text-slate-500"><span>{group}</span><span>{list.length}</span></div>{list.map(x=><button key={`${group}-${x.id}`} onClick={()=>onNavigate(x.path,x)} className="flex w-full items-center gap-3 rounded-xl p-3 text-left hover:bg-white/[.06]"><span className="grid h-9 w-9 place-items-center rounded-xl bg-cyan-500/10 text-cyan-300"><Icon size={17}/></span><span className="min-w-0 flex-1"><b className="block truncate text-sm">{x.title}</b><span className="block truncate text-xs text-slate-500">{x.subtitle}</span></span></button>)}</section>})}{q.length>=2&&!loading&&!rows.length&&<div className="p-12 text-center text-sm text-slate-500">Sonuç bulunamadı.</div>}</div>
+ </motion.div></>}</AnimatePresence>
+}

@@ -1,6 +1,7 @@
 ﻿// EvrakEkle.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "./supabaseClient";
+import { logAudit } from "./services/operationsHub";
 import Layout from "./components/Layout";
 import { useNavigate } from "react-router-dom";
 import {
@@ -735,6 +736,7 @@ export default function EvrakEkle() {
                 setMesaj("❌ Sefer veya proje kayıtları eklenemedi.");
                 showToast("error", "Sefer/Proje kayıtları eklenemedi.");
             } else {
+                await logAudit("Evrak kaydı ekledi", "evraklar", evrakId, null, { tarih: form.tarih, lokasyonid: form.lokasyonid, sefersayisi: toplamSeferSayisi }, "/evrak-ekle");
                 setMesaj("✅ Başarıyla eklendi.");
                 showToast("success", "Kaydedildi.");
 

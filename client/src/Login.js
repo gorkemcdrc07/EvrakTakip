@@ -1,7 +1,8 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "./supabaseClient";
 import Layout from "./components/Layout";
+import { touchActivity, logAudit } from "./services/operationsHub";
 
 function ETSLogo({ className = "h-10 w-10" }) {
     return (
@@ -115,9 +116,31 @@ export default function Login() {
                 return;
             }
 
+            let accessRow = null;
+            try {
+                const { data: accessData } = await supabase
+                    .from("app_user_access")
+                    .select("active,role")
+                    .eq("username", kullaniciAdi.trim().toLocaleLowerCase("tr-TR"))
+                    .maybeSingle();
+                accessRow = accessData;
+            } catch (accessError) {
+                console.warn("Yetki profili okunamadı, eski login akışı devam ediyor.", accessError);
+            }
+
+            if (accessRow?.active === false) {
+                setMesaj("⛔ Kullanıcı hesabınız pasif durumda. Yöneticinizle iletişime geçin.");
+                setShake(true);
+                setTimeout(() => setShake(false), 520);
+                return;
+            }
+
             localStorage.setItem("auth", "true");
-            localStorage.setItem("username", kullaniciAdi);
+            localStorage.setItem("username", kullaniciAdi.trim().toLocaleLowerCase("tr-TR"));
             localStorage.setItem("ad", data[0].kullanici ?? kullaniciAdi);
+            localStorage.setItem("role", accessRow?.role || (kullaniciAdi.trim().toLocaleLowerCase("tr-TR") === "admin" ? "admin" : "user"));
+            await touchActivity("login", true);
+            await logAudit("Sisteme giriş yaptı", "session", kullaniciAdi.trim(), null, null, "/login");
             navigate("/anasayfa");
         } catch (err) {
             console.error(err);

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import useDarkMode from './hooks/useDarkMode';
 import { ArrowLeft, Barcode, Box, Building2, CalendarDays, CheckCircle2, ChevronRight, CircleAlert, FileText, Hash, PackagePlus, RotateCcw, Save, ScanLine, Sparkles, Truck, X } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import { logAudit } from './services/operationsHub';
 
 function KargoBilgisiEkle() {
     const navigate = useNavigate();
@@ -454,6 +455,7 @@ function KargoBilgisiEkle() {
             return;
         }
 
+        await logAudit('Kargo kaydı ekledi', 'kargo_bilgileri', payload.gonderi_numarasi || '', null, payload, '/kargo-bilgisi-ekle');
         showNotice('success', 'Kayıt tamamlandı', 'Kargo bilgisi başarıyla kaydedildi!');
 
         const today = new Date().toISOString().split('T')[0];
