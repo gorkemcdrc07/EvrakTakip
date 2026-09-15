@@ -1,4 +1,4 @@
-import { supabase } from "../supabaseClient";
+import { supabase, isDemoMode } from "../supabaseClient";
 import {
     ACTION_DEFINITIONS,
     ADMIN_ONLY_PATHS,
@@ -12,6 +12,17 @@ import {
 
 export const fetchUserAccess = async (username) => {
     const userKey = normalizeUsername(username);
+
+    if (isDemoMode()) {
+        return {
+            username: userKey || "demo",
+            active: true,
+            role: "admin",
+            configured: true,
+            screen_permissions: createAllScreenPermissions(true),
+            action_permissions: createAllActionPermissions(true),
+        };
+    }
 
     if (isAdminUsername(userKey)) {
         return {

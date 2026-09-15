@@ -14,6 +14,7 @@ import {
     ShieldCheck,
     Trash2,
     UserCog,
+    FlaskConical,
     Users,
     X,
 } from "lucide-react";
@@ -27,6 +28,8 @@ import {
     normalizeUsername,
 } from "../permissions/permissionCatalog";
 import { deleteAdminUser, fetchAdminUsers, saveAdminUser } from "../services/permissionService";
+import { isDemoMode } from "../supabaseClient";
+import { resetDemoDatabase } from "../demo/demoSupabase";
 import AdminOperations from "../components/AdminOperations";
 import { logAudit } from "../services/operationsHub";
 
@@ -46,6 +49,7 @@ const clone = (value) => JSON.parse(JSON.stringify(value));
 
 
 export default function AdminPanel() {
+    const demoMode = isDemoMode();
     useDarkMode();
     const currentUsername = normalizeUsername(localStorage.getItem("username") || "");
     const admin = isAdminUsername(currentUsername);
@@ -234,6 +238,21 @@ export default function AdminPanel() {
                                 </div>
                             </div>
                             <div className="flex flex-wrap gap-2">
+                                <button
+                                    onClick={() => {
+                                        if (demoMode) {
+                                            localStorage.removeItem("ets_demo_mode");
+                                            localStorage.removeItem("ets_demo_database_v1");
+                                        } else {
+                                            resetDemoDatabase();
+                                            localStorage.setItem("ets_demo_mode", "true");
+                                        }
+                                        window.location.reload();
+                                    }}
+                                    className={`inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-xs font-black transition ${demoMode ? "border-amber-300 bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20" : "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300"}`}
+                                >
+                                    <FlaskConical size={15}/>{demoMode ? "DEMO MODU AÇIK" : "DEMO MOD"}
+                                </button>
                                 <button onClick={() => loadUsers()} className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-black text-slate-600 hover:border-sky-300 hover:text-sky-600 dark:border-white/10 dark:bg-white/[.04] dark:text-slate-300"><RefreshCw size={14} /> Yenile</button>
                                 <button onClick={newUser} className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-cyan-500 px-4 text-xs font-black text-white shadow-md shadow-sky-500/15"><Plus size={15} /> Yeni Kullanıcı</button>
                             </div>

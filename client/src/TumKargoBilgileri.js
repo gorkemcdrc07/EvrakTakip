@@ -333,6 +333,7 @@ export default function TumKargoBilgileri() {
   const [toast, setToast] = useState({ show: false, type: "success", text: "" });
   const [detail, setDetail] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [copySuccess, setCopySuccess] = useState(false);
   const [extraEnabled, setExtraEnabled] = useState(false);
   const [extraCount, setExtraCount] = useState("");
   const [suggestion, setSuggestion] = useState(null);
@@ -799,9 +800,79 @@ export default function TumKargoBilgileri() {
     }
   };
 
+  const copyRowAsImage = async (row) => {
+    try {
+      const fields = [
+        ["TARİH", row.tarih],
+        ["KARGO FİRMASI", row.kargo_firmasi],
+        ["GÖNDERİ NUMARASI", row.gonderi_numarasi],
+        ["GÖNDEREN FİRMA", row.gonderen_firma],
+        ["İRSALİYE ADI", row.irsaliye_adi],
+        ["İRSALİYE NO", row.irsaliye_no],
+        ["ODAK EVRAK NO", row.odak_evrak_no],
+      ];
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      const width = 1500, pad = 72, labelW = 290, valueX = pad + labelW;
+      const maxTextW = width - valueX - pad;
+      ctx.font = "600 27px Arial";
+      const wrap = (value) => {
+        const text = String(value ?? "-").trim() || "-";
+        const tokens = text.split(/(\s+|\s*-\s*)/).filter(Boolean);
+        const lines = []; let line = "";
+        const pushLong = (token) => {
+          let part = "";
+          for (const ch of token) {
+            if (ctx.measureText(part + ch).width > maxTextW && part) { lines.push(part); part = ch; } else part += ch;
+          }
+          return part;
+        };
+        for (const token of tokens) {
+          const test = line + token;
+          if (ctx.measureText(test).width <= maxTextW) line = test;
+          else {
+            if (line.trim()) lines.push(line.trim());
+            line = ctx.measureText(token).width > maxTextW ? pushLong(token) : token.trimStart();
+          }
+        }
+        if (line.trim()) lines.push(line.trim());
+        return lines.length ? lines : ["-"];
+      };
+      const prepared = fields.map(([label,value]) => [label, wrap(value)]);
+      const lineH = 40, rowPad = 25;
+      const bodyH = prepared.reduce((sum,[,lines]) => sum + Math.max(66, lines.length*lineH + rowPad*2), 0);
+      canvas.width = width; canvas.height = 190 + bodyH + 75;
+      const g = ctx.createLinearGradient(0,0,width,canvas.height); g.addColorStop(0,"#08111f"); g.addColorStop(1,"#111c2b");
+      ctx.fillStyle=g; ctx.fillRect(0,0,width,canvas.height);
+      ctx.fillStyle="#38bdf8"; ctx.fillRect(0,0,12,canvas.height);
+      ctx.fillStyle="#f8fafc"; ctx.font="800 42px Arial"; ctx.fillText("Kargo Bilgileri",pad,72);
+      ctx.fillStyle="#94a3b8"; ctx.font="500 22px Arial"; ctx.fillText("Odak Lojistik • Kargo kayıt özeti",pad,112);
+      ctx.strokeStyle="#263548"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(pad,148); ctx.lineTo(width-pad,148); ctx.stroke();
+      let y=178;
+      prepared.forEach(([label,lines])=>{
+        const h=Math.max(66,lines.length*lineH+rowPad*2);
+        ctx.fillStyle="#94a3b8"; ctx.font="800 19px Arial"; ctx.fillText(label,pad,y+39);
+        ctx.fillStyle="#e2e8f0"; ctx.font="600 27px Arial";
+        lines.forEach((line,i)=>ctx.fillText(line,valueX,y+38+i*lineH));
+        ctx.strokeStyle="#1e2d40"; ctx.beginPath(); ctx.moveTo(pad,y+h-1); ctx.lineTo(width-pad,y+h-1); ctx.stroke();
+        y+=h;
+      });
+      ctx.fillStyle="#64748b"; ctx.font="500 18px Arial"; ctx.fillText("BAPSİS • Oluşturulan kargo bilgi kartı",pad,canvas.height-28);
+      const blob = await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error("Görsel oluşturulamadı")),"image/png"));
+      await navigator.clipboard.write([new ClipboardItem({"image/png":blob})]);
+      setCopySuccess(true);
+      showToast("success", "Kargo bilgileri görsel olarak panoya kopyalandı.");
+      setTimeout(()=>setCopySuccess(false),1700);
+    } catch (error) {
+      console.error(error);
+      showToast("error", "Görsel panoya kopyalanamadı. Tarayıcı pano iznini kontrol edin.");
+    }
+  };
+
   return (
     <Layout>
       <Toast toast={toast} />
+      <AnimatePresence>{copySuccess && <motion.div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/35 backdrop-blur-[2px] pointer-events-none" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}><motion.div initial={{scale:.65,opacity:0,y:20}} animate={{scale:1,opacity:1,y:0}} exit={{scale:.8,opacity:0}} transition={{type:"spring",stiffness:320,damping:22}} className="relative overflow-hidden rounded-[28px] border border-emerald-400/30 bg-[#0b1522] px-14 py-10 text-center shadow-2xl shadow-emerald-500/20"><motion.div initial={{scale:0,rotate:-90}} animate={{scale:1,rotate:0}} transition={{delay:.12,type:"spring"}} className="mx-auto mb-5 grid h-20 w-20 place-items-center rounded-full bg-emerald-500 text-4xl text-white shadow-lg shadow-emerald-500/30"><FiCheck /></motion.div><div className="text-3xl font-black text-white">Kopyalandı!</div><div className="mt-2 text-sm font-semibold text-slate-400">Kargo bilgileri görsel olarak panoya kopyalandı.</div><motion.div className="absolute bottom-0 left-0 h-1 bg-emerald-400" initial={{width:"100%"}} animate={{width:"0%"}} transition={{duration:1.7,ease:"linear"}} /></motion.div></motion.div>}</AnimatePresence>
       <div className="min-h-screen w-full px-3 pb-8 pt-4 sm:px-5 lg:px-6">
         <style>{`
           @keyframes cargoFade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
@@ -1071,7 +1142,7 @@ export default function TumKargoBilgileri() {
                         <td className="px-4 py-3"><button onClick={() => setDetail({ title: "İrsaliye Numarası", value: row.irsaliye_no })} className="block max-w-[220px] truncate text-left text-xs font-bold text-sky-700 hover:underline dark:text-sky-300" title={row.irsaliye_no}>{row.irsaliye_no || "—"}</button></td>
                         <td className="px-4 py-3"><button onClick={() => setDetail({ title: "Odak Evrak Numarası", value: row.odak_evrak_no })} className="block max-w-[220px] truncate text-left text-xs font-bold text-slate-600 hover:text-sky-600 hover:underline dark:text-slate-300" title={row.odak_evrak_no}>{row.odak_evrak_no || "—"}</button></td>
                         <td className="px-4 py-3 text-center"><span className="inline-flex min-w-9 justify-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">{row.evrak_adedi ?? 0}</span></td>
-                        <td className="px-4 py-3"><div className="flex justify-end gap-1.5"><button onClick={() => openEdit(row)} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600 dark:border-white/10 dark:hover:bg-amber-500/10" title="Düzenle"><FiEdit2 /></button><button onClick={() => deleteRow(row)} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 dark:border-white/10 dark:hover:bg-rose-500/10" title="Sil"><FiTrash2 /></button></div></td>
+                        <td className="px-4 py-3"><div className="flex justify-end gap-1.5"><button onClick={() => copyRowAsImage(row)} className="grid h-9 w-9 place-items-center rounded-lg border border-sky-200 bg-sky-50 text-sky-600 transition hover:-translate-y-0.5 hover:border-sky-400 hover:bg-sky-100 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-400" title="Görsel olarak kopyala"><FiCopy /></button><button onClick={() => openEdit(row)} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600 dark:border-white/10 dark:hover:bg-amber-500/10" title="Düzenle"><FiEdit2 /></button><button onClick={() => deleteRow(row)} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 dark:border-white/10 dark:hover:bg-rose-500/10" title="Sil"><FiTrash2 /></button></div></td>
                       </tr>
                     ))}
                   </tbody>
