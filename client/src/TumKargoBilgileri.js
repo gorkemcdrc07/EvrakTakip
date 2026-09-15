@@ -857,7 +857,7 @@ export default function TumKargoBilgileri() {
         ctx.strokeStyle="#1e2d40"; ctx.beginPath(); ctx.moveTo(pad,y+h-1); ctx.lineTo(width-pad,y+h-1); ctx.stroke();
         y+=h;
       });
-      ctx.fillStyle="#64748b"; ctx.font="500 18px Arial"; ctx.fillText("BAPSİS • Oluşturulan kargo bilgi kartı",pad,canvas.height-28);
+      ctx.fillStyle="#64748b"; ctx.font="500 18px Arial"; ctx.fillText("Evrak Takip Sistemi • Oluşturulan kargo bilgi kartı",pad,canvas.height-28);
       const blob = await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error("Görsel oluşturulamadı")),"image/png"));
       await navigator.clipboard.write([new ClipboardItem({"image/png":blob})]);
       setCopySuccess(true);
@@ -1194,18 +1194,48 @@ export default function TumKargoBilgileri() {
       )}
 
       {editing && (
-        <Modal wide title="Kargo Kaydını Düzenle" subtitle="Değişiklikler doğrudan seçili kayda uygulanır." onClose={() => setEditing(null)} footer={<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><button onClick={() => deleteRow(editing)} className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black text-rose-600 transition hover:bg-rose-50 dark:hover:bg-rose-500/10"><FiTrash2 /> Kaydı Sil</button><div className="flex gap-2"><button onClick={() => setEditing(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-black text-slate-600 dark:border-white/10 dark:text-slate-300">Vazgeç</button><button onClick={saveEdit} className="rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-black text-white transition hover:bg-sky-700">Güncelle</button></div></div>}>
+        <Modal wide title="Kargo Kaydını Düzenle" subtitle="Kayda ait tüm bilgiler tek ekranda. Uzun evrak alanlarını da eksiksiz görüp düzenleyebilirsiniz." onClose={() => setEditing(null)} footer={<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><button onClick={() => deleteRow(editing)} className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black text-rose-600 transition hover:bg-rose-50 dark:hover:bg-rose-500/10"><FiTrash2 /> Kaydı Sil</button><div className="flex gap-2"><button onClick={() => setEditing(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-black text-slate-600 dark:border-white/10 dark:text-slate-300">Vazgeç</button><button onClick={saveEdit} className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-black text-white transition hover:bg-sky-700"><FiSave /> Tüm Değişiklikleri Güncelle</button></div></div>}>
+          <div className="mb-5 rounded-2xl border border-sky-200 bg-sky-50/70 p-4 dark:border-sky-500/20 dark:bg-sky-500/5">
+            <div className="flex items-start gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-sky-600 text-white"><FiEdit2 /></div>
+              <div><div className="text-sm font-black text-slate-900 dark:text-white">Tüm kayıt bilgileri</div><p className="mt-1 text-xs font-semibold leading-5 text-slate-500 dark:text-slate-400">Kopyala kartında gördüğünüz bilgilerin tamamı aşağıda açık şekilde yer alır. İrsaliye ve Odak Evrak numaraları uzun olsa bile tek ekranda satır satır görüntülenir.</p></div>
+            </div>
+          </div>
+
           <div className="grid gap-4 md:grid-cols-2">
             {[
-              ["tarih", "Tarih", "date"], ["kargo_firmasi", "Kargo Firması", "text"], ["gonderi_numarasi", "Gönderi Numarası", "text"], ["gonderen_firma", "Gönderen Firma", "text"], ["irsaliye_adi", "İrsaliye Adı", "text"], ["irsaliye_no", "İrsaliye No", "text"], ["odak_evrak_no", "Odak Evrak No", "text"],
+              ["tarih", "Tarih", "date"], ["kargo_firmasi", "Kargo Firması", "text"], ["gonderi_numarasi", "Gönderi Numarası", "text"], ["gonderen_firma", "Gönderen Firma", "text"], ["irsaliye_adi", "İrsaliye Adı", "text"],
             ].map(([key, label, type]) => (
-              <label key={key} className={key === "irsaliye_no" || key === "odak_evrak_no" ? "md:col-span-2" : ""}>
+              <label key={key}>
                 <div className="mb-1.5 text-[11px] font-black uppercase tracking-wider text-slate-400">{label}</div>
                 <input type={type} value={editing[key] || ""} onChange={(e) => setEditing((old) => ({ ...old, [key]: e.target.value }))} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-500/10 dark:border-white/10 dark:bg-[#0d141f] dark:text-slate-200" />
               </label>
             ))}
+
+            {[
+              ["irsaliye_no", "İrsaliye No"], ["odak_evrak_no", "Odak Evrak No"],
+            ].map(([key, label]) => (
+              <label key={key} className="md:col-span-2">
+                <div className="mb-1.5 flex items-center justify-between gap-3"><span className="text-[11px] font-black uppercase tracking-wider text-slate-400">{label}</span><span className="text-[10px] font-bold text-slate-400">Tüm değer görünür</span></div>
+                <textarea rows={4} value={editing[key] || ""} onChange={(e) => setEditing((old) => ({ ...old, [key]: e.target.value }))} className="min-h-[104px] w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-3 font-mono text-sm font-semibold leading-6 text-slate-700 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-500/10 dark:border-white/10 dark:bg-[#0d141f] dark:text-slate-200" />
+              </label>
+            ))}
           </div>
-          <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:bg-white/[.02]">
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/[.02]">
+              <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">Mevcut Evrak Adedi</div>
+              <div className="mt-1 text-2xl font-black text-slate-900 dark:text-white">{Number(editing.evrak_adedi) || 0}</div>
+              <div className="mt-1 text-xs font-semibold text-slate-400">Kaydın veritabanındaki mevcut değeri</div>
+            </div>
+            <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-500/20 dark:bg-sky-500/5">
+              <div className="text-[10px] font-black uppercase tracking-wider text-sky-500">Güncelleme Sonrası Evrak</div>
+              <div className="mt-1 text-2xl font-black text-sky-700 dark:text-sky-300">{computedDocumentCount}</div>
+              <div className="mt-1 text-xs font-semibold text-sky-600/70 dark:text-sky-300/60">İrsaliye + Odak evrak + ekstra adet</div>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:bg-white/[.02]">
             <label className="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-200"><input type="checkbox" checked={extraEnabled} onChange={(e) => setExtraEnabled(e.target.checked)} className="h-4 w-4 accent-sky-600" /> Ekstra evrak adedi ekle</label>
             <div className="flex items-center gap-3">{extraEnabled && <input type="number" min="0" value={extraCount} onChange={(e) => setExtraCount(e.target.value)} className="h-10 w-24 rounded-xl border border-slate-200 px-3 text-sm font-bold outline-none focus:border-sky-400 dark:border-white/10 dark:bg-[#0d141f]" />}<span className="rounded-full bg-sky-100 px-3 py-1.5 text-xs font-black text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">Hesaplanan evrak: {computedDocumentCount}</span></div>
           </div>

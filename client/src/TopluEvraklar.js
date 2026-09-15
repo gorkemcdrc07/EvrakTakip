@@ -23,7 +23,7 @@ import {
 import Layout from "./components/Layout";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import EditEvrakModal from "./components/EditEvrakModal";
 import ModernSummary from "./components/ModernSummary";
 import { AreaChart, Area, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -106,6 +106,7 @@ function SkeletonRow() {
 /* ---------- component ---------- */
 function TopluEvraklar() {
     const navigate = useNavigate();
+    const location = useLocation();
 
     const [evraklar, setEvraklar] = useState([]);
     const [lokasyonlar, setLokasyonlar] = useState({});
@@ -625,6 +626,46 @@ function TopluEvraklar() {
         await saveExcelWorkbook(workbook, `Evrak_Detay_${evrak.id}_${new Date(evrak.tarih).toISOString().slice(0, 10)}.xlsx`);
     };
 
+    // AI Asistan yönlendirmesi: Tüm Evraklar ekranındaki bütün filtreleri URL üzerinden uygular.
+    useEffect(() => {
+        if (loading || !evraklar.length) return;
+        const params = new URLSearchParams(location.search);
+        const aiSefer = params.get("aiSefer") || "";
+        const aiEvrakId = params.get("aiEvrakId") || "";
+        const aiStartDate = params.get("aiStartDate") || "";
+        const aiEndDate = params.get("aiEndDate") || "";
+        const aiAciklama = params.get("aiAciklama") || "";
+        const aiLokasyon = params.getAll("aiLokasyon").filter(Boolean);
+        const aiProje = params.getAll("aiProje").filter(Boolean);
+        const hasAiFilter = aiSefer || aiEvrakId || aiStartDate || aiEndDate || aiAciklama || aiLokasyon.length || aiProje.length;
+        if (!hasAiFilter) return;
+
+        const next = {
+            startDate: aiStartDate,
+            endDate: aiEndDate,
+            lokasyon: aiLokasyon,
+            proje: aiProje,
+            aciklama: aiAciklama,
+            seferno: aiSefer,
+        };
+        setFilters(next);
+        setDraft(next);
+        setShowFilters(true);
+
+        const matched = evraklar.find((evrak) =>
+            (aiEvrakId && String(evrak.id) === String(aiEvrakId)) ||
+            (aiSefer && (evrak.evrakseferler || []).some((s) =>
+                String(s.seferno || "").toLocaleLowerCase("tr-TR").includes(String(aiSefer).toLocaleLowerCase("tr-TR"))
+            ))
+        );
+        if (matched) {
+            setHighlightedEvrakId(matched.id);
+            setTimeout(() => document.getElementById(`evrak-row-${matched.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 450);
+            const timer = setTimeout(() => setHighlightedEvrakId(null), 7000);
+            return () => clearTimeout(timer);
+        }
+    }, [location.search, loading, evraklar]);
+
     // tablo filtresi
     const filteredEvraklar = evraklar.filter((evrak) => {
         const tarihMatch =
@@ -894,8 +935,8 @@ function TopluEvraklar() {
 
                                                 return (
                                                     <tr
-                                                        key={evrak.id}
                                                         id={`evrak-row-${evrak.id}`}
+                                                        key={evrak.id}
                                                         className={cx(
                                                             "group/row scroll-mt-28 bg-white transition-all duration-700 hover:bg-cyan-50/45 dark:bg-transparent dark:hover:bg-cyan-950/10",
                                                             highlightedEvrakId === evrak.id && "relative z-[1] !bg-cyan-100/90 shadow-[inset_4px_0_0_#06b6d4,0_0_35px_rgba(6,182,212,.28)] dark:!bg-cyan-950/35"

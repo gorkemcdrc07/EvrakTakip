@@ -5,6 +5,7 @@ import useTabStore from "./stores/tabStore";
 import { screenRegistry } from "./screenRegistry";
 import ModernSidebar from "./components/ModernSidebar";
 import PermissionActionGuard from "./components/PermissionActionGuard";
+import EvrakTakipAssistant from "./components/EvrakTakipAssistant";
 import { PermissionProvider, usePermissions } from "./permissions/PermissionContext";
 
 function TabbedAppContent() {
@@ -32,6 +33,7 @@ function TabbedAppContent() {
     return (
         <div className="flex h-screen overflow-hidden bg-[#f4f6f9] text-[#101827] dark:bg-[#0c111b] dark:text-gray-100">
             <PermissionActionGuard />
+            <EvrakTakipAssistant />
             <ModernSidebar mobileOpen={mobileMenuOpen} onMobileClose={() => setMobileMenuOpen(false)} />
             <div className="flex min-w-0 flex-1 flex-col">
             <TopTabs onMenuClick={() => setMobileMenuOpen(true)} />
