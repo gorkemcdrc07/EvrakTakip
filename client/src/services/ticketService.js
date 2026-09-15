@@ -65,7 +65,7 @@ export async function fetchMyTickets(username, limit = 12) {
     const { data, error } = await supabase
         .from("support_tickets")
         .select("*")
-        .eq("created_by_username", username)
+        .ilike("created_by_username", String(username || "").trim())
         .order("created_at", { ascending: false })
         .limit(limit);
     if (error) throw error;
@@ -105,4 +105,51 @@ export async function updateTicketAdmin(id, patch) {
     if (error) throw error;
     window.dispatchEvent(new CustomEvent("ticket:changed", { detail: data }));
     return data;
+}
+
+export async function fetchTicketMessages(ticketId) {
+    const { data, error } = await supabase
+        .from("support_ticket_messages")
+        .select("*")
+        .eq("ticket_id", ticketId)
+        .order("created_at", { ascending: true });
+    if (error) throw error;
+    return data || [];
+}
+
+export async function sendTicketMessage(ticket, message, senderRole = "user") {
+    const text = String(message || "").trim();
+    if (!ticket?.id || !text) return null;
+    const username = localStorage.getItem("username") || "bilinmiyor";
+    const displayName = localStorage.getItem("ad") || username;
+    const { data, error } = await supabase.from("support_ticket_messages").insert([{
+        ticket_id: ticket.id,
+        sender_role: senderRole,
+        sender_username: username,
+        sender_name: displayName,
+        message: text,
+    }]).select("*").single();
+    if (error) throw error;
+    const stamp = new Date().toISOString();
+    const patch = senderRole === "admin"
+        ? { last_admin_message_at: stamp, updated_at: stamp }
+        : { last_user_message_at: stamp, updated_at: stamp };
+    await supabase.from("support_tickets").update(patch).eq("id", ticket.id);
+    window.dispatchEvent(new CustomEvent("ticket:changed", { detail: ticket }));
+    return data;
+}
+
+export async function markTicketSeen(ticket) {
+    if (!ticket?.id || ticket.seen_at) return ticket;
+    return updateTicketAdmin(ticket.id, { seen_at: new Date().toISOString() });
+}
+
+export async function startTicketWork(ticket) {
+    if (!ticket?.id) return ticket;
+    const now = new Date().toISOString();
+    return updateTicketAdmin(ticket.id, {
+        status: "in_progress",
+        started_at: ticket.started_at || now,
+        seen_at: ticket.seen_at || now,
+    });
 }

@@ -19,6 +19,7 @@ export default function TopTabs({ onMenuClick }) {
     const navigate = useNavigate();
     const [darkMode, setDarkMode] = useDarkMode();
     const [ticketOpen, setTicketOpen] = useState(false);
+    const [ticketTargetId, setTicketTargetId] = useState(null);
     const [notificationOpen, setNotificationOpen] = useState(false);
     const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
     const [unreadNotifications, setUnreadNotifications] = useState(0);
@@ -27,7 +28,9 @@ export default function TopTabs({ onMenuClick }) {
     const [scrollState, setScrollState] = useState({ left: false, right: false });
     const [newTicketCount, setNewTicketCount] = useState(0);
     const [ticketToast, setTicketToast] = useState(false);
+    const [userTicketToast, setUserTicketToast] = useState(null);
     const previousTicketCountRef = useRef(null);
+    const previousUserNotificationIdRef = useRef(null);
     const tabStripRef = useRef(null);
     const tabRefs = useRef({});
     const tabs = useTabStore((s) => s.tabs);
@@ -79,6 +82,41 @@ export default function TopTabs({ onMenuClick }) {
     }, [ticketAdmin]);
 
     useEffect(() => {
+        if (ticketAdmin) return undefined;
+        const username = (localStorage.getItem("username") || "").trim().toLocaleLowerCase("tr-TR");
+        if (!username) return undefined;
+
+        let alive = true;
+        const pollUserTicketNotifications = async (showToast = true) => {
+            const { data, error } = await supabase
+                .from("app_notifications")
+                .select("id,title,message,created_at,action_path,target_username,type,source_type")
+                .eq("target_username", username)
+                .eq("type", "ticket")
+                .order("created_at", { ascending: false })
+                .limit(1);
+            if (!alive || error) {
+                if (error) console.warn("Kullanıcı ticket bildirimi okunamadı:", error.message);
+                return;
+            }
+            const latest = data?.[0];
+            if (!latest) return;
+            const previous = previousUserNotificationIdRef.current;
+            previousUserNotificationIdRef.current = latest.id;
+            if (showToast && previous && previous !== latest.id) {
+                setUserTicketToast({ title: latest.title || "Ticket güncellendi", message: latest.message || "Ticket için yeni bir gelişme var." });
+                window.setTimeout(() => setUserTicketToast(null), 5500);
+            }
+            window.dispatchEvent(new CustomEvent("ticket:changed", { detail: latest }));
+        };
+
+        // İlk yüklemede mevcut son kaydı referans al; eski bildirim için toast gösterme.
+        pollUserTicketNotifications(false);
+        const timer = window.setInterval(() => pollUserTicketNotifications(true), 3000);
+        return () => { alive = false; window.clearInterval(timer); };
+    }, [ticketAdmin]);
+
+    useEffect(() => {
         let alive = true;
         const refreshNotifications = async () => {
             try {
@@ -88,16 +126,24 @@ export default function TopTabs({ onMenuClick }) {
         };
         refreshNotifications();
         touchActivity("heartbeat");
-        const notifyTimer = window.setInterval(refreshNotifications, 30000);
+        const notifyTimer = window.setInterval(refreshNotifications, 5000);
         const activityTimer = window.setInterval(() => touchActivity("heartbeat"), 60000);
         window.addEventListener("notifications:preferences-changed", refreshNotifications);
+        window.addEventListener("ticket:changed", refreshNotifications);
         return () => {
             alive = false;
             window.clearInterval(notifyTimer);
             window.clearInterval(activityTimer);
             window.removeEventListener("notifications:preferences-changed", refreshNotifications);
+            window.removeEventListener("ticket:changed", refreshNotifications);
         };
     }, []);
+
+    const openTicketFromNotification = (ticketId) => {
+        setNotificationOpen(false);
+        setTicketTargetId(ticketId || null);
+        setTicketOpen(true);
+    };
 
     const navigateHub = (path) => {
         const screen = screenRegistry[path];
@@ -199,8 +245,13 @@ export default function TopTabs({ onMenuClick }) {
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-400 text-white"><BellRing size={18} /></span>
             <span className="min-w-0 flex-1"><span className="block text-sm font-black">Yeni ticket geldi</span><span className="mt-1 block text-[11px] leading-4 text-slate-400">Bekleyen {newTicketCount} yeni ticket var. Yönetim ekranını açmak için tıkla.</span></span>
         </motion.button>}</AnimatePresence>
+        <AnimatePresence>{!ticketAdmin && userTicketToast && <motion.button onClick={() => { setUserTicketToast(null); setNotificationOpen(true); }} initial={{ opacity: 0, y: -18, scale: .94 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -12, scale: .96 }} transition={{ type: "spring", stiffness: 360, damping: 28 }} className="fixed right-5 top-[82px] z-[10960] flex w-[min(390px,calc(100vw-40px))] items-start gap-3 overflow-hidden rounded-2xl border border-cyan-400/25 bg-[#0b1728]/98 p-4 text-left text-white shadow-[0_24px_80px_rgba(0,0,0,.45)] backdrop-blur-xl">
+            <motion.span initial={{ scale: .6, rotate: -12 }} animate={{ scale: 1, rotate: 0 }} className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-400 text-white shadow-lg shadow-cyan-950/30"><BellRing size={19} /></motion.span>
+            <span className="min-w-0 flex-1"><span className="block text-sm font-black text-cyan-100">{userTicketToast.title}</span><span className="mt-1 block text-[11px] leading-4 text-slate-400">{userTicketToast.message}</span><span className="mt-2 block text-[10px] font-bold text-cyan-400">Bildirimi görüntüle →</span></span>
+            <motion.span className="absolute bottom-0 left-0 h-[3px] bg-cyan-400" initial={{ width: "100%" }} animate={{ width: "0%" }} transition={{ duration: 5, ease: "linear" }} />
+        </motion.button>}</AnimatePresence>
         <GlobalSearch open={globalSearchOpen} onClose={() => setGlobalSearchOpen(false)} onNavigate={(path) => navigateHub(path)} />
-        <NotificationCenter open={notificationOpen} onClose={() => setNotificationOpen(false)} onNavigate={(path) => navigateHub(path)} />
-        <TicketCenter open={ticketOpen} onClose={() => setTicketOpen(false)} />
+        <NotificationCenter open={notificationOpen} onClose={() => setNotificationOpen(false)} onNavigate={(path) => navigateHub(path)} onOpenTicket={openTicketFromNotification} />
+        <TicketCenter open={ticketOpen} initialTicketId={ticketTargetId} onClose={() => { setTicketOpen(false); setTicketTargetId(null); }} />
     </>;
 }

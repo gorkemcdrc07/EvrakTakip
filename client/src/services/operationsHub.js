@@ -13,7 +13,6 @@ const addDays = (n) => { const d=new Date(); d.setDate(d.getDate()+n); return d.
 export const NOTIFICATION_SOURCES = [
   { key:"hedef_kargo", label:"Hedef Kargo", description:"Geciken ve beklenen teslim bildirimleri", path:"/hedef-kargo" },
   { key:"tahakkuk", label:"Tahakkuk", description:"Yaklaşan ödeme ve tahakkuk kontrolleri", path:"/tahakkuk" },
-  { key:"kargo", label:"Kargo / Eksik Evrak", description:"Eksik irsaliye ve kargo evrak kontrolleri", path:"/tum-kargo-bilgileri" },
   { key:"evrak", label:"Evrak", description:"Evrak kaynaklı operasyon bildirimleri", path:"/toplu-evraklar" },
   { key:"ticket", label:"Ticket", description:"Ticket bildirimleri", path:"/ticket-yonetimi" },
   { key:"announcement", label:"Admin Duyuruları", description:"Yönetici tarafından yayınlanan duyurular", path:null },
@@ -47,7 +46,15 @@ const sourcePathForKey = (key) =>
   NOTIFICATION_SOURCES.find((source) => source.key === key)?.path || null;
 
 const canSeeSourceWithAccess = (access, item) => {
-  const path = sourcePathForKey(sourceKeyFromItem(item));
+  const key = sourceKeyFromItem(item);
+  // Ticket bildirimleri kullanıcının kendi /ticketlerim ekranına gider.
+  // Kaynak tanımındaki /ticket-yonetimi admin ekranı olduğu için normal
+  // kullanıcı bildirimlerini yanlışlıkla filtrelememeliyiz.
+  if (key === "ticket") {
+    const ticketPath = isAdmin() ? "/ticket-yonetimi" : "/ticketlerim";
+    return canAccessScreenFromAccess(access, ticketPath);
+  }
+  const path = sourcePathForKey(key);
   return !path || canAccessScreenFromAccess(access, path);
 };
 
@@ -118,12 +125,14 @@ export async function fetchNotifications() {
   const [access, preferences, notesResult, readsResult, announcementsResult, ticketsResult, tasksResult] = await Promise.all([
     fetchUserAccess(u.username),
     fetchNotificationPreferences(),
-    supabase.from("app_notifications").select("*").or(`target_username.is.null,target_username.eq.${u.username}`).order("created_at",{ascending:false}).limit(60),
+    // Kullanıcıya doğrudan atanmış bildirimleri REST ile oku. Realtime/WebSocket
+    // çalışmasa bile bu sorgu bildirim merkezini besler.
+    supabase.from("app_notifications").select("*").eq("target_username", u.username).order("created_at",{ascending:false}).limit(100),
     supabase.from("app_read_items").select("item_key").eq("username",u.username),
     supabase.from("app_announcements").select("*").eq("active",true).lte("starts_at",now).order("created_at",{ascending:false}).limit(30),
     u.username === "admin"
-      ? supabase.from("support_tickets").select("id,ticket_no,title,status,created_at").eq("status","new").order("created_at",{ascending:false}).limit(20)
-      : Promise.resolve({ data: [] }),
+      ? supabase.from("support_tickets").select("id,ticket_no,title,status,created_at,updated_at,created_by_username,created_by_name,assigned_admin,seen_at,started_at,last_user_message_at,last_admin_message_at").order("updated_at",{ascending:false}).limit(40)
+      : supabase.from("support_tickets").select("id,ticket_no,title,status,created_at,updated_at,created_by_username,created_by_name,assigned_admin,seen_at,started_at,last_user_message_at,last_admin_message_at").ilike("created_by_username",u.username).order("updated_at",{ascending:false}).limit(40),
     supabase.from("app_tasks").select("*").in("status",["open","in_progress"]).order("due_date",{ascending:true}).limit(60)
   ]);
 
@@ -150,19 +159,55 @@ export async function fetchNotifications() {
       read: readSet.has(`ann-${a.id}`)
     }));
 
-  const ticketNotes = tickets.map((t) => ({
-    id: `ticket-${t.id}`,
-    title: `Yeni Ticket • ${t.ticket_no}`,
-    message: t.title,
-    type: "ticket",
-    source_key: "ticket",
-    priority: "high",
-    action_path: "/ticket-yonetimi",
-    created_at: t.created_at,
-    read: readSet.has(`ticket-${t.id}`)
-  }));
+  const ticketNotes = tickets.flatMap((t) => {
+    const rows = [];
+    const statusLabel = t.status === "resolved" ? "Çözüldü" : t.status === "in_progress" ? "İşleme alındı" : t.seen_at ? "Görüldü" : "Yeni";
+    if (u.username === "admin") {
+      rows.push({
+        id: `ticket-${t.id}-${t.updated_at || t.created_at}`,
+        title: t.last_user_message_at ? `Yeni kullanıcı mesajı • ${t.ticket_no}` : `Ticket ${statusLabel} • ${t.ticket_no}`,
+        message: t.last_user_message_at ? `${t.created_by_name || t.created_by_username || "Kullanıcı"} ticket'a yeni bir mesaj gönderdi: ${t.title}` : t.title,
+        type: "ticket", source_key: "ticket", priority: t.last_user_message_at ? "high" : "normal",
+        action_path: "/ticket-yonetimi", created_at: t.last_user_message_at || t.updated_at || t.created_at,
+        read: readSet.has(`ticket-${t.id}-${t.updated_at || t.created_at}`)
+      });
+    } else {
+      // Kullanıcı tarafında her gelişmeyi ayrı bildirim olarak tut. Böylece
+      // "görüldü" bilgisi daha sonra "işleme alındı" veya mesaj geldiğinde kaybolmaz.
+      const pushUserTicketEvent = (kind, at, title, message, priority = "normal") => {
+        if (!at) return;
+        const id = `ticket-${t.id}-${kind}-${at}`;
+        rows.push({
+          id, title: `${title} • ${t.ticket_no}`, message,
+          type: "ticket", source_key: "ticket", priority,
+          action_path: "/ticketlerim", created_at: at, read: readSet.has(id)
+        });
+      };
+
+      pushUserTicketEvent(
+        "admin-message", t.last_admin_message_at, "Destek ekibinden yeni mesaj",
+        `${t.assigned_admin || "Destek ekibi"} ticket'ınıza yeni bir mesaj gönderdi.`, "high"
+      );
+      if (t.status === "resolved") {
+        pushUserTicketEvent(
+          "resolved", t.updated_at, "Ticket çözüldü",
+          `${t.title} çözüldü olarak işaretlendi${t.assigned_admin ? ` • ${t.assigned_admin}` : ""}.`, "high"
+        );
+      }
+      pushUserTicketEvent(
+        "started", t.started_at, "Ticket işleme alındı",
+        `${t.title} destek ekibi tarafından işleme alındı${t.assigned_admin ? ` • ${t.assigned_admin}` : ""}.`
+      );
+      pushUserTicketEvent(
+        "seen", t.seen_at, "Ticket görüntülendi",
+        `${t.title} destek ekibi tarafından görüntülendi${t.assigned_admin ? ` • ${t.assigned_admin}` : ""}.`
+      );
+    }
+    return rows;
+  });
 
   const taskNotes = tasks
+    .filter((t) => !["kargo", "kargo_bilgileri"].includes(String(t.source_type || "").toLocaleLowerCase("tr-TR")))
     .filter((t) => !t.assigned_to || t.assigned_to === u.username || u.username === "admin")
     .map((t) => ({
       id: `task-${t.id}`,
@@ -192,9 +237,18 @@ export async function fetchNotifications() {
     // Boş/işe yaramayan bildirimleri tamamen çıkar.
     .filter(hasNotificationContent)
     // Kullanıcının kendi tercihi kapalıysa gösterme.
-    .filter((item) => preferences?.[sourceKeyFromItem(item)] !== false)
-    // Kullanıcının kaynak ekranına erişim yetkisi yoksa bildirim kesinlikle gösterme.
-    .filter((item) => canSeeSourceWithAccess(access, item))
+    .filter((item) => {
+      const directlyTargetedTicket = sourceKeyFromItem(item) === "ticket" &&
+        String(item?.target_username || "").trim().toLocaleLowerCase("tr-TR") === u.username;
+      return directlyTargetedTicket || preferences?.[sourceKeyFromItem(item)] !== false;
+    })
+    // Bir ticket bildirimi doğrudan bu kullanıcıya atanmışsa ekran-yetki filtresiyle
+    // asla düşürme. Ticket sahibi kendi /ticketlerim ekranından detaya gider.
+    .filter((item) => {
+      const directlyTargetedTicket = sourceKeyFromItem(item) === "ticket" &&
+        String(item?.target_username || "").trim().toLocaleLowerCase("tr-TR") === u.username;
+      return directlyTargetedTicket || canSeeSourceWithAccess(access, item);
+    })
     .sort((a,b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 }
 export async function markNotificationRead(id) {
@@ -207,15 +261,13 @@ export async function createAnnouncement(payload) {
 export async function syncAutomaticTasks() {
   const u=currentUser(); if(!u.username) return;
   const sevenAgo=addDays(-7), tomorrow=addDays(1);
-  const [{data:pending},{data:due},{data:missing}] = await Promise.all([
+  const [{data:pending},{data:due}] = await Promise.all([
     supabase.from("hedef_kargo").select("id,tarih,gonderici,tedarikci,beklenen_teslim_tarihi").is("teslim_tarihi",null).or(`tarih.lte.${sevenAgo},beklenen_teslim_tarihi.lte.${todayKey()}`).limit(250),
-    supabase.from("tahakkuk").select("id,tedarikci_firma,odeme_gunu,durum").eq("odeme_gunu",tomorrow).limit(250),
-    supabase.from("kargo_bilgileri").select("id,tarih,kargo_firmasi,gonderen_firma,irsaliye_no").or("irsaliye_no.is.null,irsaliye_no.eq.").limit(250)
+    supabase.from("tahakkuk").select("id,tedarikci_firma,odeme_gunu,durum").eq("odeme_gunu",tomorrow).limit(250)
   ]);
   const tasks=[];
   (pending||[]).forEach(x=>{const planned=x.beklenen_teslim_tarihi;const dueToday=planned===todayKey();tasks.push({task_key:`hedef-${x.id}-${planned||"7d"}`,title:dueToday?"Bugün teslim edilmesi gereken kargo":"Geciken Hedef Kargo kontrolü",description:`${x.gonderici||x.tedarikci||"Kargo"} • ${planned?`beklenen teslim ${planned}`:"7+ gündür teslim edilmedi"}`,source_type:"hedef_kargo",source_id:String(x.id),action_path:"/hedef-kargo",priority:"high",due_date:planned||todayKey()})});
   (due||[]).filter(x=>String(x.durum||"").toLowerCase()!=="odendi").forEach(x=>tasks.push({task_key:`tahakkuk-${x.id}-${x.odeme_gunu}`,title:"Tahakkuk ödeme kontrolü",description:`${x.tedarikci_firma||"Firma"} • ödeme tarihi yarın`,source_type:"tahakkuk",source_id:String(x.id),action_path:"/tahakkuk",priority:"high",due_date:x.odeme_gunu}));
-  (missing||[]).forEach(x=>tasks.push({task_key:`kargo-missing-${x.id}`,title:"Eksik kargo evrakı",description:`${x.kargo_firmasi||x.gonderen_firma||"Kargo"} • irsaliye numarası eksik`,source_type:"kargo",source_id:String(x.id),action_path:"/tum-kargo-bilgileri",priority:"normal",due_date:todayKey()}));
   if(tasks.length) await supabase.from("app_tasks").upsert(tasks,{onConflict:"task_key",ignoreDuplicates:true});
 }
 export async function fetchTasks() {

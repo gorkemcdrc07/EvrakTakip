@@ -15,6 +15,8 @@ const toInputDate = (date) => {
     return `${y}-${m}-${day}`;
 };
 
+const getTodayKey = () => toInputDate(new Date());
+
 const getLast7Range = () => {
     const end = new Date();
     const start = new Date();
@@ -147,32 +149,85 @@ function HedefKargo() {
         setLoadingCount(0);
         setPage(1);
         clearSelection();
-        let all = [];
-        let from = 0;
+
         const chunkSize = 1000;
 
-        try {
+        // Hedef Kargo'da tarih aralığı yalnızca teslim edilmiş kayıtların
+        // "Durum Tarihi" (teslim_tarihi) alanını sınırlar. Durum tarihi boş
+        // kayıtlar bekleyen olduğundan tarih aralığından bağımsız yüklenir.
+        // Ayrıca bugün oluşturulan kayıtlar, durum tarihi ne olursa olsun
+        // "Bugün Eklenen" kartında eksiksiz görünsün diye ayrıca alınır.
+        const fetchPaged = async (buildQuery) => {
+            let rows = [];
+            let from = 0;
             while (true) {
-                const { data, error } = await supabase
-                    .from('hedef_kargo')
-                    .select('*')
-                    // Tarih filtresi tabloda Durum alanında gösterilen teslim tarihini baz alır.
-                    .gte('teslim_tarihi', startDate)
-                    .lte('teslim_tarihi', endDate)
-                    .order('teslim_tarihi', { ascending: false })
-                    .range(from, from + chunkSize - 1);
-
+                const { data, error } = await buildQuery(from, from + chunkSize - 1);
                 if (error) throw error;
                 const batch = data || [];
-                all = all.concat(batch);
-                setLoadingCount(all.length);
+                rows = rows.concat(batch);
+                setLoadingCount((prev) => prev + batch.length);
                 if (batch.length < chunkSize) break;
                 from += chunkSize;
             }
+            return rows;
+        };
+
+        try {
+            setLoadingCount(0);
+            const today = getTodayKey();
+            const tomorrowDate = new Date();
+            tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+            const tomorrow = toInputDate(tomorrowDate);
+
+            const [deliveredInRange, pendingRows, addedTodayRows] = await Promise.all([
+                fetchPaged((from, to) =>
+                    supabase
+                        .from('hedef_kargo')
+                        .select('*')
+                        .not('teslim_tarihi', 'is', null)
+                        .gte('teslim_tarihi', startDate)
+                        .lte('teslim_tarihi', endDate)
+                        .order('teslim_tarihi', { ascending: false })
+                        .range(from, to)
+                ),
+                fetchPaged((from, to) =>
+                    supabase
+                        .from('hedef_kargo')
+                        .select('*')
+                        .is('teslim_tarihi', null)
+                        .order('tarih', { ascending: false })
+                        .range(from, to)
+                ),
+                fetchPaged((from, to) =>
+                    supabase
+                        .from('hedef_kargo')
+                        .select('*')
+                        .gte('tarih', today)
+                        .lt('tarih', tomorrow)
+                        .order('tarih', { ascending: false })
+                        .range(from, to)
+                )
+            ]);
+
+            // Aynı kayıt hem "bekleyen" hem "bugün eklenen" olabileceği için
+            // id bazında tekilleştiriyoruz.
+            const merged = new Map();
+            [...deliveredInRange, ...pendingRows, ...addedTodayRows].forEach((row) => {
+                merged.set(row.id, row);
+            });
+
+            const all = Array.from(merged.values()).sort((a, b) => {
+                const aDate = a.teslim_tarihi || a.tarih || '';
+                const bDate = b.teslim_tarihi || b.tarih || '';
+                return String(bDate).localeCompare(String(aDate));
+            });
 
             setKargoData(all);
             setLoadedRange({ start: startDate, end: endDate });
-            showToast('success', `${all.length.toLocaleString('tr-TR')} kayıt yüklendi.`);
+            showToast(
+                'success',
+                `${all.length.toLocaleString('tr-TR')} kayıt yüklendi • ${pendingRows.length.toLocaleString('tr-TR')} bekleyen`
+            );
         } catch (error) {
             console.error(error);
             setKargoData([]);
@@ -209,7 +264,7 @@ function HedefKargo() {
     const isDelivered = (item) => !!item?.teslim_tarihi;
     const isPending = (item) => !item?.teslim_tarihi;
     const isAddedToday = (item) => {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = getTodayKey();
         return (item?.tarih || '').slice(0, 10) === today;
     };
 
@@ -302,9 +357,10 @@ function HedefKargo() {
         const total = kargoData.length;
         const delivered = kargoData.filter((x) => !!x.teslim_tarihi).length;
         const pending = total - delivered;
-        const today = new Date().toISOString().slice(0, 10);
+        const today = getTodayKey();
         const addedToday = kargoData.filter((x) => (x.tarih || '').slice(0, 10) === today).length;
-        return { total, delivered, pending, addedToday };
+        const deliveryRate = total ? Math.round((delivered / total) * 100) : 0;
+        return { total, delivered, pending, addedToday, deliveryRate };
     }, [kargoData]);
 
     const selectedCount = useMemo(() => selectedIds.size, [selectedIds]);
@@ -877,11 +933,12 @@ function HedefKargo() {
                             </div>
                         </div>
 
-                        <div className="relative mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="relative mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
                             <StatCard title="Toplam Kayıt" value={stats.total} emoji={<FiPackage />} subtitle="Yüklenen dönemde" active={quickFilter === 'all'} onClick={() => setQuickFilter('all')} />
                             <StatCard title="Bugün Eklenen" value={stats.addedToday} emoji={<FiZap />} subtitle="Bugünkü girişler" active={quickFilter === 'today'} onClick={() => setQuickFilter((prev) => (prev === 'today' ? 'all' : 'today'))} />
                             <StatCard title="Teslim Edilen" value={stats.delivered} emoji={<FiCheckCircle />} subtitle="Tamamlanan teslimatlar" active={quickFilter === 'delivered'} onClick={() => setQuickFilter((prev) => (prev === 'delivered' ? 'all' : 'delivered'))} />
-                            <StatCard title="Bekleyen" value={stats.pending} emoji={<FiClock />} subtitle="Aksiyon bekleyenler" active={quickFilter === 'pending'} onClick={() => setQuickFilter((prev) => (prev === 'pending' ? 'all' : 'pending'))} />
+                            <StatCard title="Bekleyen" value={stats.pending} emoji={<FiClock />} subtitle="Durum tarihi girilmemiş" active={quickFilter === 'pending'} onClick={() => setQuickFilter((prev) => (prev === 'pending' ? 'all' : 'pending'))} />
+                            <RateCard title="Teslim Oranı" value={stats.deliveryRate} subtitle={`${stats.delivered.toLocaleString('tr-TR')} / ${stats.total.toLocaleString('tr-TR')} tamamlandı`} />
                         </div>
                     </div>
                 </motion.header>
@@ -1024,6 +1081,14 @@ function HedefKargo() {
                         )}
                     </AnimatePresence>
 
+                    <div className="mx-3 mt-3 flex flex-col gap-3 rounded-[18px] border border-sky-100 bg-gradient-to-r from-sky-50/90 via-white to-cyan-50/70 px-4 py-3 shadow-sm dark:border-sky-400/10 dark:from-sky-500/[.07] dark:via-white/[.025] dark:to-cyan-500/[.05] md:flex-row md:items-center md:justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-sky-600 to-cyan-500 text-white shadow-lg shadow-sky-500/20">{quickFilter === 'pending' ? <FiClock /> : quickFilter === 'delivered' ? <FiCheckCircle /> : quickFilter === 'today' ? <FiZap /> : <FiPackage />}</div>
+                            <div><div className="text-xs font-black uppercase tracking-[.12em] text-sky-600 dark:text-sky-300">Aktif görünüm</div><div className="mt-0.5 text-sm font-black text-slate-800 dark:text-white">{quickFilter === 'pending' ? 'Bekleyen kargolar' : quickFilter === 'delivered' ? 'Teslim edilen kargolar' : quickFilter === 'today' ? 'Bugün eklenen kargolar' : 'Tüm kargolar'} <span className="ml-1 text-slate-400">• {filteredData.length.toLocaleString('tr-TR')} kayıt</span></div></div>
+                        </div>
+                        {activeFilterCount > 0 && <button onClick={clearFilters} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 transition hover:border-sky-200 hover:text-sky-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300"><FiX /> Tüm filtreleri temizle</button>}
+                    </div>
+
                     <div className="mx-3 mb-3 mt-3 overflow-hidden rounded-[20px] border border-slate-200/80 bg-white dark:border-white/[0.08] dark:bg-[#0d1521]">
                     <div className="overflow-x-auto">
                         <table className="min-w-[1080px] w-full border-separate border-spacing-0 text-sm">
@@ -1071,7 +1136,7 @@ function HedefKargo() {
                                                 />
                                             </Td>
 
-                                            <Td><div className="flex items-center gap-2.5"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-500 transition group-hover:bg-sky-100 group-hover:text-sky-600 dark:bg-white/5 dark:text-slate-400 dark:group-hover:bg-sky-500/10 dark:group-hover:text-sky-300"><FiCalendar /></span><div><div className="whitespace-nowrap text-xs font-black text-slate-700 dark:text-slate-200">{formatDate(item.tarih)}</div><div className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Kayıt tarihi</div></div></div></Td>
+                                            <Td><div className="flex items-center gap-2.5"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-500 transition group-hover:bg-sky-100 group-hover:text-sky-600 dark:bg-white/5 dark:text-slate-400 dark:group-hover:bg-sky-500/10 dark:group-hover:text-sky-300"><FiCalendar /></span><div><div className="flex items-center gap-2"><span className="whitespace-nowrap text-xs font-black text-slate-700 dark:text-slate-200">{formatDate(item.tarih)}</span>{isAddedToday(item) && <span className="rounded-full bg-cyan-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-cyan-700 ring-1 ring-cyan-100 dark:bg-cyan-500/10 dark:text-cyan-300 dark:ring-cyan-400/10">Bugün</span>}</div><div className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Kayıt tarihi</div></div></div></Td>
 
                                             <Td><div className="flex items-center gap-2.5"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-sky-50 to-cyan-50 text-xs font-black text-sky-700 ring-1 ring-sky-100 dark:from-sky-500/10 dark:to-cyan-500/10 dark:text-sky-300 dark:ring-sky-400/10">{(item.gonderici || '?').trim().slice(0,1).toLocaleUpperCase('tr')}</span><div className="min-w-0"><div className="max-w-[220px] truncate font-black text-slate-800 dark:text-slate-100">{item.gonderici || '-'}</div><div className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Gönderici</div></div></div></Td>
 
@@ -1084,9 +1149,16 @@ function HedefKargo() {
                                                         <FiCheckCircle /> {formatDate(item.teslim_tarihi)}
                                                     </span>
                                                 ) : (
-                                                    <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
-                                                        <FiClock /> Bekleyen
-                                                    </span>
+                                                    <div>
+                                                        <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+                                                            <FiClock /> Bekleyen
+                                                        </span>
+                                                        {item.beklenen_teslim_tarihi && (
+                                                            <div className="mt-1.5 text-[10px] font-bold text-slate-400">
+                                                                Beklenen: {formatDate(item.beklenen_teslim_tarihi)}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </Td>
 
@@ -1229,6 +1301,16 @@ const StatCard = ({ title, value, emoji, subtitle, onClick, active }) => (
         </div>
         {active && <motion.div layoutId="active-stat-line" className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-gradient-to-r from-sky-500 to-cyan-400" />}
     </motion.button>
+);
+
+const RateCard = ({ title, value, subtitle }) => (
+    <div className="relative w-full overflow-hidden rounded-[18px] border border-emerald-200/80 bg-gradient-to-br from-emerald-50 to-white px-4 py-3 dark:border-emerald-400/15 dark:from-emerald-500/[.08] dark:to-white/[.025]">
+        <div className="flex items-center justify-between gap-3">
+            <div><div className="text-[10px] font-black uppercase tracking-[.14em] text-emerald-600 dark:text-emerald-300">{title}</div><div className="mt-1.5 text-2xl font-black tracking-tight text-slate-900 dark:text-white">%{value}</div><div className="mt-0.5 text-[10px] font-semibold text-slate-400">{subtitle}</div></div>
+            <div className="relative grid h-11 w-11 place-items-center rounded-full bg-white text-xs font-black text-emerald-600 shadow-sm ring-1 ring-emerald-100 dark:bg-white/5 dark:text-emerald-300 dark:ring-emerald-400/15">%{value}</div>
+        </div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-emerald-100 dark:bg-white/[.06]"><motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(100, value)}%` }} transition={{ duration: .7, ease: 'easeOut' }} className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-400" /></div>
+    </div>
 );
 
 const InfoPill = ({ label, value }) => (

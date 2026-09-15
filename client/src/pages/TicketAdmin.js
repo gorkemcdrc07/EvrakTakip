@@ -6,6 +6,10 @@ import {
     Inbox,
     Loader2,
     MessageSquareText,
+    Send,
+    Eye,
+    PlayCircle,
+    CheckCircle2,
     RefreshCw,
     Search,
     ShieldCheck,
@@ -13,7 +17,7 @@ import {
 } from "lucide-react";
 import Layout from "../components/Layout";
 import useDarkMode from "../hooks/useDarkMode";
-import { fetchAdminTickets, updateTicketAdmin } from "../services/ticketService";
+import { fetchAdminTickets, updateTicketAdmin, fetchTicketMessages, sendTicketMessage, markTicketSeen, startTicketWork } from "../services/ticketService";
 import { formatTicketDate, isTicketAdmin, TICKET_PRIORITIES, TICKET_STATUSES } from "../utils/ticketUtils";
 import { supabase } from "../supabaseClient";
 
@@ -27,6 +31,9 @@ export default function TicketAdmin() {
     const [q, setQ] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [adminNote, setAdminNote] = useState("");
+    const [messages, setMessages] = useState([]);
+    const [chatText, setChatText] = useState("");
+    const [chatSending, setChatSending] = useState(false);
 
     const load = async () => {
         if (!admin) return;
@@ -58,6 +65,15 @@ export default function TicketAdmin() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [admin]);
 
+    useEffect(() => {
+        if (!admin || !selected?.id) return undefined;
+        const channel = supabase.channel(`ticket-admin-chat-${selected.id}`)
+            .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_ticket_messages", filter: `ticket_id=eq.${selected.id}` }, (payload) => {
+                setMessages((old) => old.some((m) => m.id === payload.new.id) ? old : [...old, payload.new]);
+            }).subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, [admin, selected?.id]);
+
     const counts = useMemo(() => ({
         all: rows.length,
         new: rows.filter((r) => r.status === "new").length,
@@ -74,21 +90,49 @@ export default function TicketAdmin() {
         });
     }, [rows, q, statusFilter]);
 
-    const openTicket = (ticket) => {
+    const openTicket = async (ticket) => {
         setSelected(ticket);
         setAdminNote(ticket.admin_note || "");
-        if (ticket.status === "new") changeStatus(ticket, "reviewing", false);
+        try {
+            setMessages(await fetchTicketMessages(ticket.id));
+            if (!ticket.seen_at) {
+                const updated = await markTicketSeen(ticket);
+                setRows((old) => old.map((item) => item.id === updated.id ? updated : item));
+                setSelected(updated);
+            }
+        } catch (error) { console.error(error); }
     };
 
     const changeStatus = async (ticket, status, showSaving = true) => {
         if (showSaving) setSaving(true);
         try {
-            const updated = await updateTicketAdmin(ticket.id, { status });
+            const updated = await updateTicketAdmin(ticket.id, { status, ...(status === "resolved" ? { resolved_at: ticket.resolved_at || new Date().toISOString() } : {}) });
             setRows((old) => old.map((item) => item.id === updated.id ? updated : item));
             setSelected((current) => current?.id === updated.id ? updated : current);
         } finally {
             if (showSaving) setSaving(false);
         }
+    };
+
+    const takeTicket = async () => {
+        if (!selected) return;
+        setSaving(true);
+        try {
+            const updated = await startTicketWork(selected);
+            setRows((old) => old.map((item) => item.id === updated.id ? updated : item));
+            setSelected(updated);
+        } finally { setSaving(false); }
+    };
+
+    const sendAdminMessage = async (event) => {
+        event?.preventDefault();
+        if (!selected || !chatText.trim() || chatSending) return;
+        setChatSending(true);
+        try {
+            const sent = await sendTicketMessage(selected, chatText, "admin");
+            if (sent) setMessages((old) => old.some((m) => m.id === sent.id) ? old : [...old, sent]);
+            setChatText("");
+        } finally { setChatSending(false); }
     };
 
     const saveNote = async () => {
@@ -141,8 +185,8 @@ export default function TicketAdmin() {
                                 <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
                                     <div className="space-y-4"><div><div className="mb-2 text-[9px] font-black uppercase tracking-[.12em] text-slate-400">Açıklama</div><div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-medium leading-7 text-slate-700 dark:border-white/[.07] dark:bg-[#0d141f] dark:text-slate-200 whitespace-pre-wrap">{selected.description}</div></div>
                                     {selected.screenshot_urls?.length > 0 && <div><div className="mb-2 flex items-center gap-2 text-[9px] font-black uppercase tracking-[.12em] text-slate-400"><FileImage size={13} />Ekran görüntüleri</div><div className="grid gap-2 sm:grid-cols-2">{selected.screenshot_urls.map((url, index) => <a key={url} href={url} target="_blank" rel="noreferrer" className="group overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 dark:border-white/[.08] dark:bg-black/20"><img src={url} alt={`Ticket ekran görüntüsü ${index + 1}`} className="aspect-video h-full w-full object-cover transition group-hover:scale-[1.02]" /></a>)}</div></div>}
-                                    <div><div className="mb-2 text-[9px] font-black uppercase tracking-[.12em] text-slate-400">Admin Notu</div><textarea value={adminNote} onChange={(e) => setAdminNote(e.target.value)} rows={4} placeholder="Kullanıcının görebileceği çözüm veya bilgilendirme notu…" className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm outline-none focus:border-sky-400 dark:border-white/[.08] dark:bg-[#0d141f] dark:text-white" /><button onClick={saveNote} disabled={saving} className="mt-2 inline-flex h-10 items-center gap-2 rounded-xl bg-sky-600 px-4 text-xs font-black text-white transition hover:bg-sky-500 disabled:opacity-50">{saving ? <Loader2 size={14} className="animate-spin" /> : <MessageSquareText size={14} />}Notu Kaydet</button></div></div>
-                                    <aside className="space-y-3"><div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/[.07] dark:bg-[#0d141f]"><div className="text-[9px] font-black uppercase tracking-[.12em] text-slate-400">Ekran</div><div className="mt-1 text-sm font-black text-slate-800 dark:text-white">{selected.screen_title || "-"}</div><div className="mt-1 break-all text-[10px] text-slate-400">{selected.screen_path || "-"}</div></div><div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/[.07] dark:bg-[#0d141f]"><div className="text-[9px] font-black uppercase tracking-[.12em] text-slate-400">Son Güncelleme</div><div className="mt-1 text-xs font-bold text-slate-700 dark:text-slate-200">{formatTicketDate(selected.updated_at)}</div>{selected.assigned_admin && <div className="mt-1 text-[10px] text-slate-400">{selected.assigned_admin}</div>}</div></aside>
+                                    <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-white/[.08]"><div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-white/[.07] dark:bg-[#0d141f]"><div><div className="text-xs font-black text-slate-800 dark:text-white">Canlı Görüşme</div><div className="text-[10px] text-emerald-500">● Kullanıcıyla ticket üzerinden yazış</div></div>{!selected.started_at && <button onClick={takeTicket} disabled={saving} className="flex h-9 items-center gap-2 rounded-xl bg-violet-600 px-3 text-[10px] font-black text-white"><PlayCircle size={13}/>İşleme Al</button>}</div><div className="max-h-72 space-y-2 overflow-y-auto bg-white p-3 dark:bg-[#0a111c]">{messages.map((m)=><div key={m.id} className={`flex ${m.sender_role === "admin" ? "justify-end" : "justify-start"}`}><div className={`max-w-[85%] rounded-2xl p-3 text-xs ${m.sender_role === "admin" ? "rounded-tr-md bg-sky-600 text-white" : "rounded-tl-md bg-slate-100 text-slate-700 dark:bg-white/[.08] dark:text-slate-100"}`}><div className="mb-1 text-[9px] font-black opacity-60">{m.sender_role === "admin" ? "Siz" : (m.sender_name || selected.created_by_name)} · {formatTicketDate(m.created_at)}</div><div className="whitespace-pre-wrap leading-5">{m.message}</div></div></div>)}{!messages.length&&<div className="py-8 text-center text-xs text-slate-400">Henüz mesaj yok. Kullanıcıya buradan soru sorabilirsiniz.</div>}</div><form onSubmit={sendAdminMessage} className="flex gap-2 border-t border-slate-200 p-3 dark:border-white/[.07]"><textarea value={chatText} onChange={(e)=>setChatText(e.target.value.slice(0,3000))} onKeyDown={(e)=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendAdminMessage();}}} rows={2} placeholder="Kullanıcıya mesaj yaz…" className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs outline-none focus:border-sky-400 dark:border-white/10 dark:bg-[#0d141f] dark:text-white"/><button disabled={!chatText.trim()||chatSending} className="grid w-12 place-items-center rounded-xl bg-sky-600 text-white disabled:opacity-30">{chatSending?<Loader2 size={16} className="animate-spin"/>:<Send size={16}/>}</button></form></div><div><div className="mb-2 text-[9px] font-black uppercase tracking-[.12em] text-slate-400">Çözüm / Sabit Not</div><textarea value={adminNote} onChange={(e) => setAdminNote(e.target.value)} rows={3} placeholder="Kullanıcının ticket özetinde göreceği kalıcı not…" className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm outline-none focus:border-sky-400 dark:border-white/[.08] dark:bg-[#0d141f] dark:text-white" /><button onClick={saveNote} disabled={saving} className="mt-2 inline-flex h-10 items-center gap-2 rounded-xl bg-sky-600 px-4 text-xs font-black text-white">{saving ? <Loader2 size={14} className="animate-spin" /> : <MessageSquareText size={14} />}Notu Kaydet</button></div></div>
+                                    <aside className="space-y-3"><div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/[.07] dark:bg-[#0d141f]"><div className="text-[9px] font-black uppercase tracking-[.12em] text-slate-400">Ticket Akışı</div><div className="mt-3 space-y-3 text-[10px]">{[{i:CheckCircle2,l:"Oluşturuldu",d:selected.created_at},{i:Eye,l:"Görüldü",d:selected.seen_at},{i:PlayCircle,l:"İşleme alındı",d:selected.started_at},{i:CheckCircle2,l:"Çözüldü",d:selected.resolved_at}].map((x,k)=>{const I=x.i;return <div key={k} className={`flex gap-2 ${x.d?"text-slate-700 dark:text-slate-200":"text-slate-400"}`}><I size={14} className={x.d?"text-emerald-500":"text-slate-300"}/><div><b>{x.l}</b><div className="text-[9px] opacity-70">{x.d?formatTicketDate(x.d):"Bekleniyor"}</div></div></div>})}</div></div><div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/[.07] dark:bg-[#0d141f]"><div className="text-[9px] font-black uppercase tracking-[.12em] text-slate-400">Ekran</div><div className="mt-1 text-sm font-black text-slate-800 dark:text-white">{selected.screen_title || "-"}</div><div className="mt-1 break-all text-[10px] text-slate-400">{selected.screen_path || "-"}</div></div><div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/[.07] dark:bg-[#0d141f]"><div className="text-[9px] font-black uppercase tracking-[.12em] text-slate-400">Son Güncelleme</div><div className="mt-1 text-xs font-bold text-slate-700 dark:text-slate-200">{formatTicketDate(selected.updated_at)}</div>{selected.assigned_admin && <div className="mt-1 text-[10px] text-slate-400">{selected.assigned_admin}</div>}</div></aside>
                                 </div>
                             </div> : <div className="grid min-h-[520px] place-items-center text-center"><div><ShieldCheck size={38} className="mx-auto text-slate-300 dark:text-slate-600" /><h2 className="mt-4 text-lg font-black text-slate-800 dark:text-white">Bir ticket seçin</h2><p className="mt-1 text-xs text-slate-400">Detayları, ekran görüntülerini ve yönetim araçlarını burada göreceksiniz.</p></div></div>}
                         </section>
