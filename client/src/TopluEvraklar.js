@@ -488,39 +488,104 @@ function TopluEvraklar() {
         const workbook = new ExcelJS.Workbook();
         workbook.creator = "Odak Lojistik - Evrak Takip Sistemi";
         workbook.created = new Date();
-        const ws = workbook.addWorksheet("Evraklar", { properties: { tabColor: { argb: excelPalette.emerald } } });
-
-        const headers = ["Tarih", "Lokasyon", "Projeler", "Toplam Sefer", "Sefer No", "Açıklama"];
-        applyWorkbookBranding(ws, "EVRAK OPERASYON RAPORU", `${evraklar.length} evrak kaydı • Tüm kayıtların detaylı sefer dökümü`, headers.length);
-        ws.addRow(headers);
-        styleHeaderRow(ws.getRow(5), excelPalette.emerald);
-
-        let currentRow = 6;
-        evraklar.forEach((evrak) => {
-            const tarih = new Date(evrak.tarih).toLocaleDateString("tr-TR");
-            const lokasyon = lokasyonlar[evrak.lokasyonid] || "Bilinmeyen Lokasyon";
-            const projeList = evrak.evrakproje?.map((p) => `${projeler[p.projeid] || "Bilinmeyen Proje"} (${p.sefersayisi})`).join(", ") || "—";
-            const toplam = evrak.sefersayisi || 0;
-            const seferler = evrak.evrakseferler?.length ? evrak.evrakseferler : [{ seferno: "—", aciklama: "Sefer kaydı bulunamadı" }];
-            const groupStart = currentRow;
-
-            seferler.forEach((sefer) => {
-                ws.addRow([tarih, lokasyon, projeList, toplam, sefer.seferno || "—", sefer.aciklama || "—"]);
-                currentRow++;
-            });
-
-            if (seferler.length > 1) {
-                [1, 2, 3, 4].forEach((col) => ws.mergeCells(groupStart, col, currentRow - 1, col));
-            }
+        const ws = workbook.addWorksheet("Evraklar", {
+            properties: { tabColor: { argb: "6F9ED4" } },
+            views: [{ showGridLines: false }],
         });
 
-        styleDataRows(ws, 6, Math.max(6, currentRow - 1), headers.length);
-        ws.autoFilter = { from: { row: 5, column: 1 }, to: { row: 5, column: headers.length } };
-        ws.columns = [{ width: 15 }, { width: 28 }, { width: 44 }, { width: 16 }, { width: 20 }, { width: 46 }];
-        ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.25, right: 0.25, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } };
-        ws.headerFooter.oddFooter = "&L&BOdak Lojistik&C&PEvrak Operasyon Raporu&R&P / &N";
+        // Tüm Evraklar Excel çıktısı ekrandaki özet mantığıyla hazırlanır:
+        // seferler tek tek yazılmaz; proje ve açıklamalar adet olarak gösterilir.
+        const headerFill = "6F9ED4";
+        const darkFill = "354653";
+        const blueFill = "4C6780";
+        const borderColor = "D7E0E8";
+        const white = "FFFFFF";
+        const headerText = "17212B";
 
-        await saveExcelWorkbook(workbook, `Evrak_Operasyon_Raporu_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        const thinBorder = {
+            top: { style: "thin", color: { argb: borderColor } },
+            bottom: { style: "thin", color: { argb: borderColor } },
+            left: { style: "thin", color: { argb: borderColor } },
+            right: { style: "thin", color: { argb: borderColor } },
+        };
+
+        const styleRow = (row, fill, { bold = false, header = false } = {}) => {
+            row.height = 27;
+            for (let c = 1; c <= 3; c++) {
+                const cell = row.getCell(c);
+                cell.font = {
+                    name: "Arial",
+                    size: header ? 12 : 11,
+                    bold,
+                    color: { argb: header ? headerText : white },
+                };
+                cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: fill } };
+                cell.alignment = { vertical: "middle", horizontal: "left" };
+                cell.border = thinBorder;
+            }
+        };
+
+        ws.columns = [{ width: 44 }, { width: 20 }, { width: 18 }];
+
+        evraklar.forEach((evrak, evrakIndex) => {
+            if (evrakIndex > 0) {
+                const spacer = ws.addRow(["", "", ""]);
+                spacer.height = 8;
+            }
+
+            const tarih = new Date(evrak.tarih).toLocaleDateString("tr-TR");
+            const lokasyon = lokasyonlar[evrak.lokasyonid] || "Bilinmeyen Lokasyon";
+            const toplamSefer = Number(evrak.sefersayisi || 0);
+
+            const headerRow = ws.addRow(["TARİH", "LOKASYON", "TOPLAM SEFER"]);
+            styleRow(headerRow, headerFill, { bold: true, header: true });
+
+            const infoRow = ws.addRow([tarih, lokasyon, toplamSefer]);
+            styleRow(infoRow, blueFill, { bold: true });
+
+            const projeHeader = ws.addRow(["PROJE", "SEFER SAYISI", ""]);
+            styleRow(projeHeader, darkFill, { bold: true });
+
+            const projeRows = (evrak.evrakproje || [])
+                .map((p) => ({
+                    ad: projeler[p.projeid] || "Bilinmeyen Proje",
+                    sayi: Number(p.sefersayisi || 0),
+                }))
+                .sort((a, b) => b.sayi - a.sayi || a.ad.localeCompare(b.ad, "tr"));
+
+            projeRows.forEach((proje, index) => {
+                const row = ws.addRow([proje.ad, proje.sayi, ""]);
+                styleRow(row, index % 2 === 0 ? blueFill : darkFill);
+            });
+
+            const aciklamaSayilari = new Map();
+            (evrak.evrakseferler || []).forEach((sefer) => {
+                const aciklama = String(sefer.aciklama || "").trim();
+                if (!aciklama) return;
+                aciklamaSayilari.set(aciklama, (aciklamaSayilari.get(aciklama) || 0) + 1);
+            });
+
+            const aciklamaHeader = ws.addRow(["AÇIKLAMA ÖZETİ", "", ""]);
+            styleRow(aciklamaHeader, darkFill, { bold: true });
+
+            [...aciklamaSayilari.entries()]
+                .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "tr"))
+                .forEach(([aciklama, sayi], index) => {
+                    const row = ws.addRow([`${aciklama.toLocaleUpperCase("tr-TR")}: ${sayi}`, "", ""]);
+                    styleRow(row, index % 2 === 0 ? blueFill : darkFill, { bold: true });
+                });
+        });
+
+        ws.pageSetup = {
+            orientation: "portrait",
+            fitToPage: true,
+            fitToWidth: 1,
+            fitToHeight: 0,
+            margins: { left: 0.25, right: 0.25, top: 0.35, bottom: 0.35, header: 0.15, footer: 0.15 },
+        };
+        ws.headerFooter.oddFooter = "&L&BOdak Lojistik&C&Evrak Özet Raporu&R&P / &N";
+
+        await saveExcelWorkbook(workbook, `Evrak_Ozet_Raporu_${new Date().toISOString().slice(0, 10)}.xlsx`);
     };
 
     const exportFilteredExcel = async () => {
@@ -615,11 +680,25 @@ function TopluEvraklar() {
         if (projeEnd >= 9) styleDataRows(ws, 9, projeEnd, 2);
 
         ws.addRow([]);
-        const seferHeaderRow = ws.rowCount + 1;
-        const seferHeader = ws.addRow(["SEFER NO", "AÇIKLAMA"]);
-        styleHeaderRow(seferHeader, excelPalette.emerald);
-        (evrak.evrakseferler || []).forEach((s) => ws.addRow([s.seferno || "—", s.aciklama || "—"]));
-        if (ws.rowCount > seferHeaderRow) styleDataRows(ws, seferHeaderRow + 1, ws.rowCount, 2);
+        const aciklamaHeaderRow = ws.rowCount + 1;
+        const aciklamaHeader = ws.addRow(["AÇIKLAMA ÖZETİ", "SEFER SAYISI"]);
+        styleHeaderRow(aciklamaHeader, excelPalette.emerald);
+
+        const aciklamaSayilari = new Map();
+        (evrak.evrakseferler || []).forEach((s) => {
+            const aciklama = String(s.aciklama || "").trim();
+            if (!aciklama) return;
+            const key = aciklama.toLocaleUpperCase("tr-TR");
+            aciklamaSayilari.set(key, (aciklamaSayilari.get(key) || 0) + 1);
+        });
+
+        [...aciklamaSayilari.entries()]
+            .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "tr"))
+            .forEach(([aciklama, sayi]) => ws.addRow([aciklama, sayi]));
+
+        if (ws.rowCount > aciklamaHeaderRow) {
+            styleDataRows(ws, aciklamaHeaderRow + 1, ws.rowCount, 2);
+        }
 
         ws.pageSetup = { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
         ws.headerFooter.oddFooter = `&L&BOdak Lojistik&C&Evrak #${evrak.id}&R&P / &N`;
