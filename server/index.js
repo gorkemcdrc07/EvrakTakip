@@ -252,7 +252,7 @@ app.get('/', (req, res) => {
     res.send('✅ Sunucu çalışıyor');
 });
 
-startReportScheduler();
+if (process.env.DISABLE_REPORT_SCHEDULER !== "true") startReportScheduler();
 
 app.listen(PORT, () => {
     console.log(`🚀 Proxy sunucu http://localhost:${PORT} adresinde çalışıyor.`);
