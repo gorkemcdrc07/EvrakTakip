@@ -460,10 +460,14 @@ export default function Tahakkuk() {
     };
 
     const exportToExcel = async () => {
+        if (filteredRows.length === 0) {
+            alert("Excel aktarımı için filtreye uygun tahakkuk kaydı bulunamadı.");
+            return;
+        }
         let allHistory;
         try {
             allHistory = await loadHistory(null);
-            if (allHistory.length === 0 && firmCatalogRows.length > 0) {
+            if (allHistory.length === 0 && filteredRows.length > 0) {
                 alert("İşlem geçmişi henüz boş. Eksik rapor oluşturulmadı.");
                 return;
             }
@@ -499,7 +503,7 @@ export default function Tahakkuk() {
             const dateOnly = (v) => v ? formatTR(v) : "—";
             const typeOf = (r) => historyKind(r);
             const noteOf = (r, source) => display(source?.aciklama ?? source?.not ?? (source ? "" : r.aciklama));
-            const allFields = [...new Set([...firmCatalogRows.flatMap(r => Object.keys(r)), ...allHistory.flatMap(r => [...Object.keys(r.eski_veri || {}), ...Object.keys(r.yeni_veri || {})])])]
+            const allFields = [...new Set([...filteredRows.flatMap(r => Object.keys(r)), ...allHistory.flatMap(r => [...Object.keys(r.eski_veri || {}), ...Object.keys(r.yeni_veri || {})])])]
                 .filter(k => k !== "id").sort((a,b) => a.localeCompare(b,"tr"));
             const orderedFields = ["tedarikci_firma","aciklama","tarih","odeme_gunu","durum","tutar","para_birimi","fatura_no","odeme_tarihi","odeme_yontemi","olusturan_kullanici","guncelleyen_kullanici","son_islem",...allFields].filter((x,i,a)=>a.indexOf(x)===i);
             const pretty = (k) => HISTORY_FIELDS[k] || k.replace(/_/g," ").toLocaleUpperCase("tr-TR");
@@ -565,8 +569,69 @@ export default function Tahakkuk() {
                 ws.pageSetup.printTitlesRow = "1:5";
                 return ws;
             };
+            // İlk sekme: ekranda filtre sonrası görünen kayıtların birebir dökümü.
+            // Her tahakkuk kaydı tek bir veri satırına karşılık gelir.
+            // Son güncelleme bilgisi, kayıt bazında gerçek UPDATE audit olayından alınır.
+            const latestUpdateById = new Map();
+            for (const event of allHistory) {
+                if (historyKind(event) !== "GUNCELLEME") continue;
+                const id = String(event.tahakkuk_id ?? "");
+                if (!id || !event.islem_tarihi) continue;
+                const previous = latestUpdateById.get(id);
+                if (!previous || new Date(event.islem_tarihi) > new Date(previous.islem_tarihi)) {
+                    latestUpdateById.set(id, event);
+                }
+            }
+            const listColumns = [
+                ["TEDARİKÇİ FİRMA", "tedarikci_firma"],
+                ["AÇIKLAMA", "aciklama"],
+                ["TAHAKKUK TARİHİ", "tarih"],
+                ["ÖDEME GÜNÜ", "odeme_gunu"],
+                ["TUTAR", "tutar"],
+                ["PARA BİRİMİ", "para_birimi"],
+                ["DURUM", "durum"],
+                ["FATURA NO", "fatura_no"],
+                ["VADE TARİHİ", "vade_tarihi"],
+                ["ÖDEME TARİHİ", "odeme_tarihi"],
+                ["ÖDEME YÖNTEMİ", "odeme_yontemi"],
+                ["KATEGORİ", "kategori"],
+                ["PROJE", "proje"],
+                ["OLUŞTURAN", "olusturan_kullanici"],
+                ["OLUŞTURULMA TARİHİ", "olusturulma_tarihi"],
+                ["SON GÜNCELLEYEN", "_son_guncelleyen"],
+                ["SON GÜNCELLEME TARİHİ", "_son_guncelleme_tarihi"]
+            ];
+            const listDates = new Set(["tarih", "odeme_gunu", "vade_tarihi", "odeme_tarihi"]);
+            const listDateTimes = new Set(["olusturulma_tarihi"]);
+            const listData = filteredRows.map(r => listColumns.map(([, key]) => {
+                const lastUpdate = latestUpdateById.get(String(r.id));
+                if (key === "_son_guncelleyen") return lastUpdate
+                    ? (lastUpdate.kullanici_adi || lastUpdate.yeni_veri?.guncelleyen_kullanici || "") : "";
+                if (key === "_son_guncelleme_tarihi") return lastUpdate ? dateText(lastUpdate.islem_tarihi) : "";
+                const v = r[key];
+                if (listDates.has(key)) return dateOnly(v);
+                if (listDateTimes.has(key)) return dateText(v);
+                if (key === "durum") return STATUS_MAP[v]?.label || v || "";
+                if (key === "tutar" && v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v))) return Number(v);
+                return v ?? "";
+            }));
+            const listSheet = createSheet(
+                "Filtrelenmiş Tahakkuk Listesi",
+                `${filteredRows.length} kayıt • Ekrandaki aktif filtrelerin birebir sonucu • Her kayıt tek satır`,
+                listColumns.map(([label]) => label),
+                [38, 75, 22, 22, 20, 17, 23, 26, 22, 22, 26, 28, 30, 32, 27, 27],
+                listData,
+                { tab: C.green, statusIndex: 6 }
+            );
+            listSheet.getColumn(5).numFmt = '#,##0.00';
+            if (listData.length !== filteredRows.length) throw new Error("Excel kayıt sayısı filtre sonucuyla uyuşmuyor.");
+
             // Geçmişi en eskiden yeniye sırala: kim oluşturdu, kim değiştirdi, kim sildi.
-            const chronological = [...allHistory].sort((a,b) => new Date(a.islem_tarihi) - new Date(b.islem_tarihi));
+            // Excel'in tüm sekmeleri ekrandaki filtrelenmiş kayıtlara bağlıdır.
+            const exportIds = new Set(filteredRows.map(r => String(r.id)));
+            const chronological = allHistory.filter(r =>
+                exportIds.has(String(r.tahakkuk_id ?? r.id))
+            ).sort((a,b) => new Date(a.islem_tarihi) - new Date(b.islem_tarihi));
             const technicalFields = new Set(["id","tahakkuk_id","kullanici_id","gecmis_id","olusturulma_tarihi","guncellenme_tarihi","guncelleme_tarihi","olusturan_kullanici","guncelleyen_kullanici","son_islem"]);
             const businessChanges = (r) => historyChanges(r).filter(c => !technicalFields.has(c.field));
             const userOf = r => r.kullanici_adi || r.yeni_veri?.guncelleyen_kullanici || r.yeni_veri?.olusturan_kullanici || "Kullanıcı belirtilmemiş";
@@ -593,13 +658,7 @@ export default function Tahakkuk() {
                 if (!historyByRecord.has(key)) historyByRecord.set(key, []);
                 historyByRecord.get(key).push(r);
             });
-            const currentIds = new Set(filteredRows.map(r=>r.id));
-            const currentById = new Map(filteredRows.map(r=>[r.id,r]));
-            // Liste, hem güncel kayıtları hem de silinmiş kayıtların geçmişini içerir.
-            const visibleHistory = chronological.filter(r => {
-                const key = r.tahakkuk_id || r.id;
-                return currentIds.has(key) || !currentById.has(key);
-            });
+            const visibleHistory = chronological;
             const timelineRows = visibleHistory.map((r,i)=>{
                 const kind=typeOf(r);
                 const changes=businessChanges(r);
@@ -613,7 +672,7 @@ export default function Tahakkuk() {
                     changes.map(c=>`${pretty(c.field)}: ${display(c.old)} → ${display(c.next)}`).join("\n"),
                     kind==="SILME" ? "SİLİNDİ" : "KAYIT HAREKETİ"];
             });
-            const wsList=createSheet("01 Tahakkuk Listesi","Olay akışı • İlk kayıttan silinmeye kadar kronolojik sıra • Açıklamayı yazan kişi sadece değiştiği işlemde belirtilir",
+            const wsList=createSheet("01 Kronolojik Akış","Olay akışı • İlk kayıttan silinmeye kadar kronolojik sıra • Açıklamayı yazan kişi sadece değiştiği işlemde belirtilir",
                 ["SIRA","İŞLEM TARİHİ / SAATİ","FİRMA","YAPILAN İŞLEM","İŞLEMİ YAPAN","NE OLDU?","BU İŞLEMDE YAZILAN AÇIKLAMA","ÖNCEKİ AÇIKLAMA","YENİ AÇIKLAMA","KAYITTAKİ SON AÇIKLAMA","ÖDEME GÜNÜ","DURUM","DEĞİŞEN BİLGİLER (ESKİ → YENİ)","KAYIT DURUMU"],
                 [10,25,37,20,30,85,95,80,80,95,20,23,110,23],timelineRows,{tab:C.cyan});
             timelineRows.forEach((r,i)=>{
