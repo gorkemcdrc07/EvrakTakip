@@ -50,7 +50,7 @@ export default function ModernSidebar({ mobileOpen, onMobileClose }) {
                     alt=""
                     animate={{ scale: hovered ? 1.08 : 1, rotate: hovered ? -2 : 0 }}
                     whileHover={{ rotate: [0, -4, 4, 0] }}
-                    transition={{ type: "spring", stiffness: 240, damping: 17 }}
+                    transition={{ type: "tween", duration: 0.45, ease: "easeInOut" }}
                     className="h-16 w-16 rounded-[18px] object-cover drop-shadow-[0_10px_22px_rgba(14,165,233,0.28)]"
                 />
                 <button onClick={onMobileClose} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white lg:hidden"><X size={19} /></button>
