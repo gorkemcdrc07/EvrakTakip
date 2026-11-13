@@ -290,7 +290,7 @@ function CargoLoadingExperience({ progress }) {
           </motion.div>
         </div>
         <h3 className="mt-4 text-lg font-black text-slate-900 dark:text-white">Kargo kayıtları hazırlanıyor…</h3>
-        <p className="mt-1 text-sm font-medium text-slate-500">Seçtiğiniz dönem okunuyor, kayıtlar analiz için hazırlanıyor.</p>
+        <p className="mt-1 text-sm font-medium text-slate-500">Seçtiğiniz döneme ait kargo kayıtları getiriliyor.</p>
         <div className="mt-5 w-full max-w-md overflow-hidden rounded-full bg-slate-100 p-1 dark:bg-white/5">
           <motion.div className="h-2 rounded-full bg-gradient-to-r from-sky-600 via-cyan-400 to-sky-500" animate={{width:`${progress}%`}} transition={{ease:"easeOut"}}/>
         </div>
@@ -323,11 +323,12 @@ export default function TumKargoBilgileri() {
 
   const [quickSearch, setQuickSearch] = useState("");
   const [irsaliyeNo, setIrsaliyeNo] = useState("");
+  const [gonderiNo, setGonderiNo] = useState("");
   const [selectedIrsaliye, setSelectedIrsaliye] = useState([]);
   const [selectedKargo, setSelectedKargo] = useState([]);
   const [selectedGonderen, setSelectedGonderen] = useState([]);
   const [filtersOpen, setFiltersOpen] = useState(true);
-  const [analysisOpen, setAnalysisOpen] = useState(true);
+  const [analysisOpen, setAnalysisOpen] = useState(false);
   const [page, setPage] = useState(1);
 
   const [toast, setToast] = useState({ show: false, type: "success", text: "" });
@@ -393,6 +394,11 @@ export default function TumKargoBilgileri() {
       }
     });
 
+    if (gonderiNo.trim()) {
+      const q = normalizeText(gonderiNo);
+      data = data.filter((row) => normalizeText(row.gonderi_numarasi).includes(q));
+    }
+
     if (irsaliyeNo.trim()) {
       const q = normalizeText(irsaliyeNo);
       data = data.filter((row) => normalizeText(row.irsaliye_no).includes(q));
@@ -424,15 +430,15 @@ export default function TumKargoBilgileri() {
 
   const irsaliyeOptions = useMemo(
     () => buildFacetOptions("irsaliye_adi"),
-    [rows, selectedKargo, selectedGonderen, irsaliyeNo, quickSearch]
+    [rows, selectedKargo, selectedGonderen, irsaliyeNo, gonderiNo, quickSearch]
   );
   const kargoOptions = useMemo(
     () => buildFacetOptions("kargo_firmasi"),
-    [rows, selectedIrsaliye, selectedGonderen, irsaliyeNo, quickSearch]
+    [rows, selectedIrsaliye, selectedGonderen, irsaliyeNo, gonderiNo, quickSearch]
   );
   const gonderenOptions = useMemo(
     () => buildFacetOptions("gonderen_firma"),
-    [rows, selectedIrsaliye, selectedKargo, irsaliyeNo, quickSearch]
+    [rows, selectedIrsaliye, selectedKargo, irsaliyeNo, gonderiNo, quickSearch]
   );
 
   const variantGroups = useMemo(() => ({
@@ -502,6 +508,7 @@ export default function TumKargoBilgileri() {
     setSelectedGonderen([]);
     setQuickSearch("");
     setIrsaliyeNo("");
+    setGonderiNo("");
 
     try {
       const pageSize = 1000;
@@ -542,10 +549,10 @@ export default function TumKargoBilgileri() {
 
   const filteredRows = useMemo(
     () => applyFacetFilters(rows),
-    [rows, selectedIrsaliye, selectedKargo, selectedGonderen, irsaliyeNo, quickSearch]
+    [rows, selectedIrsaliye, selectedKargo, selectedGonderen, irsaliyeNo, gonderiNo, quickSearch]
   );
 
-  useEffect(() => setPage(1), [quickSearch, irsaliyeNo]);
+  useEffect(() => setPage(1), [quickSearch, irsaliyeNo, gonderiNo]);
 
   const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const visibleRows = useMemo(() => filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filteredRows, page]);
@@ -622,6 +629,7 @@ export default function TumKargoBilgileri() {
     selectedKargo.forEach(x=>chips.push({kind:"kargo",label:x.value}));
     selectedGonderen.forEach(x=>chips.push({kind:"gonderen",label:x.value}));
     selectedIrsaliye.forEach(x=>chips.push({kind:"irsaliye",label:x.value}));
+    if (gonderiNo.trim()) chips.push({kind:"gonderiNo",label:`Gönderi No: ${gonderiNo}`});
     if (irsaliyeNo.trim()) chips.push({kind:"no",label:`İrsaliye No: ${irsaliyeNo}`});
     if (quickSearch.trim()) chips.push({kind:"search",label:`Arama: ${quickSearch}`});
     if (loadedRange) chips.unshift({kind:"range",label:`${formatDate(loadedRange.start)} – ${formatDate(loadedRange.end)}`, locked:true});
@@ -633,6 +641,7 @@ export default function TumKargoBilgileri() {
     if(chip.kind==="gonderen") setSelectedGonderen(v=>v.filter(x=>x.value!==chip.label));
     if(chip.kind==="irsaliye") setSelectedIrsaliye(v=>v.filter(x=>x.value!==chip.label));
     if(chip.kind==="no") setIrsaliyeNo("");
+    if(chip.kind==="gonderiNo") setGonderiNo("");
     if(chip.kind==="search") setQuickSearch("");
     setPage(1);
   };
@@ -675,13 +684,14 @@ export default function TumKargoBilgileri() {
 
   const isCol = (key) => visibleColumns.includes(key);
 
-  const activeFilterCount = [selectedIrsaliye.length, selectedKargo.length, selectedGonderen.length, irsaliyeNo.trim(), quickSearch.trim()].filter(Boolean).length;
+  const activeFilterCount = [selectedIrsaliye.length, selectedKargo.length, selectedGonderen.length, irsaliyeNo.trim(), gonderiNo.trim(), quickSearch.trim()].filter(Boolean).length;
 
   const clearFilters = () => {
     setSelectedIrsaliye([]);
     setSelectedKargo([]);
     setSelectedGonderen([]);
     setIrsaliyeNo("");
+    setGonderiNo("");
     setQuickSearch("");
     setSuggestion(null);
     setPage(1);
@@ -896,17 +906,13 @@ export default function TumKargoBilgileri() {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-xl font-black tracking-tight text-slate-950 sm:text-2xl dark:text-white">Tüm Kargo Bilgileri</h1>
-                    <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-sky-700 dark:border-sky-400/20 dark:bg-sky-500/10 dark:text-sky-300">Analiz Merkezi</span>
+                    <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-sky-700 dark:border-sky-400/20 dark:bg-sky-500/10 dark:text-sky-300">Kargo Kayıtları</span>
                   </div>
-                  <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">Tarih aralığına göre hızlı sorgula, veri kalitesini yakala ve kargo akışını analiz et.</p>
+                  <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">Kargo kayıtlarını tarih aralığına göre yükleyin, filtreleyin ve yönetin.</p>
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <AnimatePresence mode="wait">
-          {loading && <motion.div key="loading" className="mb-4"><CargoLoadingExperience progress={loadingProgress}/><div className="mt-3"><SkeletonTable/></div></motion.div>}
-        </AnimatePresence>
-
         {hasLoaded && (
                   <button onClick={fetchRange} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-extrabold text-slate-700 transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-sky-600 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
                     <FiRefreshCw className={loading ? "animate-spin" : ""} /> Yenile
@@ -920,53 +926,27 @@ export default function TumKargoBilgileri() {
           </div>
         </header>
 
-        <section className="cargo-enter mb-4 rounded-[24px] border border-slate-200/90 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#111925]" style={{ animationDelay: ".05s" }}>
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-end">
-            <div className="min-w-0 flex-1">
-              <div className="mb-3 flex items-center gap-2">
-                <div className="grid h-8 w-8 place-items-center rounded-lg bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-300"><FiCalendar /></div>
-                <div>
-                  <h2 className="text-sm font-black text-slate-900 dark:text-white">Önce çalışma dönemini seçin</h2>
-                  <p className="text-[11px] font-medium text-slate-400">Ekran açılışında veri yüklenmez. Sadece seçtiğiniz dönem sunucudan getirilir.</p>
-                </div>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:max-w-2xl">
-                <label className="space-y-1.5">
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Başlangıç</span>
-                  <input type="date" value={queryStart} onChange={(e) => { setQueryStart(e.target.value); setRangeError(""); }} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-500/10 dark:border-white/10 dark:bg-[#0d141f] dark:text-slate-200" />
-                </label>
-                <label className="space-y-1.5">
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Bitiş</span>
-                  <input type="date" value={queryEnd} onChange={(e) => { setQueryEnd(e.target.value); setRangeError(""); }} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-500/10 dark:border-white/10 dark:bg-[#0d141f] dark:text-slate-200" />
-                </label>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {[["today", "Bugün"], ["yesterday", "Dün"], ["7days", "Son 7 Gün"], ["month", "Bu Ay"]].map(([key, label]) => (
-                  <button key={key} onClick={() => setPreset(key)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-extrabold text-slate-500 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 dark:border-white/10 dark:hover:bg-sky-500/10 dark:hover:text-sky-300">{label}</button>
-                ))}
-              </div>
-              {rangeError && <div className="mt-3 flex items-center gap-2 text-xs font-bold text-rose-600"><FiInfo /> {rangeError}</div>}
-            </div>
-
-            <button onClick={fetchRange} disabled={loading} className="group inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 text-sm font-black text-white shadow-lg transition duration-300 hover:-translate-y-0.5 hover:bg-sky-600 disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-sky-400">
-              {loading ? <FiRefreshCw className="animate-spin" /> : <FiZap className="transition group-hover:scale-125" />}
-              {loading ? "Veriler getiriliyor…" : "Dönemi Getir"}
-            </button>
+        <section className="cargo-enter mb-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#111925]">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-300"><FiCalendar size={19}/></div>
+            <div><h2 className="text-base font-black text-slate-900 dark:text-white">Kargo verilerini yükle</h2><p className="text-xs text-slate-500 dark:text-slate-400">Görüntülemek istediğiniz tarih aralığını belirleyin.</p></div>
           </div>
+          <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
+            <label className="block"><span className="mb-1.5 block text-xs font-bold text-slate-500 dark:text-slate-300">Başlangıç tarihi</span><input type="date" value={queryStart} onChange={e=>{setQueryStart(e.target.value);setRangeError("");}} className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-800 outline-none focus:border-sky-400 dark:border-white/10 dark:bg-[#0d141f] dark:text-white"/></label>
+            <label className="block"><span className="mb-1.5 block text-xs font-bold text-slate-500 dark:text-slate-300">Bitiş tarihi</span><input type="date" value={queryEnd} onChange={e=>{setQueryEnd(e.target.value);setRangeError("");}} className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-800 outline-none focus:border-sky-400 dark:border-white/10 dark:bg-[#0d141f] dark:text-white"/></label>
+            <button onClick={fetchRange} disabled={loading} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-sky-600 px-6 text-sm font-bold text-white hover:bg-sky-700 disabled:opacity-50">{loading?<FiRefreshCw className="animate-spin"/>:<FiDownload/>}{loading?"Yükleniyor...":"Verileri Yükle"}</button>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">{[["today","Bugün"],["yesterday","Dün"],["7days","Son 7 Gün"],["month","Bu Ay"]].map(([key,label])=><button key={key} onClick={()=>setPreset(key)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-sky-400 hover:text-sky-600 dark:border-white/10 dark:text-slate-300">{label}</button>)}{loadedRange&&<span className="ml-auto text-xs text-slate-500">Son yüklenen: {formatDate(loadedRange.start)} – {formatDate(loadedRange.end)}</span>}</div>
+          {rangeError&&<p className="mt-3 text-xs font-semibold text-rose-600">{rangeError}</p>}
         </section>
 
         {!hasLoaded && !loading && (
           <section className="cargo-enter relative grid min-h-[420px] place-items-center overflow-hidden rounded-[28px] border border-dashed border-slate-300 bg-white/70 p-8 text-center dark:border-white/10 dark:bg-[#111925]/80" style={{ animationDelay: ".1s" }}>
             <div className="pointer-events-none absolute h-64 w-64 rounded-full bg-sky-400/10 blur-3xl" style={{ animation: "cargoPulse 4s ease-in-out infinite" }} />
             <div className="relative max-w-xl">
-              <div className="mx-auto mb-5 grid h-20 w-20 place-items-center rounded-[24px] bg-gradient-to-br from-sky-500 to-cyan-400 text-white shadow-xl shadow-sky-500/20"><FiActivity size={32} /></div>
-              <h2 className="text-2xl font-black text-slate-900 dark:text-white">Analiz için bir dönem seçin</h2>
-              <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-500 dark:text-slate-400">Tüm veriyi açılışta yüklemek yerine sadece ihtiyacınız olan gün veya tarih aralığını getiriyoruz. Bu sayede ekran çok daha hızlı açılır ve filtreler daha akıcı çalışır.</p>
-              <div className="mt-6 flex flex-wrap justify-center gap-2 text-xs font-bold text-slate-500">
-                <span className="rounded-full bg-slate-100 px-3 py-1.5 dark:bg-white/5">Akıllı benzer değer önerileri</span>
-                <span className="rounded-full bg-slate-100 px-3 py-1.5 dark:bg-white/5">Kargo & gönderen analizi</span>
-                <span className="rounded-full bg-slate-100 px-3 py-1.5 dark:bg-white/5">Modern Excel raporu</span>
-              </div>
+              <div className="mx-auto mb-5 grid h-20 w-20 place-items-center rounded-[24px] bg-gradient-to-br from-sky-500 to-cyan-400 text-white shadow-xl shadow-sky-500/20"><FiPackage size={32} /></div>
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white">Kargo kayıtlarını görüntüleyin</h2>
+              <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-500 dark:text-slate-400">Yukarıdan tarih aralığı seçin ve Verileri Yükle butonuna basın. Kayıtlar tabloda görüntülenecektir.</p>
             </div>
           </section>
         )}
@@ -983,70 +963,11 @@ export default function TumKargoBilgileri() {
 
         {hasLoaded && !loading && (
           <div className="space-y-4">
-            <section className="cargo-enter flex flex-wrap gap-3" style={{ animationDelay: ".08s" }}>
-              <Kpi icon={FiLayers} label="Kayıt" value={filteredRows.length.toLocaleString("tr-TR")} helper={`${rows.length.toLocaleString("tr-TR")} yüklenen`} />
-              <Kpi icon={FiFileText} label="Toplam Evrak" value={totalDocuments.toLocaleString("tr-TR")} helper="Filtrelenen kayıtlar" />
-              <Kpi icon={FiTruck} label="Kargo Firması" value={uniqueCargo.toLocaleString("tr-TR")} helper="Benzer yazımlar birleştirilmiş" />
-              <Kpi icon={FiUsers} label="Gönderen Firma" value={uniqueSender.toLocaleString("tr-TR")} helper={`${uniqueInvoiceNames} irsaliye adı`} />
-            </section>
-
-            {dataQuality.variantFamilies > 0 && (
-              <section className="cargo-enter flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-amber-400/20 dark:bg-amber-500/10" style={{ animationDelay: ".12s" }}>
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300"><FiStar /></div>
-                  <div>
-                    <div className="text-sm font-black text-amber-900 dark:text-amber-100">Veri kalitesi uyarısı: {dataQuality.variantFamilies} benzer değer ailesi bulundu</div>
-                    <div className="mt-0.5 text-xs font-medium text-amber-700/80 dark:text-amber-200/70">Büyük/küçük harf, boşluk ve Türkçe karakter farklılıkları nedeniyle aynı firma veya irsaliye farklı yazılmış olabilir. Bir filtre seçtiğinizde benzerlerini size önereceğim.</div>
-                  </div>
-                </div>
-                <span className="shrink-0 rounded-full bg-white/70 px-3 py-1.5 text-xs font-black text-amber-700 dark:bg-black/10 dark:text-amber-200">{dataQuality.affectedValues} varyasyon</span>
-              </section>
-            )}
-
-            
-            <motion.section layout className="mb-4 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#111925]">
-              <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 xl:flex-row xl:items-center xl:justify-between dark:border-white/5">
-                <div className="flex flex-wrap gap-2">
-                  {["Kargo Firma Analizi","Gönderen Firma Analizi","Eksik Veri Kontrolü","İrsaliye Analizi"].map(name=>
-                    <button key={name} onClick={()=>applyView(name)} className={cx("rounded-xl border px-3 py-2 text-xs font-black transition hover:-translate-y-0.5",presetName===name?"border-sky-300 bg-sky-50 text-sky-700 dark:bg-sky-500/10":"border-slate-200 text-slate-600 hover:border-sky-300 dark:border-white/10 dark:text-slate-300")}>{name}</button>)}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button onClick={()=>setColumnsOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 transition hover:border-sky-300 hover:text-sky-600 dark:border-white/10 dark:text-slate-300"><FiColumns/> Kolonlar</button>
-                  <button onClick={saveCurrentView} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 transition hover:border-sky-300 hover:text-sky-600 dark:border-white/10 dark:text-slate-300"><FiSave/> Görünümü Kaydet</button>
-                  <button onClick={restoreSavedView} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 transition hover:border-sky-300 hover:text-sky-600 dark:border-white/10 dark:text-slate-300"><FiGrid/> Kayıtlı Görünüm</button>
-                  <button onClick={()=>setQualityOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-700 transition hover:-translate-y-0.5 dark:border-amber-400/15 dark:bg-amber-500/10 dark:text-amber-300"><FiDatabase/> Veri Kalitesi <span className="rounded-full bg-white/80 px-1.5">{qualityFamilies.length}</span></button>
-                  <button onClick={()=>setComparisonOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white transition hover:-translate-y-0.5 hover:bg-sky-600 dark:bg-white dark:text-slate-950"><FiTrendingUp/> Karşılaştır</button>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 px-4 py-3">
-                <span className="mr-1 text-[10px] font-black uppercase tracking-wider text-slate-400">Aktif filtreler</span>
-                <AnimatePresence initial={false}>
-                  {filterChips.map((chip,i)=><motion.button layout initial={{opacity:0,scale:.85,y:-4}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:.8}} key={`${chip.kind}-${chip.label}-${i}`} disabled={chip.locked} onClick={()=>!chip.locked&&removeChip(chip)} className={cx("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-black",chip.locked?"border-slate-200 bg-slate-50 text-slate-500 dark:border-white/10 dark:bg-white/5":"border-sky-200 bg-sky-50 text-sky-700 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 dark:border-sky-400/15 dark:bg-sky-500/10 dark:text-sky-300")}>{chip.kind==="range"?<FiCalendar/>:<FiFilter/>}{chip.label}{!chip.locked&&<FiX/>}</motion.button>)}
-                </AnimatePresence>
-                {activeFilterCount>0&&<button onClick={clearFilters} className="ml-auto text-xs font-black text-rose-500 hover:underline">Tüm filtreleri temizle</button>}
-              </div>
-              <motion.div layout className="flex items-center gap-3 border-t border-slate-100 bg-sky-50/50 px-4 py-3 dark:border-white/5 dark:bg-sky-500/[.04]">
-                <motion.div key={filteredRows.length} initial={{scale:.7,opacity:0}} animate={{scale:1,opacity:1}} className="grid h-9 min-w-9 place-items-center rounded-xl bg-sky-600 px-2 text-sm font-black text-white">{filteredRows.length.toLocaleString("tr-TR")}</motion.div>
-                <div><div className="text-xs font-black text-slate-700 dark:text-slate-200">Bu filtrelerle {filteredRows.length.toLocaleString("tr-TR")} kayıt görüntülenecek</div><div className="text-[11px] font-medium text-slate-400">Filtreler değiştikçe sonuç ve diğer filtre seçenekleri canlı güncellenir.</div></div>
-              </motion.div>
-            </motion.section>
-
-
-            <AnimatePresence>
-              {analysisOpen && (
-                <motion.section initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} className="mb-4 grid gap-4 xl:grid-cols-[1.45fr_.8fr]">
-                  <div className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#111925]">
-                    <div className="mb-4 flex items-center justify-between"><div><h3 className="text-sm font-black text-slate-900 dark:text-white">Günlük Kargo Trendi</h3><p className="text-[11px] text-slate-400">Grafikte bir güne tıklayarak o güne odaklanabilirsiniz.</p></div><FiTrendingUp className="text-sky-500"/></div>
-                    <div className="h-64"><ResponsiveContainer width="100%" height="100%"><AreaChart data={dailyTrend} onClick={(e)=>{const d=e?.activePayload?.[0]?.payload?.date;if(d){setQuickSearch(formatDate(d));setPage(1);}}}><defs><linearGradient id="cargoArea" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#0ea5e9" stopOpacity={.35}/><stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" opacity={.15}/><XAxis dataKey="label" tick={{fontSize:10}} minTickGap={24}/><YAxis tick={{fontSize:10}}/><Tooltip/><Area type="monotone" dataKey="count" stroke="#0ea5e9" strokeWidth={3} fill="url(#cargoArea)" activeDot={{r:6}}/></AreaChart></ResponsiveContainer></div>
-                  </div>
-                  <div className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#111925]">
-                    <div className="mb-3 flex items-center justify-between"><div><h3 className="text-sm font-black text-slate-900 dark:text-white">Dikkat Gerektiren Kayıtlar</h3><p className="text-[11px] text-slate-400">Eksik ve sıra dışı dağılımlar.</p></div><FiAlertTriangle className="text-amber-500"/></div>
-                    <div className="space-y-2">{anomalies.length?anomalies.map((a,i)=><motion.button whileHover={{x:3}} key={i} onClick={()=>{if(a.value){handleSelect(a.field,[{value:a.value,label:a.value}])}else if(a.field==="irsaliye_adi"){setPresetName("Eksik Veri Kontrolü")}}} className="flex w-full items-center justify-between rounded-xl border border-slate-100 px-3 py-3 text-left transition hover:border-amber-200 hover:bg-amber-50/50 dark:border-white/5 dark:hover:bg-amber-500/5"><span className="text-xs font-bold text-slate-600 dark:text-slate-300">{a.type}</span><span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-black text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">{a.count}</span></motion.button>):<div className="rounded-xl bg-emerald-50 p-4 text-xs font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"><FiCheckCircle className="mb-2"/>Belirgin anomali bulunamadı.</div>}</div>
-                  </div>
-                </motion.section>
-              )}
-            </AnimatePresence>
-<section className="cargo-enter overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#111925]" style={{ animationDelay: ".14s" }}>
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm dark:border-white/10 dark:bg-[#111925]">
+              <span className="font-bold text-slate-700 dark:text-slate-200">Kargo kayıtları</span>
+              <span className="rounded-lg bg-sky-50 px-3 py-1.5 font-extrabold text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">{filteredRows.length.toLocaleString("tr-TR")} kayıt</span>
+            </div>
+            <section className="cargo-enter overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#111925]" style={{ animationDelay: ".14s" }}>
               <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 dark:border-white/10 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   <div className="relative min-w-0 flex-1 lg:max-w-xl">
@@ -1057,18 +978,14 @@ export default function TumKargoBilgileri() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button onClick={() => setFiltersOpen((v) => !v)} className={cx("inline-flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-sm font-extrabold transition hover:-translate-y-0.5", filtersOpen ? "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-400/20 dark:bg-sky-500/10 dark:text-sky-300" : "border-slate-200 text-slate-600 dark:border-white/10 dark:text-slate-300")}><FiSliders /> Filtreler {activeFilterCount > 0 && <span className="rounded-full bg-sky-600 px-1.5 py-0.5 text-[10px] text-white">{activeFilterCount}</span>}</button>
-                  <button onClick={() => setAnalysisOpen((v) => !v)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-extrabold text-slate-600 transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-sky-600 dark:border-white/10 dark:text-slate-300"><FiBarChart2 /> Analiz</button>
+
                   {activeFilterCount > 0 && <button onClick={clearFilters} className="inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-extrabold text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-500/10"><FiX /> Temizle</button>}
                 </div>
               </div>
 
               {filtersOpen && (
                 <div className="border-b border-slate-200 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-white/[.02]">
-                  <div className="mb-3 flex items-start gap-2 rounded-xl border border-sky-100 bg-white/80 px-3 py-2.5 text-xs font-semibold text-slate-500 shadow-sm dark:border-sky-400/10 dark:bg-white/[.03] dark:text-slate-400">
-                    <FiZap className="mt-0.5 shrink-0 text-sky-500" />
-                    <span><strong className="text-slate-700 dark:text-slate-200">Akıllı bağlı filtreler aktif.</strong> Bir alan seçtiğinizde diğer filtrelerin seçenekleri yalnızca o seçime uyan kayıtlardan yeniden hesaplanır. Parantez içindeki sayı, o seçeneğin mevcut filtrelerle kaç kaydı temsil ettiğini gösterir.</span>
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
                   <div>
                     <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-400"><FiFileText /> İrsaliye Adı</div>
                     <Select isMulti value={selectedIrsaliye} options={irsaliyeOptions} onChange={(v) => handleSelect("irsaliye_adi", v)} styles={selectStyles(isDark)} placeholder="İrsaliye adı seç…" noOptionsMessage={() => "Sonuç yok"} />
@@ -1081,6 +998,10 @@ export default function TumKargoBilgileri() {
                     <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-400"><FiSend /> Gönderen Firma</div>
                     <Select isMulti value={selectedGonderen} options={gonderenOptions} onChange={(v) => handleSelect("gonderen_firma", v)} styles={selectStyles(isDark)} placeholder="Gönderen firma seç…" noOptionsMessage={() => "Sonuç yok"} />
                   </div>
+                  <label>
+                    <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-400"><FiSearch /> Gönderi No</div>
+                    <input aria-label="Gönderi No filtresi" value={gonderiNo} onChange={(e) => setGonderiNo(e.target.value)} placeholder="Gönderi no içinde ara…" className="h-11 w-full rounded-[14px] border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-500/10 dark:border-white/10 dark:bg-[#111925] dark:text-slate-200" />
+                  </label>
                   <label>
                     <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-400"><FiSearch /> İrsaliye No</div>
                     <input value={irsaliyeNo} onChange={(e) => setIrsaliyeNo(e.target.value)} placeholder="İrsaliye no içinde ara…" className="h-11 w-full rounded-[14px] border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-500/10 dark:border-white/10 dark:bg-[#111925] dark:text-slate-200" />
@@ -1103,14 +1024,6 @@ export default function TumKargoBilgileri() {
                     <button onClick={() => setSuggestion(null)} className="rounded-xl px-3 py-2 text-xs font-black text-slate-500 transition hover:bg-white dark:hover:bg-white/5">Hayır</button>
                     <button onClick={addSuggestedVariants} className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-3.5 py-2 text-xs font-black text-white shadow-md transition hover:-translate-y-0.5 hover:bg-sky-700"><FiCheck /> Filtreye Ekle</button>
                   </div>
-                </div>
-              )}
-
-              {analysisOpen && (
-                <div className="grid gap-3 border-b border-slate-200 p-4 dark:border-white/10 lg:grid-cols-3">
-                  <Distribution title="Kargo Firmaları" icon={FiTruck} items={topCargo} total={filteredRows.length} />
-                  <Distribution title="Gönderen Firmalar" icon={FiUsers} items={topSender} total={filteredRows.length} />
-                  <Distribution title="İrsaliye Adları" icon={FiFileText} items={topInvoice} total={filteredRows.length} />
                 </div>
               )}
 
