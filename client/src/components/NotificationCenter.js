@@ -34,9 +34,9 @@ export default function NotificationCenter({ open, onClose, onNavigate, onOpenTi
 
   useEffect(() => { if (open) { setFilter("all"); load(); } }, [open]);
   useEffect(() => {
-    const refresh = () => open && load();
+    const refresh = () => open && !document.hidden && load();
     window.addEventListener("ticket:changed", refresh);
-    const timer = window.setInterval(refresh, 15000);
+    const timer = window.setInterval(refresh, 60000);
     return () => { window.removeEventListener("ticket:changed", refresh); window.clearInterval(timer); };
   }, [open]);
 

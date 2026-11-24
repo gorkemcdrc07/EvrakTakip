@@ -142,7 +142,7 @@ export default function Login() {
             navigate("/anasayfa");
         } catch (err) {
             console.error(err);
-            setMesaj("Bağlantı sırasında bir sorun oluştu. Lütfen tekrar deneyin.");
+            setMesaj(/restricted|exceed|payment required|402/i.test(String(err?.message || "")) ? "Veritabanı kullanım kotası nedeniyle geçici olarak erişime kapalı. Yöneticinizle iletişime geçin." : "Bağlantı sırasında bir sorun oluştu. Lütfen tekrar deneyin.");
             setShake(true);
             window.setTimeout(() => setShake(false), 520);
         } finally {

@@ -120,7 +120,7 @@ export async function fetchNotifications() {
   const u = currentUser();
   const now = new Date().toISOString();
 
-  await syncAutomaticTasks();
+  try { await syncAutomaticTasks(); } catch (error) { console.warn("Otomatik görev senkronizasyonu başarısız:", error?.message); }
 
   const [access, preferences, notesResult, readsResult, announcementsResult, ticketsResult, tasksResult] = await Promise.all([
     fetchUserAccess(u.username),
@@ -258,20 +258,30 @@ export async function createAnnouncement(payload) {
   const u=currentUser(); const {error}=await supabase.from("app_announcements").insert([{...payload,created_by:u.username}]); if(error) throw error;
   await logAudit("Duyuru yayınladı","announcement","",null,payload,"/yonetim-paneli");
 }
+let automaticTaskFlight = null;
+let automaticTaskLastSuccess = 0;
 export async function syncAutomaticTasks() {
+  if (!currentUser().username) return;
+  if (automaticTaskFlight) return automaticTaskFlight;
+  if (Date.now() - automaticTaskLastSuccess < 300000) return;
+  automaticTaskFlight = runAutomaticTaskSync().then(() => { automaticTaskLastSuccess = Date.now(); }).finally(() => { automaticTaskFlight = null; });
+  return automaticTaskFlight;
+}
+async function runAutomaticTaskSync() {
   const u=currentUser(); if(!u.username) return;
   const sevenAgo=addDays(-7), tomorrow=addDays(1);
-  const [{data:pending},{data:due}] = await Promise.all([
+  const [{data:pending,error:pendingError},{data:due,error:dueError}] = await Promise.all([
     supabase.from("hedef_kargo").select("id,tarih,gonderici,tedarikci,beklenen_teslim_tarihi").is("teslim_tarihi",null).or(`tarih.lte.${sevenAgo},beklenen_teslim_tarihi.lte.${todayKey()}`).limit(250),
     supabase.from("tahakkuk").select("id,tedarikci_firma,odeme_gunu,durum").eq("odeme_gunu",tomorrow).limit(250)
   ]);
+  if (pendingError || dueError) throw pendingError || dueError;
   const tasks=[];
   (pending||[]).forEach(x=>{const planned=x.beklenen_teslim_tarihi;const dueToday=planned===todayKey();tasks.push({task_key:`hedef-${x.id}-${planned||"7d"}`,title:dueToday?"Bugün teslim edilmesi gereken kargo":"Geciken Hedef Kargo kontrolü",description:`${x.gonderici||x.tedarikci||"Kargo"} • ${planned?`beklenen teslim ${planned}`:"7+ gündür teslim edilmedi"}`,source_type:"hedef_kargo",source_id:String(x.id),action_path:"/hedef-kargo",priority:"high",due_date:planned||todayKey()})});
   (due||[]).filter(x=>String(x.durum||"").toLowerCase()!=="odendi").forEach(x=>tasks.push({task_key:`tahakkuk-${x.id}-${x.odeme_gunu}`,title:"Tahakkuk ödeme kontrolü",description:`${x.tedarikci_firma||"Firma"} • ödeme tarihi yarın`,source_type:"tahakkuk",source_id:String(x.id),action_path:"/tahakkuk",priority:"high",due_date:x.odeme_gunu}));
-  if(tasks.length) await supabase.from("app_tasks").upsert(tasks,{onConflict:"task_key",ignoreDuplicates:true});
+  if(tasks.length) { const {error} = await supabase.from("app_tasks").upsert(tasks,{onConflict:"task_key",ignoreDuplicates:true}); if(error) throw error; }
 }
 export async function fetchTasks() {
-  await syncAutomaticTasks();
+  try { await syncAutomaticTasks(); } catch (error) { console.warn("Otomatik görev senkronizasyonu başarısız:", error?.message); }
   const u=currentUser();
   const [access,{data,error}] = await Promise.all([
     fetchUserAccess(u.username),

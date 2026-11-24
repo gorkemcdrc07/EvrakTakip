@@ -49,7 +49,10 @@ export default function TopTabs({ onMenuClick }) {
         if (!ticketAdmin) return undefined;
 
         let alive = true;
+        let busy = false;
         const refreshTickets = async () => {
+            if (!alive || busy || document.hidden) return;
+            busy = true;
             try {
                 const count = await fetchNewTicketCount();
                 if (alive) {
@@ -62,11 +65,11 @@ export default function TopTabs({ onMenuClick }) {
                 }
             } catch (error) {
                 console.warn("Ticket bildirimi alınamadı", error);
-            }
+            } finally { busy = false; }
         };
 
         refreshTickets();
-        const timer = window.setInterval(refreshTickets, 20000);
+        const timer = window.setInterval(refreshTickets, 60000);
         const channel = supabase
             .channel("ticket-navbar-notifications")
             .on("postgres_changes", { event: "*", schema: "public", table: "support_tickets" }, refreshTickets)
@@ -87,7 +90,11 @@ export default function TopTabs({ onMenuClick }) {
         if (!username) return undefined;
 
         let alive = true;
+        let polling = false;
         const pollUserTicketNotifications = async (showToast = true) => {
+            if (!alive || polling || document.hidden) return;
+            polling = true;
+            try {
             const { data, error } = await supabase
                 .from("app_notifications")
                 .select("id,title,message,created_at,action_path,target_username,type,source_type")
@@ -107,27 +114,33 @@ export default function TopTabs({ onMenuClick }) {
                 setUserTicketToast({ title: latest.title || "Ticket güncellendi", message: latest.message || "Ticket için yeni bir gelişme var." });
                 window.setTimeout(() => setUserTicketToast(null), 5500);
             }
-            window.dispatchEvent(new CustomEvent("ticket:changed", { detail: latest }));
+            if (previous && previous !== latest.id) {
+                window.dispatchEvent(new CustomEvent("ticket:changed", { detail: latest }));
+            }
+            } finally { polling = false; }
         };
 
         // İlk yüklemede mevcut son kaydı referans al; eski bildirim için toast gösterme.
         pollUserTicketNotifications(false);
-        const timer = window.setInterval(() => pollUserTicketNotifications(true), 3000);
+        const timer = window.setInterval(() => pollUserTicketNotifications(true), 30000);
         return () => { alive = false; window.clearInterval(timer); };
     }, [ticketAdmin]);
 
     useEffect(() => {
         let alive = true;
+        let refreshing = false;
         const refreshNotifications = async () => {
+            if (!alive || refreshing || document.hidden) return;
+            refreshing = true;
             try {
                 const rows = await fetchNotifications();
                 if (alive) setUnreadNotifications(rows.filter((item) => !item.read).length);
-            } catch (_) {}
+            } catch (_) {} finally { refreshing = false; }
         };
         refreshNotifications();
         touchActivity("heartbeat");
-        const notifyTimer = window.setInterval(refreshNotifications, 5000);
-        const activityTimer = window.setInterval(() => touchActivity("heartbeat"), 60000);
+        const notifyTimer = window.setInterval(refreshNotifications, 60000);
+        const activityTimer = window.setInterval(() => { if (!document.hidden) touchActivity("heartbeat"); }, 300000);
         window.addEventListener("notifications:preferences-changed", refreshNotifications);
         window.addEventListener("ticket:changed", refreshNotifications);
         return () => {

@@ -44,6 +44,7 @@ export function PermissionProvider({ children }) {
     }, [username]);
 
     useEffect(() => {
+        if (!username || localStorage.getItem("auth") !== "true") { setLoading(false); return; }
         refresh();
         window.addEventListener("permissions:changed", refresh);
 
